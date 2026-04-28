@@ -1,0 +1,187 @@
+/* ═══════════════════════════════════
+   CONTACT PAGE
+   ═══════════════════════════════════ */
+
+.cp-page { min-height: 100vh; background: #FBF4F8; }
+
+/* Body - two columns side by side */
+.cp-body {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 56px 24px 72px;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 48px;
+  align-items: start;
+}
+
+/* Left column */
+.cp-left-col {}
+
+.cp-eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #B07898;
+  margin: 0 0 10px;
+}
+.cp-left-col h1 {
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-weight: 900;
+  color: #3A2442;
+  margin: 0 0 14px;
+}
+.cp-intro-sub {
+  font-size: 0.92rem;
+  color: #7B5B70;
+  line-height: 1.7;
+  margin: 0 0 36px;
+}
+
+/* Info list */
+.cp-info-list { display: flex; flex-direction: column; gap: 20px; }
+
+.cp-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.cp-info-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.cp-info-dot--purple { background: #5E3A6B; }
+.cp-info-dot--green  { background: #25D366; }
+.cp-info-dot--gold   { background: #C8960C; }
+
+.cp-info-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #A68E9B;
+  margin-bottom: 2px;
+}
+.cp-info-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #3A2442;
+  text-decoration: none;
+  display: block;
+}
+a.cp-info-value:hover { color: #5E3A6B; }
+
+/* Form column */
+.cp-form-col {
+  background: white;
+  border-radius: 20px;
+  padding: 36px;
+  box-shadow: 0 2px 20px rgba(94,58,107,0.08);
+}
+
+.cp-form-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #3A2442;
+  margin: 0 0 22px;
+}
+
+.cp-form { display: flex; flex-direction: column; gap: 14px; }
+
+.cp-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.cp-field { display: flex; flex-direction: column; gap: 5px; }
+
+.cp-field label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #7B5B70;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.cp-field input,
+.cp-field textarea {
+  border: 1.5px solid #EDD5E3;
+  border-radius: 10px;
+  padding: 10px 13px;
+  font-size: 0.9rem;
+  color: #3A2442;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  resize: vertical;
+}
+.cp-field input:focus,
+.cp-field textarea:focus {
+  border-color: #B07898;
+  box-shadow: 0 0 0 3px rgba(176,120,152,0.12);
+}
+
+.cp-req { color: #C0392B; }
+.cp-field-err { font-size: 0.73rem; color: #C0392B; font-weight: 600; }
+
+.cp-submit-err {
+  background: #FFF0F0;
+  border: 1px solid #FFCCCC;
+  border-radius: 8px;
+  padding: 9px 13px;
+  font-size: 0.8rem;
+  color: #C0392B;
+}
+
+.cp-submit-btn {
+  background: linear-gradient(135deg, #5E3A6B, #B07898);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 13px;
+  font-size: 0.93rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.2s, transform 0.15s;
+  margin-top: 4px;
+}
+.cp-submit-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+.cp-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Success state */
+.cp-success {
+  text-align: center;
+  padding: 40px 20px;
+}
+.cp-success-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 18px;
+  display: block;
+}
+.cp-success h2 { font-size: 1.4rem; font-weight: 800; color: #3A2442; margin: 0 0 10px; }
+.cp-success p  { color: #7B5B70; line-height: 1.6; margin: 0 0 22px; }
+
+.cp-reset-btn {
+  background: #F8EEF4;
+  border: 1.5px solid #B07898;
+  border-radius: 10px;
+  padding: 10px 22px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #5E3A6B;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Responsive */
+@media (max-width: 720px) {
+  .cp-body { grid-template-columns: 1fr; padding: 36px 20px 56px; }
+  .cp-form-row { grid-template-columns: 1fr; }
+  .cp-form-col { padding: 24px; }
+}

@@ -1,0 +1,204 @@
+/* ═══════════════════════════════════
+   PARTNER PAGE
+   ═══════════════════════════════════ */
+
+.pp-page { min-height: 100vh; background: #FBF4F8; }
+
+.pp-hero {
+  background: linear-gradient(135deg, #3A2442 0%, #5E3A6B 60%, #B07898 100%);
+  padding: 72px 24px 56px;
+  text-align: center;
+  color: white;
+}
+.pp-eyebrow {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.7);
+  margin: 0 0 12px;
+}
+.pp-hero h1 {
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  font-weight: 900;
+  margin: 0 0 16px;
+  color: white;
+}
+.pp-hero-sub {
+  font-size: 1.05rem;
+  color: rgba(255,255,255,0.85);
+  max-width: 580px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Why section */
+.pp-why {
+  background: white;
+  padding: 64px 24px;
+}
+.pp-why-inner { max-width: 960px; margin: 0 auto; }
+
+.pp-why-title {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 800;
+  color: #3A2442;
+  text-align: center;
+  margin: 0 0 40px;
+}
+
+.pp-benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 28px;
+}
+
+.pp-benefit {
+  padding: 28px 24px;
+  border-radius: 16px;
+  background: #FBF4F8;
+  border: 1px solid #EDD5E3;
+}
+.pp-benefit-icon {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.pp-benefit h3 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #3A2442;
+  margin: 0 0 8px;
+}
+.pp-benefit p {
+  font-size: 0.88rem;
+  color: #7B5B70;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Form body */
+.pp-body {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 24px;
+}
+
+.pp-form-wrap {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 2px 20px rgba(94,58,107,0.1);
+}
+
+.pp-form-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #3A2442;
+  margin: 0 0 6px;
+}
+.pp-form-sub {
+  font-size: 0.9rem;
+  color: #7B5B70;
+  margin: 0 0 28px;
+}
+
+.pp-form { display: flex; flex-direction: column; gap: 16px; }
+.pp-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.pp-field { display: flex; flex-direction: column; gap: 6px; }
+.pp-field label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #7B5B70;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.pp-field input,
+.pp-field select,
+.pp-field textarea {
+  border: 1.5px solid #EDD5E3;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 0.92rem;
+  color: #3A2442;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  resize: vertical;
+  background: white;
+}
+.pp-field input:focus,
+.pp-field select:focus,
+.pp-field textarea:focus {
+  border-color: #B07898;
+  box-shadow: 0 0 0 3px rgba(176,120,152,0.12);
+}
+
+.pp-req { color: #C0392B; }
+.pp-opt { color: #A68E9B; font-weight: 400; font-size: 0.75rem; }
+.pp-field-err { font-size: 0.75rem; color: #C0392B; font-weight: 600; }
+
+.pp-submit-err {
+  background: #FFF0F0;
+  border: 1px solid #FFCCCC;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  color: #C0392B;
+}
+
+.pp-submit-btn {
+  background: linear-gradient(135deg, #5E3A6B, #B07898);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.2s, transform 0.15s;
+  margin-top: 4px;
+}
+.pp-submit-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+.pp-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Success */
+.pp-success {
+  background: white;
+  border-radius: 20px;
+  padding: 56px 40px;
+  text-align: center;
+  box-shadow: 0 2px 20px rgba(94,58,107,0.1);
+}
+.pp-success-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  display: block;
+}
+.pp-success h2 { font-size: 1.5rem; font-weight: 800; color: #3A2442; margin: 0 0 12px; }
+.pp-success p  { color: #7B5B70; line-height: 1.6; margin: 0 0 24px; }
+.pp-reset-btn {
+  background: #F8EEF4;
+  border: 1.5px solid #B07898;
+  border-radius: 10px;
+  padding: 11px 24px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #5E3A6B;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+@media (max-width: 640px) {
+  .pp-form-row { grid-template-columns: 1fr; }
+  .pp-form-wrap { padding: 24px; }
+}
