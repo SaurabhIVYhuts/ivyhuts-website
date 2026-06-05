@@ -160,7 +160,7 @@ function Home() {
         <div className="hero-content">
           <div className="hero-text">
             <p className="hero-tagline">A Venture By IIM Alums</p>
-            <h1>We show you 14 rooms in person</h1>
+            <h1>From housing to hiring - we've got you covered, globally</h1>
             <ul className="hero-pointers">
               <li>Data driven: best rooms for your budget</li>
               <li>IIM community events</li>

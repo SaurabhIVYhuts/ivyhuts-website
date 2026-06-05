@@ -16,6 +16,13 @@ const COUNTRIES = [
 
 const VIDEO_PLACEHOLDERS = [
   {
+    country: "Australia",
+    flag: "🇦🇺",
+    title: "Melbourne Chapter: Life as an International Student",
+    topic: "Student Life",
+    youtubeId: "lWL84vkSzbw",
+  },
+  {
     country: "UK",
     flag: "🇬🇧",
     title: "Finding Student Accommodation in London on a Budget",
@@ -133,17 +140,31 @@ function LifeAbroadPage() {
         <div className="la-grid">
           {filtered.map((video, i) => (
             <div key={i} className="la-video-card">
-              <div className="la-thumbnail" style={{ background: video.gradient }}>
-                <div className="la-play-btn">▶</div>
-                <div className="la-coming-soon">Coming Soon</div>
-              </div>
+              {video.youtubeId ? (
+                <div className="la-thumbnail la-thumbnail-embed">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    src={`https://www.youtube.com/embed/${video.youtubeId}`}
+                    title={video.title}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <div className="la-thumbnail" style={{ background: video.gradient }}>
+                  <div className="la-play-btn">▶</div>
+                  <div className="la-coming-soon">Coming Soon</div>
+                </div>
+              )}
               <div className="la-card-body">
                 <div className="la-card-meta">
                   <span className="la-card-flag">{video.flag}</span>
                   <span className="la-card-topic">{video.topic}</span>
                 </div>
                 <h3 className="la-card-title">{video.title}</h3>
-                <span className="la-card-duration">{video.duration}</span>
+                {video.duration && <span className="la-card-duration">{video.duration}</span>}
               </div>
             </div>
           ))}

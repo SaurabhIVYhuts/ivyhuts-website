@@ -134,6 +134,17 @@
   align-items: center;
   justify-content: center;
 }
+.la-thumbnail-embed {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 12px 12px 0 0;
+}
+.la-thumbnail-embed iframe {
+  display: block;
+  width: 100%;
+  height: 180px;
+  border: none;
+}
 .la-play-btn {
   width: 52px;
   height: 52px;

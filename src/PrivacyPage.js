@@ -16,7 +16,7 @@ export default function PrivacyPage() {
       <div className="legal-body">
         <section className="legal-section">
           <h2>1. Who We Are</h2>
-          <p>IvyHuts is a student accommodation platform. When you use our website or submit any form, you are sharing information with IvyHuts. Our contact email is <a href="mailto:ivy.huts.11@gmail.com">ivy.huts.11@gmail.com</a>.</p>
+          <p>IvyHuts is a student accommodation platform. When you use our website or submit any form, you are sharing information with IvyHuts. Our contact email is <a href="mailto:saurabh@ivyhuts.com">saurabh@ivyhuts.com</a>.</p>
         </section>
 
         <section className="legal-section">
@@ -56,7 +56,7 @@ export default function PrivacyPage() {
 
         <section className="legal-section">
           <h2>6. Your Rights</h2>
-          <p>You have the right to request access to, correction of, or deletion of your personal data at any time. To exercise these rights, please contact us at <a href="mailto:ivy.huts.11@gmail.com">ivy.huts.11@gmail.com</a>. We will respond within 30 days.</p>
+          <p>You have the right to request access to, correction of, or deletion of your personal data at any time. To exercise these rights, please contact us at <a href="mailto:saurabh@ivyhuts.com">saurabh@ivyhuts.com</a>. We will respond within 30 days.</p>
         </section>
 
         <section className="legal-section">
@@ -71,7 +71,7 @@ export default function PrivacyPage() {
 
         <section className="legal-section">
           <h2>9. Contact Us</h2>
-          <p>If you have any questions about how we handle your data, please email us at <a href="mailto:ivy.huts.11@gmail.com">ivy.huts.11@gmail.com</a>.</p>
+          <p>If you have any questions about how we handle your data, please email us at <a href="mailto:saurabh@ivyhuts.com">saurabh@ivyhuts.com</a>.</p>
         </section>
       </div></main>
 

@@ -58,7 +58,7 @@ export default function TermsPage() {
 
         <section className="legal-section">
           <h2>9. Contact</h2>
-          <p>If you have any questions about these terms, please contact us at <a href="mailto:ivy.huts.11@gmail.com">ivy.huts.11@gmail.com</a>.</p>
+          <p>If you have any questions about these terms, please contact us at <a href="mailto:saurabh@ivyhuts.com">saurabh@ivyhuts.com</a>.</p>
         </section>
       </div></main>
 

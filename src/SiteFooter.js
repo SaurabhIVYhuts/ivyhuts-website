@@ -39,7 +39,7 @@ export default function SiteFooter() {
         </div>
         <div className="footer-links">
           <h4>Get in Touch</h4>
-          <span>ivy.huts.11@gmail.com</span>
+          <span>saurabh@ivyhuts.com</span>
           <span>WhatsApp: +91 884 772 5089</span>
           <Link to="/find-rooms">Find Accommodation</Link>
         </div>

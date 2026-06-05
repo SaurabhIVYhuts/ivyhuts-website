@@ -72,7 +72,7 @@ export default function ContactPage() {
               <div className="cp-info-dot cp-info-dot--purple" />
               <div>
                 <div className="cp-info-label">Email</div>
-                <a href="mailto:ivy.huts.11@gmail.com" className="cp-info-value">ivy.huts.11@gmail.com</a>
+                <a href="mailto:saurabh@ivyhuts.com" className="cp-info-value">saurabh@ivyhuts.com</a>
               </div>
             </div>
             <div className="cp-info-item">
