@@ -16,6 +16,13 @@ const COUNTRIES = [
 
 const VIDEO_PLACEHOLDERS = [
   {
+    country: "Australia",
+    flag: "🇦🇺",
+    title: "The Melbourne Chapter",
+    topic: "Student Life",
+    youtubeId: "lWL84vkSzbw",
+  },
+  {
     country: "UK",
     flag: "🇬🇧",
     title: "Finding Student Accommodation in London on a Budget",
