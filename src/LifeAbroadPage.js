@@ -25,6 +25,13 @@ const VIDEO_PLACEHOLDERS = [
   {
     country: "UK",
     flag: "🇬🇧",
+    title: "The UK Chapter",
+    topic: "Student Life",
+    youtubeId: "_hl0-JuFKNY",
+  },
+  {
+    country: "UK",
+    flag: "🇬🇧",
     title: "Finding Student Accommodation in London on a Budget",
     topic: "Housing Tips",
     duration: "Coming Soon",
