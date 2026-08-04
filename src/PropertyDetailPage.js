@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import "./PropertyDetailPage.css";
-import { PROPERTIES, PROPERTY_DETAILS } from "./data/accommodations";
+import { PROPERTIES, PROPERTY_DETAILS } from "./data/accommodations.backup";
 import SiteFooter from "./SiteFooter";
 import SiteNavbar from "./SiteNavbar";
 

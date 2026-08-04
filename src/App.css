@@ -333,6 +333,326 @@ a { text-decoration: none; }
   position: relative;
 }
 
+/* ── DISCOVERY SECTIONS ── */
+.discovery-section {
+  padding: 28px 24px 48px;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.section-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.section-copy {
+  max-width: 760px;
+  color: #6B4E5E;
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+
+.discovery-grid,
+.city-grid,
+.property-grid,
+.university-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.discovery-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.city-grid {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.property-grid {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.university-grid {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.country-card,
+.city-card,
+.property-card,
+.university-card {
+  background: #fff;
+  border: 1px solid rgba(94, 58, 107, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 10px 28px rgba(58, 36, 66, 0.06);
+  transition: transform 0.24s ease, box-shadow 0.24s ease;
+}
+
+.country-card:hover,
+.city-card:hover,
+.property-card:hover,
+.university-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 38px rgba(58, 36, 66, 0.12);
+}
+
+.country-card {
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.country-card-flag,
+.university-logo {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(94,58,107,0.12), rgba(176,120,152,0.2));
+  font-size: 1.45rem;
+  flex-shrink: 0;
+}
+
+.country-card-content h3,
+.city-card-body h3,
+.property-card-heading h3,
+.university-info h3 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  color: #3A2442;
+}
+
+.country-card-content p,
+.city-card-body p,
+.property-card-body p,
+.university-info p,
+.city-card-meta,
+.property-card-meta {
+  margin: 0;
+  color: #6B4E5E;
+  font-size: 0.92rem;
+}
+
+.country-card-link,
+.property-card-link,
+.university-card-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: #5E3A6B;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.city-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: inherit;
+  min-height: 100%;
+  border-radius: 22px;
+}
+
+.city-card-body {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.city-card-image {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+}
+
+.city-card-image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.16) 60%, rgba(0,0,0,0.28) 100%);
+  pointer-events: none;
+}
+
+.city-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s ease;
+}
+
+.city-card:hover .city-card-image img {
+  transform: scale(1.05);
+}
+
+.city-card-flag {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,0.9);
+  font-size: 1.15rem;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+
+.city-card-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.city-card-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.city-card-chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #F8EEF4;
+  font-size: 0.9rem;
+}
+
+.city-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 700;
+  color: #5E3A6B;
+}
+
+.city-card-description {
+  margin: 0;
+  color: #6B4E5E;
+  line-height: 1.7;
+  flex: 1;
+}
+
+.city-card-meta,
+.property-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+  color: #5E3A6B;
+}
+
+.city-card-description {
+  margin: 0;
+  color: #6B4E5E;
+  line-height: 1.6;
+}
+
+.property-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.property-card-image {
+  aspect-ratio: 16 / 10;
+}
+
+.property-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.property-card-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.property-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.property-card-rating {
+  color: #C8960C;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.university-card {
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.university-info {
+  flex: 1;
+}
+
+.university-info span {
+  display: inline-block;
+  margin-top: 6px;
+  color: #5E3A6B;
+  font-weight: 700;
+}
+
+@media (min-width: 768px) {
+  .discovery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .city-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .property-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .university-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .discovery-section {
+    padding: 36px 32px 64px;
+  }
+
+  .city-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .property-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .university-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* ── PURPLE CONTENT BOX (centered) ── */
 .hero-purple-box {
   max-width: 860px;

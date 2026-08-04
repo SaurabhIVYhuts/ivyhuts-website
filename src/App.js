@@ -3,7 +3,12 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react
 import "./App.css";
 import SiteFooter from "./SiteFooter";
 import SiteNavbar from "./SiteNavbar";
-import { ROOM_TYPES } from "./data/accommodations";
+import { ROOM_TYPES } from "./data/accommodations.backup";
+import CityCard from "./components/CityCard";
+import PropertyCard from "./components/PropertyCard";
+import UniversityCard from "./components/UniversityCard";
+import PropertyListingPage from "./PropertyListingPage";
+
 
 const AccommodationFinderPage = lazy(() => import("./AccommodationFinderPage"));
 const PropertyDetailPage       = lazy(() => import("./PropertyDetailPage"));
@@ -32,6 +37,38 @@ function Home() {
   const hutsStopRef = useRef(null);
 
   const whyBoxRef = useRef(null);
+
+  const cities = [
+    { name: "London", country: "UK", flag: "🇬🇧", currency: "£", price: 285, properties: 48, description: "Iconic student districts, fast transport and a global community.", image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=900&q=80&auto=format&fit=crop" },
+    { name: "Manchester", country: "UK", flag: "🇬🇧", currency: "£", price: 190, properties: 36, description: "Vibrant city life, strong university network and great value.", image: "https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=900&q=80&auto=format&fit=crop" },
+    { name: "Birmingham", country: "UK", flag: "🇬🇧", currency: "£", price: 175, properties: 29, description: "A fast-growing student hub with excellent transport links.", image: "https://images.unsplash.com/photo-1500534623283-312aade485b7?w=900&q=80&auto=format&fit=crop" },
+    { name: "Coventry", country: "UK", flag: "🇬🇧", currency: "£", price: 165, properties: 24, description: "Budget-friendly living close to major universities.", image: "https://images.unsplash.com/photo-1494526585095-c41746248156?w=900&q=80&auto=format&fit=crop" },
+    { name: "Leeds", country: "UK", flag: "🇬🇧", currency: "£", price: 180, properties: 31, description: "Young energy, nightlife and great student facilities.", image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=900&q=80&auto=format&fit=crop" },
+    { name: "Liverpool", country: "UK", flag: "🇬🇧", currency: "£", price: 170, properties: 27, description: "A lively culture scene with affordable student homes.", image: "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=900&q=80&auto=format&fit=crop" },
+    { name: "Sheffield", country: "UK", flag: "🇬🇧", currency: "£", price: 160, properties: 21, description: "Beautiful green spaces and a welcoming student community.", image: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=900&q=80&auto=format&fit=crop" },
+    { name: "Glasgow", country: "UK", flag: "🇬🇧", currency: "£", price: 185, properties: 22, description: "Historic, stylish and packed with accommodation options.", image: "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=900&q=80&auto=format&fit=crop" },
+    { name: "Toronto", country: "Canada", flag: "🇨🇦", currency: "CA$", price: 550, properties: 34, description: "Modern city life with excellent campus access and transit.", image: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=900&q=80&auto=format&fit=crop" },
+    { name: "Vancouver", country: "Canada", flag: "🇨🇦", currency: "CA$", price: 620, properties: 28, description: "Scenic surroundings and premium student neighbourhoods.", image: "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=900&q=80&auto=format&fit=crop" },
+    { name: "Sydney", country: "Australia", flag: "🇦🇺", currency: "A$", price: 450, properties: 32, description: "Beachside living with flexible housing options for students.", image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=900&q=80&auto=format&fit=crop" },
+    { name: "Melbourne", country: "Australia", flag: "🇦🇺", currency: "A$", price: 420, properties: 30, description: "A creative, culture-rich city with great student support.", image: "https://images.unsplash.com/photo-1500375592092-40eb2168fd21?w=900&q=80&auto=format&fit=crop" },
+  ];
+
+  const featuredProperties = [
+    { name: "The Grand Residences", city: "Manchester", currency: "£", price: 210, roomType: "En-suite", rating: 4.8, image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=900&q=80&auto=format&fit=crop" },
+    { name: "City Nest Apartments", city: "London", currency: "£", price: 320, roomType: "Studio", rating: 4.9, image: "https://images.unsplash.com/photo-1494526585095-c41746248156?w=900&q=80&auto=format&fit=crop" },
+    { name: "Harbour Point", city: "Sydney", currency: "A$", price: 460, roomType: "Shared", rating: 4.7, image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900&q=80&auto=format&fit=crop" },
+  ];
+
+  const universities = [
+    { name: "University of Manchester", city: "Manchester", currency: "£", rent: 195, logo: "UoM" },
+    { name: "University of Birmingham", city: "Birmingham", currency: "£", rent: 170, logo: "UoB" },
+    { name: "University of Leeds", city: "Leeds", currency: "£", rent: 180, logo: "UoL" },
+    { name: "Coventry University", city: "Coventry", currency: "£", rent: 165, logo: "CU" },
+    { name: "University of Liverpool", city: "Liverpool", currency: "£", rent: 175, logo: "UoL" },
+    { name: "King's College London", city: "London", currency: "£", rent: 310, logo: "KCL" },
+    { name: "University College London", city: "London", currency: "£", rent: 330, logo: "UCL" },
+    { name: "Imperial College London", city: "London", currency: "£", rent: 350, logo: "IC" },
+  ];
 
   const handleWhyScroll = (e) => {
     const el = e.currentTarget;
@@ -292,42 +329,22 @@ function Home() {
       </section>
 
       {/* POPULAR CITIES */}
-      <section className="section cities-section">
-        <p className="section-eyebrow">Where We Operate</p>
-        <h2 className="section-title">Popular Student Cities</h2>
-        <div className="section-underline" />
-        <div className="cities-scroll-wrap">
-          <div className="cities-grid">
-            {[
-              { name: "London",    country: "UK",        flag: "🇬🇧", currency: "£",   avgPricePerWeek: 285 },
-              { name: "Manchester",country: "UK",        flag: "🇬🇧", currency: "£",   avgPricePerWeek: 190 },
-              { name: "Toronto",   country: "Canada",    flag: "🇨🇦", currency: "CA$", avgPricePerWeek: 550 },
-              { name: "Sydney",    country: "Australia", flag: "🇦🇺", currency: "A$",  avgPricePerWeek: 450 },
-              { name: "Melbourne", country: "Australia", flag: "🇦🇺", currency: "A$",  avgPricePerWeek: 420 },
-              { name: "New York",  country: "USA",       flag: "🇺🇸", currency: "$",   avgPricePerWeek: 510 },
-              { name: "Berlin",    country: "Germany",   flag: "🇩🇪", currency: "€",   avgPricePerWeek: 160 },
-              { name: "Paris",     country: "France",    flag: "🇫🇷", currency: "€",   avgPricePerWeek: 230 },
-            ].map((city) => (
-              <div
-                key={`${city.name}-${city.country}`}
-                className="city-card"
-              >
-                <div className="city-flag">{city.flag}</div>
-                <div className="city-info">
-                  <div className="city-name">{city.name}</div>
-                  <div className="city-country">{city.country}</div>
-                </div>
-                <div className="city-meta">
-                  <div className="city-price">from {city.currency}{city.avgPricePerWeek}/wk</div>
-                </div>
-              </div>
-            ))}
-          </div>
+      <section className="section discovery-section">
+        <div className="section-heading">
+          <p className="section-eyebrow">Popular Cities</p>
+          <h2 className="section-title">Popular Cities Across The Globe</h2>
+          <p className="section-copy">Book student accommodations near top cities and universities around the world.</p>
         </div>
-        <div className="cities-cta">
-          <Link to="/find-rooms" className="view-all-btn">Browse All Rooms →</Link>
+        <div className="city-grid">
+          {cities.map((city) => (
+            <CityCard key={`${city.name}-${city.country}`} city={city} />
+          ))}
         </div>
       </section>
+
+     
+
+
 
       {/* ROOM TYPES */}
       <section className="section roomtypes-section">
@@ -446,6 +463,7 @@ function Home() {
           </div>
         </div>
       </section>
+      
 
       {/* FAQ */}
       <section className="section faq-section">
@@ -521,6 +539,7 @@ function App() {
           <Route path="/partner"        element={<PartnerPage />} />
           <Route path="/terms"          element={<TermsPage />} />
           <Route path="/privacy"        element={<PrivacyPage />} />
+          <Route path="/properties" element={<PropertyListingPage />} />
         </Routes>
       </Suspense>
     </Router>
