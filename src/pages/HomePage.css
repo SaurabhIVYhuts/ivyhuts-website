@@ -1,0 +1,193 @@
+/* ═══════════════════════════════════════════════════════
+   IVYHUTS — HOMEPAGE DISCOVERY SECTIONS
+   New search / recent-activity / destination-explorer styles.
+   Reuses the global palette/typography — no new design language.
+   ═══════════════════════════════════════════════════════ */
+
+/* ── HERO SEARCH ── */
+.hero-search-form {
+  display: flex;
+  gap: 10px;
+  margin: 22px 0 18px;
+  max-width: 520px;
+}
+
+.hero-search-input-wrap {
+  position: relative;
+  flex: 1;
+}
+
+.hero-search-input {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: #3A2442;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 6px 18px rgba(58, 36, 66, 0.12);
+}
+
+.hero-search-input::placeholder { color: #A68E9B; }
+
+.hero-search-btn {
+  padding: 14px 22px;
+  border-radius: 12px;
+  border: none;
+  background: #5E3A6B;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.94rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hero-search-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(58, 36, 66, 0.28);
+}
+
+.hero-search-suggestions {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 14px 32px rgba(58, 36, 66, 0.18);
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  z-index: 40;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.hero-search-suggestions li button {
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: #3A2442;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hero-search-suggestions li button:hover,
+.hero-search-suggestions li button:focus-visible {
+  background: rgba(94, 58, 107, 0.08);
+}
+
+.hero-suggestion-flag { font-size: 1rem; }
+
+.hero-suggestion-country {
+  margin-left: auto;
+  font-size: 0.76rem;
+  color: #A68E9B;
+}
+
+/* ── PILL BUTTONS (recent searches, country/city selectors) ── */
+.pill-btn {
+  flex: 0 0 auto;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(94, 58, 107, 0.18);
+  background: #fff;
+  color: #5E3A6B;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.pill-btn:hover { border-color: #B07898; }
+
+.pill-btn.active {
+  background: #5E3A6B;
+  border-color: #5E3A6B;
+  color: #fff;
+}
+
+.pill-btn-sm {
+  padding: 7px 14px;
+  font-size: 0.82rem;
+}
+
+/* ── RECENT SEARCHES ── */
+.recent-searches-section { padding-top: 8px; padding-bottom: 8px; }
+
+.recent-searches-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.recent-searches-label {
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #A68E9B;
+  margin-right: 4px;
+}
+
+/* ── COMPACT DISCOVERY CARD ── */
+.chp-row {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x proximity;
+}
+
+/* .chp-card and friends moved to global.css — CompactPropertyCard is now
+   also used by the listings page's Grid view, not just the homepage. */
+
+.explore-empty {
+  color: #A68E9B;
+  font-size: 0.9rem;
+  padding: 20px 0;
+}
+
+/* ── EXPLORE BY COUNTRY / CITY ── */
+.explore-pill-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+}
+
+.explore-pill-row-cities { margin-bottom: 18px; }
+
+/* ── CITY CARD LOADING STATE ── */
+.city-card-meta-loading {
+  color: #A68E9B;
+  font-style: italic;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 639px) {
+  .hero-search-form {
+    flex-direction: column;
+    max-width: 100%;
+  }
+
+  .hero-search-btn { width: 100%; }
+
+  .chp-card, .chp-skeleton { flex-basis: 200px; }
+}

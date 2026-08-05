@@ -1,15 +1,39 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom"; // eslint-disable-line no-unused-vars
+import { Link, useSearchParams } from "react-router-dom"; // eslint-disable-line no-unused-vars
 import "./ContactPage.css";
-import SiteFooter from "./SiteFooter";
-import SiteNavbar from "./SiteNavbar";
+import SiteFooter from "../components/layout/SiteFooter";
+import SiteNavbar from "../components/layout/SiteNavbar";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 
 let lastSubmit = 0;
 
 export default function ContactPage() {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", subject: "", message: "" });
+  const [searchParams] = useSearchParams();
+  const inventoryId = searchParams.get("inventory");
+  const propertyName = searchParams.get("property");
+  const roomName = searchParams.get("roomName");
+  const tenancyDuration = searchParams.get("duration");
+  const tenancyMoveIn = searchParams.get("moveIn");
+  const tenancyMoveOut = searchParams.get("moveOut");
+  const tenancyPrice = searchParams.get("price");
+  const tenancyCurrency = searchParams.get("currency");
+  const roomId = searchParams.get("room");
+  const tenancyId = searchParams.get("tenancy");
+
+  const subjectDefault = roomName
+    ? `Enquiry: ${propertyName} — ${roomName}`
+    : propertyName
+      ? `Enquiry: ${propertyName}`
+      : "";
+
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    subject: subjectDefault,
+    message: "",
+  });
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState("idle");
   const [honeypot, setHoneypot] = useState("");
@@ -49,6 +73,15 @@ export default function ContactPage() {
           "Phone":     form.phone.trim(),
           "Subject":   form.subject.trim(),
           "Message":   form.message.trim(),
+          ...(inventoryId ? { "Property Inventory ID": inventoryId } : {}),
+          ...(propertyName ? { "Property Name": propertyName } : {}),
+          ...(roomId ? { "Room ID": roomId } : {}),
+          ...(roomName ? { "Room Name": roomName } : {}),
+          ...(tenancyId ? { "Tenancy ID": tenancyId } : {}),
+          ...(tenancyDuration ? { "Duration": tenancyDuration } : {}),
+          ...(tenancyMoveIn ? { "Move In": tenancyMoveIn } : {}),
+          ...(tenancyMoveOut ? { "Move Out": tenancyMoveOut } : {}),
+          ...(tenancyPrice ? { "Weekly Price": `${tenancyCurrency || ""}${tenancyPrice}` } : {}),
         }),
       });
     } catch (_) {}
@@ -65,6 +98,18 @@ export default function ContactPage() {
             <p className="cp-eyebrow">Get in Touch</p>
             <h1>Contact Us</h1>
             <p className="cp-intro-sub">Got a question, feedback, or just want to say hello? We'd love to hear from you. Our team usually responds within a few hours.</p>
+            {propertyName && (
+              <div className="cp-property-context">
+                Enquiring about <strong>{propertyName}</strong>
+                {roomName && <> — <strong>{roomName}</strong></>}
+                {(tenancyDuration || tenancyMoveIn) && (
+                  <span className="cp-property-context-sub">
+                    {[tenancyDuration, tenancyMoveIn ? `from ${tenancyMoveIn}` : null].filter(Boolean).join(" · ")}
+                    {tenancyPrice ? ` · ${tenancyCurrency || ""}${tenancyPrice}/week` : ""}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="cp-info-list">

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHuts! I'm looking for student accommodation abroad. Can you help?")}`;
 
@@ -12,7 +12,14 @@ const WA_SVG = (
 
 export default function SiteNavbar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+
+  // The homepage already has its own prominent hero search — the navbar search
+  // is for every other page, matching Amber's pattern of a persistent search
+  // that only steps aside for a dedicated hero.
+  const showSearch = pathname !== "/";
 
   const links = [
     { to: "/",               label: "Home" },
@@ -25,6 +32,31 @@ export default function SiteNavbar() {
 
   const close = () => setMenuOpen(false);
 
+  const submitSearch = (e) => {
+    e.preventDefault();
+    const clean = searchValue.trim();
+    if (!clean) return;
+    navigate(`/properties?city=${encodeURIComponent(clean)}`);
+  };
+
+  const searchForm = (className) => (
+    <form className={className} role="search" onSubmit={submitSearch}>
+      <input
+        type="text"
+        value={searchValue}
+        onChange={(e) => setSearchValue(e.target.value)}
+        placeholder="Search by city, university or property"
+        aria-label="Search by city, university or property"
+      />
+      <button type="submit" aria-label="Search">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="11" cy="11" r="7" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      </button>
+    </form>
+  );
+
   return (
     <>
       <nav className="navbar">
@@ -33,6 +65,8 @@ export default function SiteNavbar() {
             <span className="logo-ivy">IVY</span><span className="logo-huts">huts</span>
           </Link>
         </div>
+
+        {showSearch && searchForm("navbar-search-form navbar-search-desktop")}
 
         {/* Desktop nav */}
         <div className="nav-links">
@@ -58,6 +92,12 @@ export default function SiteNavbar() {
           </button>
         </div>
       </nav>
+
+      {showSearch && (
+        <div className="navbar-search-mobile-wrap">
+          {searchForm("navbar-search-form navbar-search-mobile")}
+        </div>
+      )}
 
       {/* Mobile dropdown */}
       {menuOpen && (

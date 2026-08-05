@@ -39,6 +39,28 @@
   margin: 0 0 36px;
 }
 
+.cp-property-context {
+  display: inline-block;
+  margin: -22px 0 28px;
+  padding: 8px 16px;
+  border-radius: 14px;
+  background: rgba(94, 58, 107, 0.08);
+  color: #5E3A6B;
+  font-size: 0.86rem;
+}
+
+.cp-property-context strong {
+  font-weight: 700;
+}
+
+.cp-property-context-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  color: #7B5B70;
+  font-weight: 500;
+}
+
 /* Info list */
 .cp-info-list { display: flex; flex-direction: column; gap: 20px; }
 

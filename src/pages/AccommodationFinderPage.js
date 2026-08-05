@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import "./AccommodationFinderPage.css";
-import SiteFooter from "./SiteFooter";
-import SiteNavbar from "./SiteNavbar";
+import SiteFooter from "../components/layout/SiteFooter";
+import SiteNavbar from "../components/layout/SiteNavbar";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 

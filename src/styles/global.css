@@ -183,6 +183,64 @@ a { text-decoration: none; }
   margin: 0 0 8px !important;
 }
 
+/* ── NAVBAR SEARCH ── */
+.navbar-search-form {
+  display: flex;
+  align-items: center;
+  background: #FBF4F8;
+  border: 1.5px solid rgba(94, 58, 107, 0.14);
+  border-radius: 999px;
+  padding: 4px 4px 4px 16px;
+}
+
+.navbar-search-form:focus-within {
+  border-color: #B07898;
+}
+
+.navbar-search-form input {
+  border: none;
+  outline: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: #3A2442;
+  width: 100%;
+}
+
+.navbar-search-form input::placeholder { color: #A68E9B; }
+
+.navbar-search-form button {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #5E3A6B;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.navbar-search-desktop {
+  flex: 1;
+  max-width: 420px;
+  margin: 0 20px;
+}
+
+.navbar-search-mobile-wrap {
+  display: none;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid rgba(240, 228, 235, 0.8);
+  position: sticky;
+  top: 68px;
+  z-index: 190;
+}
+
+.navbar-search-mobile { width: 100%; }
+
 .nav-links {
   display: flex;
   align-items: center;
@@ -596,6 +654,170 @@ a { text-decoration: none; }
   color: #C8960C;
   font-weight: 700;
   white-space: nowrap;
+}
+
+/* ── SHARED PROPERTY IMAGE GALLERY (used by listing cards + homepage compact cards) ── */
+.listing-card-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background: #f3ecf1;
+  flex-shrink: 0;
+}
+
+.listing-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.listing-card-image-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.listing-card-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(58, 36, 66, 0.78);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  z-index: 2;
+  letter-spacing: 0.2px;
+}
+
+.listing-gallery-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  color: #3A2442;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.listing-gallery-prev { left: 10px; }
+.listing-gallery-next { right: 10px; }
+
+.listing-gallery-dots {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5px;
+  z-index: 2;
+}
+
+.listing-gallery-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.listing-gallery-dot.active {
+  background: #fff;
+  width: 16px;
+  border-radius: 4px;
+}
+
+/* ── COMPACT DISCOVERY CARD (homepage rows + listings grid view) ── */
+.chp-card {
+  flex: 0 0 240px;
+  scroll-snap-align: start;
+  background: #fff;
+  border: 1px solid rgba(94, 58, 107, 0.1);
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 8px 20px rgba(58, 36, 66, 0.06);
+}
+
+.chp-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 30px rgba(58, 36, 66, 0.12);
+}
+
+.chp-card:focus-visible {
+  outline: 2px solid #B07898;
+  outline-offset: 2px;
+}
+
+.chp-card .listing-card-image {
+  aspect-ratio: 4 / 3;
+}
+
+.chp-body {
+  padding: 12px 14px;
+}
+
+.chp-title {
+  margin: 0 0 3px;
+  font-size: 0.92rem;
+  color: #3A2442;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chp-location {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: #6B4E5E;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chp-price {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #5E3A6B;
+}
+
+.chp-rating {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #C8960C;
+  white-space: nowrap;
+}
+
+.chp-skeleton {
+  flex: 0 0 240px;
+  height: 240px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, #f3ecf1 25%, #ece0e8 37%, #f3ecf1 63%);
+  background-size: 400% 100%;
+  animation: chp-shimmer 1.4s ease infinite;
+}
+
+@keyframes chp-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 
 .university-card {
@@ -2282,6 +2504,10 @@ a { text-decoration: none; }
   /* Show hamburger, hide desktop nav */
   .nav-links { display: none; }
   .nav-mobile-right { display: flex; }
+
+  /* Navbar search moves out of the navbar row and becomes a full-width bar underneath */
+  .navbar-search-desktop { display: none; }
+  .navbar-search-mobile-wrap { display: block; }
 
   /* Hero */
   .hero-purple-box { padding: 28px 20px 24px; }

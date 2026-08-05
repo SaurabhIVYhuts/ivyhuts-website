@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import "./LifeAbroadPage.css";
-import SiteFooter from "./SiteFooter";
-import SiteNavbar from "./SiteNavbar";
+import SiteFooter from "../components/layout/SiteFooter";
+import SiteNavbar from "../components/layout/SiteNavbar";
 
 const COUNTRIES = [
   { name: "All", flag: "🌍" },

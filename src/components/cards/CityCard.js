@@ -21,8 +21,12 @@ function CityCard({ city }) {
           <span className="city-card-chip">{city.flag}</span>
         </div>
         <div className="city-card-meta">
-          <span>Starting from {city.currency}{city.price}/week</span>
-          <span>{city.properties} properties</span>
+          {city.price != null && city.currency ? (
+            <span>Starting from {city.currency}{city.price}/week</span>
+          ) : (
+            <span className="city-card-meta-loading">Loading availability…</span>
+          )}
+          {city.properties != null && <span>{city.properties} properties</span>}
         </div>
         <p className="city-card-description">{city.description}</p>
       </div>

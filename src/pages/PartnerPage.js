@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom"; // eslint-disable-line no-unused-vars
 import "./PartnerPage.css";
-import SiteFooter from "./SiteFooter";
-import SiteNavbar from "./SiteNavbar";
+import SiteFooter from "../components/layout/SiteFooter";
+import SiteNavbar from "../components/layout/SiteNavbar";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 

@@ -1,7 +1,7 @@
 import React from "react";
 import "./LegalPage.css";
-import SiteNavbar from "./SiteNavbar";
-import SiteFooter from "./SiteFooter";
+import SiteNavbar from "../../components/layout/SiteNavbar";
+import SiteFooter from "../../components/layout/SiteFooter";
 
 export default function TermsPage() {
   return (

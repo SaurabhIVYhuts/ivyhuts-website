@@ -1,0 +1,619 @@
+/* ═══════════════════════════════════════════════════════
+   IVYHUTS — PROPERTY LISTINGS PAGE
+   Reuses the global palette/typography; no new design language.
+   ═══════════════════════════════════════════════════════ */
+
+.listings-page {
+  padding: 14px 20px 72px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.listings-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+/* ── FILTER TOOLBAR ── */
+.listings-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid rgba(94, 58, 107, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(58, 36, 66, 0.05);
+  margin-bottom: 14px;
+  position: sticky;
+  top: 78px;
+  z-index: 60;
+}
+
+.toolbar-search-input {
+  flex: 1 1 220px;
+  min-width: 160px;
+  padding: 9px 14px;
+  border-radius: 9px;
+  border: 1px solid rgba(94, 58, 107, 0.18);
+  font-family: inherit;
+  font-size: 0.86rem;
+  color: #3A2442;
+  background: #FBF4F8;
+}
+
+.toolbar-search-input:focus {
+  outline: none;
+  border-color: #B07898;
+}
+
+.toolbar-dropdown {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.toolbar-dropdown summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 9px 14px;
+  border-radius: 9px;
+  border: 1px solid rgba(94, 58, 107, 0.18);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #5E3A6B;
+  background: #fff;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.toolbar-dropdown summary::-webkit-details-marker { display: none; }
+.toolbar-dropdown summary::after { content: " ▾"; font-size: 0.7rem; }
+
+.toolbar-dropdown[open] summary {
+  border-color: #B07898;
+  background: rgba(176, 120, 152, 0.08);
+}
+
+.toolbar-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 260px;
+  background: #fff;
+  border: 1px solid rgba(94, 58, 107, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 16px 34px rgba(58, 36, 66, 0.16);
+  padding: 14px;
+  z-index: 70;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.toolbar-panel-group + .toolbar-panel-group {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(94, 58, 107, 0.08);
+}
+
+.toolbar-panel-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #3A2442;
+  margin-bottom: 8px;
+}
+
+.toolbar-panel-row {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar-panel-row input,
+.toolbar-panel-group select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(94, 58, 107, 0.18);
+  font-family: inherit;
+  font-size: 0.84rem;
+  color: #3A2442;
+  background: #FBF4F8;
+}
+
+.toolbar-amenity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.toolbar-amenity-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+  color: #3A2442;
+}
+
+.toolbar-panel-apply {
+  width: 100%;
+  margin-top: 14px;
+  padding: 9px;
+  border-radius: 8px;
+  border: none;
+  background: #5E3A6B;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toolbar-sort-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 6px;
+}
+
+.toolbar-sort-option {
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.84rem;
+  color: #3A2442;
+  cursor: pointer;
+}
+
+.toolbar-sort-option:hover { background: rgba(94, 58, 107, 0.06); }
+.toolbar-sort-option.active { color: #5E3A6B; font-weight: 700; }
+
+.toolbar-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 9px;
+  border: 1px solid rgba(94, 58, 107, 0.18);
+  font-size: 0.84rem;
+  color: #3A2442;
+  white-space: nowrap;
+}
+
+.toolbar-clear-btn {
+  background: none;
+  border: none;
+  color: #B07898;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: inherit;
+  white-space: nowrap;
+  padding: 9px 4px;
+}
+
+/* ── BREADCRUMB ── */
+.listings-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #6B4E5E;
+  margin-bottom: 8px;
+}
+
+.listings-breadcrumb a { color: #6B4E5E; }
+.listings-breadcrumb a:hover { color: #5E3A6B; }
+.listings-breadcrumb [aria-current="page"] { color: #3A2442; font-weight: 600; }
+
+/* ── TITLE / COUNT / DESCRIPTION / VIEW TOGGLE ── */
+.listings-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.listings-title-col h1 {
+  font-size: 1.35rem;
+  color: #3A2442;
+  font-weight: 700;
+}
+
+.listings-count {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #6B4E5E;
+}
+
+.listings-city-desc {
+  margin: 6px 0 0;
+  font-size: 0.86rem;
+  color: #6B4E5E;
+  max-width: 620px;
+}
+
+.listings-city-desc.clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.listings-desc-toggle {
+  background: none;
+  border: none;
+  color: #B07898;
+  font-weight: 600;
+  font-size: 0.84rem;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.view-toggle {
+  flex-shrink: 0;
+  display: flex;
+  border: 1px solid rgba(94, 58, 107, 0.18);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.view-toggle button {
+  padding: 8px 16px;
+  border: none;
+  background: #fff;
+  color: #5E3A6B;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.view-toggle button.active {
+  background: #5E3A6B;
+  color: #fff;
+}
+
+/* ── STATUS STATES ── */
+.listings-error {
+  padding: 16px;
+  border-radius: 12px;
+  background: #FCEBEE;
+  color: #B00020;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.listings-loading,
+.listings-empty {
+  padding: 32px 20px;
+  text-align: center;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(94, 58, 107, 0.1);
+  color: #6B4E5E;
+}
+
+.listings-empty p { margin: 0 0 10px; }
+
+/* ── GRID VIEW ── */
+.listings-grid-view {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.listings-grid-view .chp-card {
+  flex-basis: auto;
+  scroll-snap-align: none;
+}
+
+/* ── CARD (list view, unchanged from before) ── */
+.listing-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid rgba(94, 58, 107, 0.1);
+  border-radius: 18px;
+  box-shadow: 0 8px 22px rgba(58, 36, 66, 0.06);
+  overflow: hidden;
+  margin-bottom: 14px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.listing-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 32px rgba(58, 36, 66, 0.12);
+}
+
+.listing-card:focus-visible {
+  outline: 2px solid #B07898;
+  outline-offset: 2px;
+}
+
+/* .listing-card-image, .listing-card-badge, .listing-gallery-* base styles
+   moved to global.css — PropertyImageGallery is a shared component also used
+   on the homepage's compact discovery cards, not just this page. */
+
+/* ── BODY ── */
+.listing-card-body {
+  padding: 13px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.listing-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.listing-card-title {
+  margin: 0 0 2px;
+  font-size: 1rem;
+  line-height: 1.25;
+  color: #3A2442;
+}
+
+.listing-card-address {
+  margin: 0;
+  color: #6B4E5E;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.listing-card-distances {
+  font-size: 0.76rem;
+  line-height: 1.3;
+  color: #7A5A72;
+}
+
+.listing-card-distances-more {
+  color: #B07898;
+  font-weight: 600;
+}
+
+.listing-card-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #C8960C;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.listing-card-rating-star {
+  font-size: 0.85rem;
+}
+
+.listing-card-meta-row {
+  font-size: 0.78rem;
+  color: #5E3A6B;
+  font-weight: 600;
+}
+
+.listing-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.listing-chip {
+  font-size: 0.71rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(94, 58, 107, 0.08);
+  color: #5E3A6B;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.listing-chip-highlight {
+  background: rgba(196, 122, 138, 0.14);
+  color: #B05E72;
+}
+
+.listing-chip-more {
+  background: transparent;
+  color: #B07898;
+  text-decoration: underline;
+}
+
+.listing-card-social {
+  margin: 0;
+  font-size: 0.74rem;
+  color: #7EB8C9;
+  font-weight: 600;
+}
+
+.listing-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(94, 58, 107, 0.08);
+}
+
+.listing-card-price {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.listing-price-label {
+  font-size: 0.72rem;
+  color: #6B4E5E;
+}
+
+.listing-price-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #3A2442;
+}
+
+.listing-price-original {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #a89099;
+  text-decoration: line-through;
+  margin-right: 6px;
+}
+
+.listing-price-duration {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: #6B4E5E;
+}
+
+.listing-enquire-btn {
+  padding: 8px 16px;
+  border-radius: 9px;
+  border: none;
+  background: #5E3A6B;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink: 0;
+}
+
+.listing-enquire-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(94, 58, 107, 0.28);
+}
+
+/* ── SIDEBAR ── */
+.listings-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.listings-sidebar-card {
+  background: #fff;
+  border: 1px solid rgba(94, 58, 107, 0.1);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.listings-sidebar-map-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px dashed rgba(94, 58, 107, 0.3);
+  background: #FBF4F8;
+  color: #5E3A6B;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: not-allowed;
+  margin-bottom: 12px;
+}
+
+.listings-sidebar-item + .listings-sidebar-item {
+  margin-top: 14px;
+}
+
+.listings-sidebar-title {
+  font-weight: 700;
+  color: #3A2442;
+  font-size: 0.92rem;
+}
+
+.listings-sidebar-text {
+  color: #6B4E5E;
+  font-size: 0.82rem;
+  margin-top: 4px;
+}
+
+/* ── RESPONSIVE ── */
+@media (min-width: 640px) {
+  .listing-card {
+    flex-direction: row;
+  }
+
+  .listing-card-image {
+    width: 210px;
+    aspect-ratio: auto;
+  }
+
+  .listing-card-body {
+    flex: 1;
+  }
+
+  .listings-grid-view {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .listings-layout {
+    grid-template-columns: 1fr 300px;
+    align-items: start;
+  }
+
+  .listings-sidebar {
+    position: sticky;
+    top: 150px;
+  }
+
+  .listings-grid-view {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .listings-grid-view {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .listings-toolbar {
+    top: 130px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .toolbar-search-input {
+    flex-basis: 100%;
+  }
+
+  .listings-title-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .view-toggle {
+    align-self: flex-start;
+  }
+
+  .listing-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .listing-enquire-btn {
+    width: 100%;
+  }
+}
