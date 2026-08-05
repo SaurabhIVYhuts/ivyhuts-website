@@ -88,22 +88,18 @@ function HomePage() {
   }, []);
 
   /* ── REAL PER-CITY STATS FOR POPULAR DESTINATIONS ──
-     Fetched a few at a time, not all 12 in parallel — Amber rate-limits
-     aggressively, and there's no reason to burst the whole homepage load. */
+     amberApi throttles/caches every request centrally now, so this can just
+     ask for all of them — the service layer paces the actual network calls
+     and repeat visits within the cache window cost nothing at all. */
   const [cityStats, setCityStats] = useState({});
   useEffect(() => {
     let cancelled = false;
-    const CONCURRENCY = 3;
 
     async function loadCityStats() {
-      for (let i = 0; i < DESTINATIONS.length; i += CONCURRENCY) {
-        if (cancelled) return;
-        const batch = DESTINATIONS.slice(i, i + CONCURRENCY);
-        const results = await Promise.all(batch.map((d) => getCityStats(d.name).then((stats) => [d.name, stats])));
-        if (cancelled) return;
-        const updates = Object.fromEntries(results.filter(([, stats]) => stats));
-        if (Object.keys(updates).length) setCityStats((prev) => ({ ...prev, ...updates }));
-      }
+      const results = await Promise.all(DESTINATIONS.map((d) => getCityStats(d.name).then((stats) => [d.name, stats])));
+      if (cancelled) return;
+      const updates = Object.fromEntries(results.filter(([, stats]) => stats));
+      if (Object.keys(updates).length) setCityStats((prev) => ({ ...prev, ...updates }));
     }
 
     loadCityStats();

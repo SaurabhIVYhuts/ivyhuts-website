@@ -22,17 +22,118 @@ export class AmberRateLimitError extends Error {
 // share one network call instead of doubling our request volume.
 const inFlight = new Map();
 
-function fetchJson(url) {
-    if (Date.now() < rateLimitedUntil) {
-        const remaining = Math.ceil((rateLimitedUntil - Date.now()) / 1000);
-        return Promise.reject(new AmberRateLimitError(remaining));
+// Global throttle for actual outgoing requests: even a single fresh homepage
+// load fans out ~14 different requests (12 city stats + a couple of property
+// fetches) from several independent components at once. Caching prevents
+// *repeat* bursts, but does nothing for that first cold one — this queue
+// serializes real network calls with a minimum gap between them, no matter
+// how many callers ask at the same instant, so we never look like a burst to
+// Amber's rate limiter in the first place.
+const MIN_FETCH_GAP_MS = 400;
+let lastFetchAt = 0;
+let fetchQueueTail = Promise.resolve();
+
+function throttledFetch(url) {
+    const turn = fetchQueueTail.then(async () => {
+        // Only actually wait if another request went out too recently — an
+        // isolated request (the common case) fires immediately; only a real
+        // burst gets spaced out.
+        const wait = lastFetchAt + MIN_FETCH_GAP_MS - Date.now();
+        if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+        lastFetchAt = Date.now();
+    });
+    fetchQueueTail = turn;
+    return turn.then(() => fetch(url));
+}
+
+// Amber's inventory data doesn't change second-to-second, and the biggest real
+// source of repeat requests is simply re-rendering/reloading the app during
+// normal use (every page reload used to refetch everything from scratch).
+// Cache successful responses for a while — in memory always, and in
+// IndexedDB too, so the cache survives an actual page reload, not just SPA
+// navigation. IndexedDB (not sessionStorage/localStorage) is deliberate: a
+// single 20-item city listing response measured ~13.7MB — Amber nests full
+// room-type -> tenancy trees into every property — which blows past any
+// Web Storage quota (~5-10MB total per origin) but fits IndexedDB fine.
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const DB_NAME = "ivyhuts-amber-cache";
+const DB_STORE = "responses";
+
+const memoryCache = new Map(); // url -> { data, expiresAt }
+
+let dbOpenPromise = null;
+function openDb() {
+    if (dbOpenPromise) return dbOpenPromise;
+    dbOpenPromise = new Promise((resolve, reject) => {
+        if (typeof indexedDB === "undefined") { reject(new Error("indexedDB unavailable")); return; }
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE); };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+    return dbOpenPromise;
+}
+
+async function idbGet(url) {
+    try {
+        const db = await openDb();
+        return await new Promise((resolve, reject) => {
+            const req = db.transaction(DB_STORE, "readonly").objectStore(DB_STORE).get(url);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    } catch {
+        return undefined;
     }
+}
+
+async function idbSet(url, entry) {
+    try {
+        const db = await openDb();
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(DB_STORE, "readwrite");
+            tx.objectStore(DB_STORE).put(entry, url);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch (err) {
+        console.warn("Amber: IndexedDB cache write failed (quota or unavailable):", err && err.message);
+        // The in-memory cache still covers repeat requests within this page load.
+    }
+}
+
+function setCached(url, data) {
+    const expiresAt = Date.now() + CACHE_TTL_MS;
+    memoryCache.set(url, { data, expiresAt });
+    idbSet(url, { data, expiresAt }); // fire-and-forget; failures are non-fatal
+}
+
+function fetchJson(url) {
+    // Fast synchronous checks first (memory cache + in-flight de-dupe) so
+    // concurrent calls — e.g. React StrictMode's double-invoked effects —
+    // still share one promise. The IndexedDB lookup below is async and would
+    // otherwise let two near-simultaneous calls both slip past a cold cache.
+    const mem = memoryCache.get(url);
+    if (mem && Date.now() < mem.expiresAt) return Promise.resolve(mem.data);
+    if (mem) memoryCache.delete(url);
 
     if (inFlight.has(url)) return inFlight.get(url);
 
     const promise = (async () => {
+        const persisted = await idbGet(url);
+        if (persisted && Date.now() < persisted.expiresAt) {
+            console.log("Amber: cache hit (persisted)", url);
+            memoryCache.set(url, persisted);
+            return persisted.data;
+        }
+
+        if (Date.now() < rateLimitedUntil) {
+            const remaining = Math.ceil((rateLimitedUntil - Date.now()) / 1000);
+            throw new AmberRateLimitError(remaining);
+        }
+
         console.log("Amber: fetching", url);
-        const res = await fetch(url);
+        const res = await throttledFetch(url);
         console.log("Amber: response status", res.status);
 
         if (res.status === 403 || res.status === 429) {
@@ -52,6 +153,7 @@ function fetchJson(url) {
         try {
             const json = await res.json();
             console.log("Amber: raw json", json);
+            setCached(url, json);
             return json;
         } catch (err) {
             console.error("Amber: invalid json", err);
