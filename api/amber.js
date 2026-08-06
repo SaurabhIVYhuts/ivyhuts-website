@@ -14,6 +14,7 @@ const VALID_TYPES = new Set(["listings", "detail", "citystats"]);
 const VALID_PRIORITIES = new Set(["HIGH", "MEDIUM", "LOW"]);
 
 module.exports = async (req, res) => {
+    const requestStartedAt = Date.now();
     if (req.method !== "GET") {
         res.status(405).json({ error: "Method not allowed" });
         return;
@@ -41,14 +42,14 @@ module.exports = async (req, res) => {
         // the "many users hit this at once" case with near-zero cost, on top
         // of the shared-store coordination above.
         res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
-        console.log(`[GATEWAY] type=${type} city=${city || "-"} slug=${slug || "-"} source=${s} priority=${p} cache=${result.cacheStatus} upstream=${result.cacheStatus === "MISS" ? "YES" : "NO"} budget=server queue=none cooldown=0`);
+        console.log(`[GATEWAY] type=${type} city=${city || "-"} slug=${slug || "-"} source=${s} priority=${p} cache=${result.cacheStatus} upstream=${result.cacheStatus === "MISS" ? "YES" : "NO"} budget=server queue=none cooldown=0 totalMs=${Date.now() - requestStartedAt}`);
         res.status(200).json({ ok: true, cache: result.cacheStatus, data: result.data });
     } catch (err) {
         const status = err instanceof AmberGatewayError ? err.status : 502;
         // Never leak upstream internals (stack traces, raw Amber error bodies) —
         // just enough for the frontend to show its existing friendly states.
         const retryAfterSeconds = err instanceof AmberGatewayError && err.retryAfterSeconds ? err.retryAfterSeconds : 300;
-        console.log(`[GATEWAY] type=${type} city=${city || "-"} slug=${slug || "-"} source=${source || "unknown"} priority=${priority || "MEDIUM"} cache=MISS upstream=NO cooldown=${status === 429 ? retryAfterSeconds : 0}`);
+        console.log(`[GATEWAY] type=${type} city=${city || "-"} slug=${slug || "-"} source=${source || "unknown"} priority=${priority || "MEDIUM"} cache=MISS upstream=NO cooldown=${status === 429 ? retryAfterSeconds : 0} totalMs=${Date.now() - requestStartedAt}`);
         if (status === 429) res.setHeader("Retry-After", String(retryAfterSeconds));
         res.status(status).json({
             ok: false,

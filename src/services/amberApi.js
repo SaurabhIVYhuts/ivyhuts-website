@@ -35,8 +35,9 @@ let rateLimitedUntil = readRateLimitedUntil();
 // IndexedDB (not sessionStorage) because a full listings response can run
 // into the low tens of MB once room/tenancy data is included — measured
 // ~13.7MB for one 20-item city page — which blows past any Web Storage quota.
-const CACHE_FRESH_MS = 60_000; // short — the server's own cache is the real source of truth
-const CACHE_USABLE_MS = 10 * 60_000;
+const CACHE_FRESH_MS = 5 * 60_000;
+const CACHE_USABLE_MS = 60 * 60_000;
+const CACHE_SCHEMA_VERSION = 2;
 const DB_NAME = "ivyhuts-amber-cache";
 const DB_STORE = "responses";
 const CITY_STATS_CACHE_PREFIX = "amber:cached-city-stats:";
@@ -63,7 +64,7 @@ async function idbGet(key) {
         const db = await openDb();
         return await new Promise((resolve, reject) => {
             const req = db.transaction(DB_STORE, "readonly").objectStore(DB_STORE).get(key);
-            req.onsuccess = () => resolve(req.result);
+            req.onsuccess = () => resolve(req.result && req.result.version === CACHE_SCHEMA_VERSION ? req.result : undefined);
             req.onerror = () => reject(req.error);
         });
     } catch {
@@ -86,7 +87,7 @@ async function idbSet(key, entry) {
 }
 
 function setCached(key, data) {
-    const entry = { data, cachedAt: Date.now() };
+    const entry = { version: CACHE_SCHEMA_VERSION, data, cachedAt: Date.now() };
     memoryCache.set(key, entry);
     idbSet(key, entry);
 }
@@ -154,7 +155,14 @@ async function callGateway(type, params, { priority = "MEDIUM", source = "unknow
     const promise = (async () => {
         const persisted = mem || (await idbGet(key));
         if (persisted && !mem) memoryCache.set(key, persisted);
-        if (persisted && isFresh(persisted)) return persisted.data;
+        if (persisted && isFresh(persisted)) {
+            devLog("L1_LOOKUP fresh-persisted", key);
+            return persisted.data;
+        }
+        if (persisted && isUsable(persisted)) {
+            devLog("L1_LOOKUP stale-usable", key);
+            return persisted.data;
+        }
 
         if (Date.now() < rateLimitedUntil) {
             if (persisted && isUsable(persisted)) return persisted.data;
@@ -163,10 +171,12 @@ async function callGateway(type, params, { priority = "MEDIUM", source = "unknow
         }
 
         const url = gatewayUrl(type, { ...params, priority, source });
-        devLog("REQUEST", url);
+        const startedAt = performance.now();
+        devLog("CLIENT_REQUEST", url);
         let res;
         try {
             res = await fetch(url);
+            devLog("GATEWAY_RESPONSE", `${Math.round(performance.now() - startedAt)}ms`, url);
         } catch (err) {
             if (persisted) return persisted.data; // network hiccup — serve what we have
             throw err;

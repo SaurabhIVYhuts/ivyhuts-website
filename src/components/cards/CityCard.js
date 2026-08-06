@@ -24,7 +24,7 @@ function CityCard({ city }) {
           {city.price != null && city.currency ? (
             <span>Starting from {city.currency}{city.price}/week</span>
           ) : (
-            <span className="city-card-meta-loading">Loading availability…</span>
+            <span className="city-card-meta-loading">Availability on request</span>
           )}
           {city.properties != null && <span>{city.properties} properties</span>}
         </div>

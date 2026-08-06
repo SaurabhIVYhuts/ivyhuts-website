@@ -17,8 +17,8 @@ const LOCK_TTL_MS = 10_000; // generous enough for one Amber round-trip
 const COOLDOWN_KEY = "amber:cooldownUntil";
 
 const TTL = {
-    listings: { freshSeconds: 2 * 60, maxAgeSeconds: 10 * 60 },
-    detail: { freshSeconds: 5 * 60, maxAgeSeconds: 20 * 60 },
+    listings: { freshSeconds: 5 * 60, maxAgeSeconds: 60 * 60 },
+    detail: { freshSeconds: 15 * 60, maxAgeSeconds: 60 * 60 },
     citystats: { freshSeconds: 60 * 60, maxAgeSeconds: 6 * 60 * 60 },
 };
 
@@ -95,7 +95,10 @@ async function activateCooldown(retryAfterSeconds) {
 }
 
 async function fetchFromAmberOnce(amberUrl) {
+    const upstreamStartedAt = Date.now();
+    console.log(`[AMBER UPSTREAM] START ${amberUrl}`);
     const res = await fetch(amberUrl);
+    console.log(`[AMBER UPSTREAM] END status=${res.status} durationMs=${Date.now() - upstreamStartedAt}`);
     if (res.status === 403 || res.status === 429) {
         const body = await res.json().catch(() => null);
         if (isRateLimitBody(body)) {
@@ -165,6 +168,11 @@ async function fetchAmber({ type, params, priority = "MEDIUM", source = "unknown
     }
 
     try {
+        const usedBeforeReservation = await peekRecentRequestCount(RATE_WINDOW_MS);
+        if (priority === "LOW" && usedBeforeReservation >= RATE_BUDGET_PER_MINUTE - 2) {
+            log(`source=${source} priority=${priority} cache=MISS key=${cacheKey} budget=${usedBeforeReservation}/${RATE_BUDGET_PER_MINUTE} action=SKIP_LOW_RESERVE`);
+            return { data: cached ? cached.data : null, cacheStatus: cached ? "STALE_LOW_RESERVE" : "SKIPPED_LOW_PRIORITY" };
+        }
         // Atomic check-and-record — see the long comment on tryReserveSlot in
         // sharedStore.js for why this must not be two separate steps.
         const granted = await tryReserveSlot(RATE_WINDOW_MS, RATE_BUDGET_PER_MINUTE);

@@ -23,7 +23,18 @@ function run(command, args, name) {
 }
 
 function shutdown() {
-    children.forEach((c) => { if (!c.killed) c.kill(); });
+    children.forEach((c) => {
+        if (c.killed || c.exitCode !== null) return;
+        if (process.platform === "win32") {
+            // child.kill() on a shell:true-spawned process only signals the
+            // cmd.exe wrapper on Windows, not the actual node process it
+            // launched — leaving it running and holding the port for the next
+            // `npm start`. /t kills the whole process tree instead.
+            spawn("taskkill", ["/pid", String(c.pid), "/t", "/f"], { stdio: "ignore", shell: true });
+        } else {
+            c.kill();
+        }
+    });
     process.exit(0);
 }
 
