@@ -59,7 +59,10 @@ function HomePage() {
 
       try {
         if (recent.length > 0) {
-          const raws = await Promise.all(recent.map((r) => getPropertyBySlug(r.slug).catch(() => null)));
+          // LOW priority — this is background/preload, not something the user
+          // explicitly asked for right now, so it must never jump ahead of a
+          // property someone actually clicked into.
+          const raws = await Promise.all(recent.map((r) => getPropertyBySlug(r.slug, "LOW").catch(() => null)));
           const mapped = raws.filter(Boolean).map(mapAmberPropertyToListing).filter(Boolean);
           if (mapped.length > 0) {
             if (!cancelled) {

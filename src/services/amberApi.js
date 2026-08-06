@@ -2,11 +2,14 @@ const PARTNER_ID = "ivy-huts-707a5cdf";
 
 const BASE_URL = `https://base.amberstudent.com/api/v0/leads/partners/${PARTNER_ID}`;
 
-// Amber enforces a hard rate limit and returns
-// { error: "Too many requests", retry_after: <seconds> } on a 403/429.
-// Once we see one, we stop hitting the network entirely until it clears —
-// hammering it again immediately only extends the cooldown.
-let rateLimitedUntil = 0;
+// Amber's hard limits (non-negotiable): max 10 requests/minute, a 5-minute
+// halt if exceeded, max 50 inventories per call. Everything below exists to
+// keep normal browsing nowhere near that ceiling — caching and request
+// reduction are the primary defense; the budget guard further down is the
+// last line of defense, not the strategy itself.
+const DEV = process.env.NODE_ENV !== "production";
+function devLog(...args) { if (DEV) console.log("[Amber]", ...args); }
+function devWarn(...args) { if (DEV) console.warn("[Amber]", ...args); }
 
 export class AmberRateLimitError extends Error {
     constructor(retryAfterSeconds) {
@@ -17,27 +20,144 @@ export class AmberRateLimitError extends Error {
     }
 }
 
+// Amber enforces its own hard rate limit and returns
+// { error: "Too many requests", retry_after: <seconds> } on a 403/429.
+// Once we see one, we stop hitting the network entirely until it clears —
+// hammering it again immediately only extends the halt. Persisted to
+// localStorage (not just an in-memory variable): a plain reload during an
+// active halt must not "forget" it and immediately try again — that would
+// either re-trigger the halt or extend it, which is exactly backwards.
+const COOLDOWN_STORAGE_KEY = "amber_cooldown_until";
+
+function readRateLimitedUntil() {
+    try {
+        return Number(window.localStorage.getItem(COOLDOWN_STORAGE_KEY)) || 0;
+    } catch {
+        return 0;
+    }
+}
+
+function writeRateLimitedUntil(value) {
+    try {
+        window.localStorage.setItem(COOLDOWN_STORAGE_KEY, String(value));
+    } catch {
+        // localStorage unavailable — cooldown still holds for the rest of this page load.
+    }
+}
+
+let rateLimitedUntil = readRateLimitedUntil();
+
+// ── Human-readable label for a request URL, for dev logging only ──
+function describeUrl(url) {
+    try {
+        const u = new URL(url);
+        const p = u.searchParams;
+        if (p.has("canonical_name")) return `detail:${p.get("canonical_name")}`;
+        const city = p.get("location_place_name");
+        if (city && p.get("limit") === "1") return `citystats:${city.toLowerCase()}`;
+        if (city) return `listings:${city.toLowerCase()}`;
+        return "listings:all";
+    } catch {
+        return url;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ROLLING RATE BUDGET — never intentionally exceed Amber's 10/min.
+// We cap ourselves at 8/min (a safety margin, not the limit itself) and
+// queue requests past that budget rather than firing them anyway. Queued
+// requests are served in priority order: a property the user explicitly
+// opened (HIGH) jumps ahead of a background homepage preload (LOW).
+// ══════════════════════════════════════════════════════════════════
+const RATE_BUDGET_PER_MINUTE = 8;
+const RATE_WINDOW_MS = 60_000;
+const requestTimestamps = []; // sliding window of actual outbound request times
+let totalOutboundRequests = 0;
+
+const PRIORITY_RANK = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+const budgetQueue = []; // { priority, resolve }
+let drainingQueue = false;
+
+function pruneWindow() {
+    const cutoff = Date.now() - RATE_WINDOW_MS;
+    while (requestTimestamps.length && requestTimestamps[0] < cutoff) requestTimestamps.shift();
+}
+
+function budgetRemaining() {
+    pruneWindow();
+    return RATE_BUDGET_PER_MINUTE - requestTimestamps.length;
+}
+
+function msUntilNextSlot() {
+    pruneWindow();
+    if (requestTimestamps.length < RATE_BUDGET_PER_MINUTE) return 0;
+    return Math.max(0, requestTimestamps[0] + RATE_WINDOW_MS - Date.now());
+}
+
+function consumeBudgetSlot() {
+    requestTimestamps.push(Date.now());
+    totalOutboundRequests += 1;
+    devLog(`RATE BUDGET ${requestTimestamps.length}/${RATE_BUDGET_PER_MINUTE}`);
+}
+
+function drainBudgetQueue() {
+    if (drainingQueue) return;
+    drainingQueue = true;
+    (async () => {
+        while (budgetQueue.length > 0) {
+            const wait = msUntilNextSlot();
+            if (wait > 0) {
+                await new Promise((r) => setTimeout(r, Math.min(wait, 5000)));
+                continue;
+            }
+            const next = budgetQueue.shift();
+            consumeBudgetSlot();
+            next.resolve();
+        }
+        drainingQueue = false;
+    })();
+}
+
+// Reserves one slot in the rolling 8/minute budget before a real request is
+// allowed to fire. Instant when budget is available; otherwise waits its
+// turn, ordered by priority among everything else currently waiting.
+function acquireBudgetSlot(priority) {
+    if (budgetQueue.length === 0 && msUntilNextSlot() === 0) {
+        consumeBudgetSlot();
+        return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+        budgetQueue.push({ priority, resolve });
+        budgetQueue.sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]);
+        drainBudgetQueue();
+    });
+}
+
+// Development-only visibility into what actually reached Amber.
+export function getAmberRequestStats() {
+    pruneWindow();
+    return {
+        totalSinceLoad: totalOutboundRequests,
+        requestsInLastMinute: requestTimestamps.length,
+        budgetPerMinute: RATE_BUDGET_PER_MINUTE,
+        cooldownActive: Date.now() < rateLimitedUntil,
+        cooldownRemainingSeconds: Date.now() < rateLimitedUntil ? Math.ceil((rateLimitedUntil - Date.now()) / 1000) : 0,
+    };
+}
+
 // De-dupe identical concurrent requests (e.g. React StrictMode's double-invoked
-// effects, or a homepage that asks for the same city twice at once) so they
-// share one network call instead of doubling our request volume.
+// effects, or several homepage sections asking for the same city at once) so
+// they share one network call instead of multiplying our request volume.
 const inFlight = new Map();
 
-// Global throttle for actual outgoing requests: even a single fresh homepage
-// load fans out ~14 different requests (12 city stats + a couple of property
-// fetches) from several independent components at once. Caching prevents
-// *repeat* bursts, but does nothing for that first cold one — this queue
-// serializes real network calls with a minimum gap between them, no matter
-// how many callers ask at the same instant, so we never look like a burst to
-// Amber's rate limiter in the first place.
-const MIN_FETCH_GAP_MS = 400;
+// Minimum spacing between actual outgoing fetches, on top of the budget
+// queue above — belt and braces against bursts within the same tick.
+const MIN_FETCH_GAP_MS = 250;
 let lastFetchAt = 0;
 let fetchQueueTail = Promise.resolve();
 
 function throttledFetch(url) {
     const turn = fetchQueueTail.then(async () => {
-        // Only actually wait if another request went out too recently — an
-        // isolated request (the common case) fires immediately; only a real
-        // burst gets spaced out.
         const wait = lastFetchAt + MIN_FETCH_GAP_MS - Date.now();
         if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
         lastFetchAt = Date.now();
@@ -46,20 +166,28 @@ function throttledFetch(url) {
     return turn.then(() => fetch(url));
 }
 
-// Amber's inventory data doesn't change second-to-second, and the biggest real
-// source of repeat requests is simply re-rendering/reloading the app during
-// normal use (every page reload used to refetch everything from scratch).
-// Cache successful responses for a while — in memory always, and in
-// IndexedDB too, so the cache survives an actual page reload, not just SPA
-// navigation. IndexedDB (not sessionStorage/localStorage) is deliberate: a
-// single 20-item city listing response measured ~13.7MB — Amber nests full
-// room-type -> tenancy trees into every property — which blows past any
-// Web Storage quota (~5-10MB total per origin) but fits IndexedDB fine.
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+// ══════════════════════════════════════════════════════════════════
+// CACHE — in memory always, and in IndexedDB too so it survives an actual
+// page reload, not just SPA navigation. IndexedDB (not sessionStorage) is
+// deliberate: a single 20-item city listing response measured ~13.7MB —
+// Amber nests full room-type -> tenancy trees into every property — which
+// blows past any Web Storage quota (~5-10MB total per origin) but fits
+// IndexedDB fine. Amber's own inventory data doesn't change second to
+// second, so entries carry a "fresh" window (served with no extra work) and
+// a longer "usable" window (served immediately, with an opportunistic,
+// budget-permitting background refresh — stale-while-revalidate).
+// ══════════════════════════════════════════════════════════════════
 const DB_NAME = "ivyhuts-amber-cache";
 const DB_STORE = "responses";
 
-const memoryCache = new Map(); // url -> { data, expiresAt }
+const TTL = {
+    LISTINGS: { freshMs: 2 * 60_000, maxAgeMs: 10 * 60_000 },
+    DETAIL: { freshMs: 5 * 60_000, maxAgeMs: 20 * 60_000 },
+    CITY_STATS: { freshMs: 60 * 60_000, maxAgeMs: 6 * 60 * 60_000 },
+};
+
+const memoryCache = new Map(); // url -> { data, cachedAt }
+const revalidating = new Set(); // urls currently being refreshed in the background
 
 let dbOpenPromise = null;
 function openDb() {
@@ -97,68 +225,98 @@ async function idbSet(url, entry) {
             tx.onerror = () => reject(tx.error);
         });
     } catch (err) {
-        console.warn("Amber: IndexedDB cache write failed (quota or unavailable):", err && err.message);
+        devWarn("IndexedDB cache write failed (quota or unavailable):", err && err.message);
         // The in-memory cache still covers repeat requests within this page load.
     }
 }
 
 function setCached(url, data) {
-    const expiresAt = Date.now() + CACHE_TTL_MS;
-    memoryCache.set(url, { data, expiresAt });
-    idbSet(url, { data, expiresAt }); // fire-and-forget; failures are non-fatal
+    const entry = { data, cachedAt: Date.now() };
+    memoryCache.set(url, entry);
+    idbSet(url, entry); // fire-and-forget; failures are non-fatal
 }
 
-function fetchJson(url) {
-    // Fast synchronous checks first (memory cache + in-flight de-dupe) so
-    // concurrent calls — e.g. React StrictMode's double-invoked effects —
-    // still share one promise. The IndexedDB lookup below is async and would
-    // otherwise let two near-simultaneous calls both slip past a cold cache.
-    const mem = memoryCache.get(url);
-    if (mem && Date.now() < mem.expiresAt) return Promise.resolve(mem.data);
-    if (mem) memoryCache.delete(url);
+function isFresh(entry, freshMs) { return Date.now() - entry.cachedAt < freshMs; }
+function isUsable(entry, maxAgeMs) { return Date.now() - entry.cachedAt < maxAgeMs; }
 
-    if (inFlight.has(url)) return inFlight.get(url);
+// Opportunistically refreshes a stale-but-usable cache entry in the
+// background. Never blocks the caller (who already got the stale data), and
+// never runs during a cooldown or when it would eat into the budget other
+// requests might need.
+function revalidateInBackground(url, priority, ttl) {
+    if (Date.now() < rateLimitedUntil) return;
+    if (revalidating.has(url)) return;
+    if (budgetRemaining() <= 1) return; // leave at least one slot for real user actions
+    revalidating.add(url);
+    devLog("STALE — serving cached, revalidating in background:", describeUrl(url));
+    doFetch(url, "LOW", ttl)
+        .catch(() => {}) // stale data was already served; a failed refresh is fine
+        .finally(() => revalidating.delete(url));
+}
+
+async function doFetch(url, priority, ttl) {
+    if (Date.now() < rateLimitedUntil) {
+        const remaining = Math.ceil((rateLimitedUntil - Date.now()) / 1000);
+        devLog("COOLDOWN ACTIVE —", remaining, "s remaining");
+        throw new AmberRateLimitError(remaining);
+    }
+
+    await acquireBudgetSlot(priority);
+
+    devLog("REQUEST", describeUrl(url));
+    const res = await throttledFetch(url);
+
+    if (res.status === 403 || res.status === 429) {
+        const body = await res.json().catch(() => null);
+        const retryAfter = (body && body.retry_after) || 60;
+        rateLimitedUntil = Date.now() + retryAfter * 1000;
+        writeRateLimitedUntil(rateLimitedUntil);
+        devWarn("Rate limited by Amber — cooldown for", retryAfter, "s");
+        throw new AmberRateLimitError(retryAfter);
+    }
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        devWarn("Fetch failed:", res.status, text);
+        throw new Error("Failed to fetch properties");
+    }
+
+    const json = await res.json();
+    setCached(url, json);
+    return json;
+}
+
+function fetchJson(url, { priority = "MEDIUM", ttl = TTL.LISTINGS } = {}) {
+    // Fast synchronous path: fresh in memory already — return instantly, no
+    // async work at all. Also the point where concurrent calls (e.g.
+    // StrictMode's double-invoked effects) converge on shared in-flight dedup.
+    const mem = memoryCache.get(url);
+    if (mem && isFresh(mem, ttl.freshMs)) {
+        devLog("CACHE HIT", describeUrl(url));
+        return Promise.resolve(mem.data);
+    }
+
+    if (inFlight.has(url)) {
+        devLog("DEDUPED", describeUrl(url));
+        return inFlight.get(url);
+    }
 
     const promise = (async () => {
-        const persisted = await idbGet(url);
-        if (persisted && Date.now() < persisted.expiresAt) {
-            console.log("Amber: cache hit (persisted)", url);
-            memoryCache.set(url, persisted);
-            return persisted.data;
+        const entry = mem || (await idbGet(url));
+        if (entry && !mem) memoryCache.set(url, entry);
+
+        if (entry && isFresh(entry, ttl.freshMs)) {
+            devLog("CACHE HIT (persisted)", describeUrl(url));
+            return entry.data;
         }
 
-        if (Date.now() < rateLimitedUntil) {
-            const remaining = Math.ceil((rateLimitedUntil - Date.now()) / 1000);
-            throw new AmberRateLimitError(remaining);
+        if (entry && isUsable(entry, ttl.maxAgeMs)) {
+            revalidateInBackground(url, priority, ttl);
+            return entry.data;
         }
 
-        console.log("Amber: fetching", url);
-        const res = await throttledFetch(url);
-        console.log("Amber: response status", res.status);
-
-        if (res.status === 403 || res.status === 429) {
-            const body = await res.json().catch(() => null);
-            const retryAfter = (body && body.retry_after) || 60;
-            rateLimitedUntil = Date.now() + retryAfter * 1000;
-            console.error("Amber: rate limited, backing off for", retryAfter, "s");
-            throw new AmberRateLimitError(retryAfter);
-        }
-
-        if (!res.ok) {
-            const text = await res.text().catch(() => "");
-            console.error("Amber fetch failed:", res.status, text);
-            throw new Error("Failed to fetch properties");
-        }
-
-        try {
-            const json = await res.json();
-            console.log("Amber: raw json", json);
-            setCached(url, json);
-            return json;
-        } catch (err) {
-            console.error("Amber: invalid json", err);
-            throw err;
-        }
+        devLog("CACHE MISS", describeUrl(url));
+        return await doFetch(url, priority, ttl);
     })();
 
     inFlight.set(url, promise);
@@ -204,32 +362,33 @@ function extractArray(json) {
     return anyArray || [];
 }
 
-export async function getProperties(city, page = 1, limit = 20) {
+// `limit` defaults to Amber's actual maximum (50) — one bulk request covers
+// any city with up to 50 properties, which is the common case. Only a city
+// with more than 50 results would ever need a second (page=2) request, and
+// only once the caller actually asks for it.
+export async function getProperties(city, page = 1, limit = 50, priority = "MEDIUM") {
     const baseUrl = `${BASE_URL}/inventories?p=${page}&limit=${limit}`;
-
 
     if (city) {
         const filteredUrl = `${baseUrl}&location_place_name=${encodeURIComponent(city)}`;
         try {
-            const json = await fetchJson(filteredUrl);
+            const json = await fetchJson(filteredUrl, { priority, ttl: TTL.LISTINGS });
             const arr = extractArray(json);
 
             if (Array.isArray(arr) && arr.length > 0) {
-                console.log(`Amber: returning ${arr.length} filtered items`);
                 return arr;
             }
 
-            console.log("Amber: filtered request returned no items, will fetch unfiltered and filter on client");
+            devLog("filtered request returned no items, falling back to unfiltered fetch");
         } catch (err) {
             // A rate limit means every request will fail right now, including the
             // fallback below — retrying immediately only makes the cooldown worse.
             if (err.isRateLimit) throw err;
-            console.error("Amber: filtered request failed, will fallback to unfiltered fetch", err);
+            devWarn("filtered request failed, falling back to unfiltered fetch", err);
         }
     }
 
-
-    const json = await fetchJson(baseUrl);
+    const json = await fetchJson(baseUrl, { priority, ttl: TTL.LISTINGS });
     let arr = extractArray(json);
 
     // If a city was requested, and server-side filtering returned nothing or isn't supported,
@@ -254,7 +413,6 @@ export async function getProperties(city, page = 1, limit = 20) {
                 return false;
             }
         });
-        console.log(`Amber: client-side filtered ${arr.length} -> ${filtered.length} items for city="${city}"`);
         arr = filtered;
     }
 
@@ -264,10 +422,10 @@ export async function getProperties(city, page = 1, limit = 20) {
 // Fetches a single property by Amber's `canonical_name` slug. Verified against
 // live data: `?canonical_name=<slug>` returns exactly one matching item
 // (meta.count: 1) — unlike `?id=`/`?slug=`, which are silently ignored by the API.
-export async function getPropertyBySlug(slug) {
+export async function getPropertyBySlug(slug, priority = "HIGH") {
     if (!slug) return null;
     const url = `${BASE_URL}/inventories?canonical_name=${encodeURIComponent(slug)}`;
-    const json = await fetchJson(url);
+    const json = await fetchJson(url, { priority, ttl: TTL.DETAIL });
     const arr = extractArray(json);
     return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
 }
@@ -275,11 +433,13 @@ export async function getPropertyBySlug(slug) {
 // Lightweight per-city stats for homepage destination cards: real total property
 // count (from meta.count) and a real sample starting price, using a single
 // limit=1 request — never a full listing fetch just to show a badge number.
-export async function getCityStats(city) {
+// Cached for hours: this is low-volatility "how many/how much" metadata, not
+// live availability, so it's the one place a long TTL is clearly safe.
+export async function getCityStats(city, priority = "LOW") {
     if (!city) return null;
     const url = `${BASE_URL}/inventories?location_place_name=${encodeURIComponent(city)}&p=1&limit=1`;
     try {
-        const json = await fetchJson(url);
+        const json = await fetchJson(url, { priority, ttl: TTL.CITY_STATS });
         const arr = extractArray(json);
         const count = json?.data?.meta?.count ?? null;
         const sample = Array.isArray(arr) && arr[0] ? arr[0] : null;
@@ -288,7 +448,7 @@ export async function getCityStats(city) {
         if (!count && !price) return null;
         return { count, price, currency };
     } catch (err) {
-        if (!err.isRateLimit) console.error("Amber: getCityStats failed for", city, err);
+        if (!err.isRateLimit) devWarn("getCityStats failed for", city, err);
         return null;
     }
 }
