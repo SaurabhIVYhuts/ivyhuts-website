@@ -5,11 +5,8 @@ import SiteNavbar from "../components/layout/SiteNavbar";
 import "./HomePage.css";
 import { ROOM_TYPES } from "../data/accommodations.backup";
 import CityCard from "../components/cards/CityCard";
-import CompactPropertyCard from "../components/listing/CompactPropertyCard";
-import { getProperties, getCachedCityStats } from "../services/amberApi";
-import { safeListingList } from "../services/amberMapper";
-import { getRecentSearches, getRecentProperties } from "../services/recentActivity";
-import { DESTINATIONS, COUNTRIES } from "../data/destinations";
+import { getCachedCityStats } from "../services/amberApi";
+import { DESTINATIONS, COUNTRIES, countryFullName } from "../data/destinations";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -38,58 +35,6 @@ function HomePage() {
     setSuggestionsOpen(false);
     navigate(`/properties?city=${encodeURIComponent(clean)}`);
   };
-
-  /* ── RECENT SEARCHES ── */
-  const [recentSearches, setRecentSearches] = useState([]);
-  useEffect(() => { setRecentSearches(getRecentSearches()); }, []);
-
-  /* ── CONTINUE EXPLORING / POPULAR STUDENT HOMES ── */
-  const [continueListings, setContinueListings] = useState([]);
-  const [continueTitle, setContinueTitle] = useState("Continue Exploring");
-  const [continueLoading, setContinueLoading] = useState(true);
-  const [continueError, setContinueError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadContinue() {
-      setContinueLoading(true);
-      setContinueError(false);
-
-      // Recently-viewed properties are stored as real summaries captured at
-      // the moment the user viewed them (see buildRecentPropertySummary in
-      // PropertyDetailPage.js) — reusing that data costs ZERO Amber requests,
-      // instead of the previous Promise.all(recent.map(getPropertyBySlug))
-      // burst which re-fetched every single one from scratch on every visit.
-      const recent = getRecentProperties();
-      if (recent.length > 0) {
-        if (!cancelled) {
-          setContinueListings(recent);
-          setContinueTitle("Continue Exploring");
-          setContinueLoading(false);
-        }
-        return;
-      }
-
-      try {
-        // No history yet — show real popular homes instead. This is the ONLY
-        // Amber request this section ever makes.
-        const fallback = await getProperties(DESTINATIONS[0].name, 1, 50, "MEDIUM", "homepage-popular-fallback");
-        if (!cancelled) {
-          setContinueListings(safeListingList(fallback));
-          setContinueTitle("Popular Student Homes");
-        }
-      } catch (err) {
-        console.error("HomePage continue-exploring error:", err);
-        if (!cancelled) setContinueError(true);
-      } finally {
-        if (!cancelled) setContinueLoading(false);
-      }
-    }
-
-    loadContinue();
-    return () => { cancelled = true; };
-  }, []);
 
   /* Cached city stats are display-only. Destination cards never fetch Amber;
      they only read real stats previously derived from a city inventory response. */
@@ -127,39 +72,6 @@ function HomePage() {
     () => (popularCountry === "All" ? DESTINATIONS : DESTINATIONS.filter((d) => d.country === popularCountry)),
     [popularCountry]
   );
-  /* ── EXPLORE BY COUNTRY / CITY ── */
-  const [activeCountry, setActiveCountry] = useState(COUNTRIES[0]);
-  const citiesForCountry = useMemo(() => DESTINATIONS.filter((d) => d.country === activeCountry), [activeCountry]);
-  const [activeCity, setActiveCity] = useState(citiesForCountry[0]?.name || null);
-  const [exploreCache, setExploreCache] = useState({});
-  const [exploreLoading, setExploreLoading] = useState(false);
-
-  useEffect(() => {
-    const first = DESTINATIONS.find((d) => d.country === activeCountry);
-    setActiveCity(first ? first.name : null);
-  }, [activeCountry]);
-
-  useEffect(() => {
-    if (!activeCity || exploreCache[activeCity]) return;
-    let cancelled = false;
-    setExploreLoading(true);
-    // limit=50 (not 8) deliberately — this makes the request identical to
-    // what the listings page asks for the same city, so the shared gateway
-    // cache serves both from one Amber call instead of two. Only the first 8
-    // are shown here (see the .slice(0, 8) at render below); nothing else changes.
-    getProperties(activeCity, 1, 50, "MEDIUM", "homepage-explore")
-      .then((raw) => {
-        if (cancelled) return;
-        setExploreCache((prev) => ({ ...prev, [activeCity]: safeListingList(raw) }));
-        getCachedCityStats(activeCity).then((stats) => {
-          if (!cancelled && stats) setCityStats((prev) => ({ ...prev, [activeCity]: stats }));
-        });
-      })
-      .catch((err) => console.error("HomePage explore error:", err))
-      .finally(() => { if (!cancelled) setExploreLoading(false); });
-    return () => { cancelled = true; };
-  }, [activeCity, exploreCache]);
-
   const handleWhyScroll = (e) => {
     const el = e.currentTarget;
     const total = el.scrollHeight - el.clientHeight;
