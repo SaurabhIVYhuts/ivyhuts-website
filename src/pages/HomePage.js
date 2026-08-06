@@ -113,6 +113,20 @@ function HomePage() {
   );
   const statsLoadedCount = Object.keys(cityStats).length;
 
+  /* ── POPULAR CITIES — COUNTRY FILTER TABS ── */
+  const [popularCountry, setPopularCountry] = useState("All");
+  const popularCountryTabs = useMemo(() => [
+    { code: "All", label: "All Destinations", flag: "🌍" },
+    ...COUNTRIES.map((code) => ({
+      code,
+      label: countryFullName(code),
+      flag: DESTINATIONS.find((d) => d.country === code)?.flag || "",
+    })),
+  ], []);
+  const visibleDestinations = useMemo(
+    () => (popularCountry === "All" ? DESTINATIONS : DESTINATIONS.filter((d) => d.country === popularCountry)),
+    [popularCountry]
+  );
   /* ── EXPLORE BY COUNTRY / CITY ── */
   const [activeCountry, setActiveCountry] = useState(COUNTRIES[0]);
   const citiesForCountry = useMemo(() => DESTINATIONS.filter((d) => d.country === activeCountry), [activeCountry]);
@@ -370,35 +384,6 @@ function HomePage() {
         </div>{/* end hero-purple-box */}
       </section>
 
-      {/* RECENT SEARCHES — only shown when real search history exists */}
-      {recentSearches.length > 0 && (
-        <section className="section recent-searches-section">
-          <div className="recent-searches-row">
-            <span className="recent-searches-label">Recent Searches</span>
-            {recentSearches.map((s) => (
-              <button key={s} type="button" className="pill-btn pill-btn-sm" onClick={() => runSearch(s)}>
-                {s}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* CONTINUE EXPLORING / POPULAR STUDENT HOMES */}
-      {!continueError && (continueLoading || continueListings.length > 0) && (
-        <section className="section">
-          <div className="section-heading">
-            <p className="section-eyebrow">Pick Up Where You Left Off</p>
-            <h2 className="section-title">{continueTitle}</h2>
-          </div>
-          <div className="chp-row">
-            {continueLoading
-              ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="chp-skeleton" />)
-              : continueListings.map((listing) => <CompactPropertyCard key={listing.id} listing={listing} />)}
-          </div>
-        </section>
-      )}
-
       {/* TRUST BADGES */}
       <section className="trust-strip">
         <div className="trust-strip-inner">
@@ -448,8 +433,21 @@ function HomePage() {
             )}
           </p>
         </div>
-        <div className="city-grid">
-          {DESTINATIONS.map((city) => (
+        <div className="city-tab-row" role="group" aria-label="Filter popular cities by country">
+          {popularCountryTabs.map((tab) => (
+            <button
+              key={tab.code}
+              type="button"
+              className={`pill-btn${tab.code === popularCountry ? " active" : ""}`}
+              aria-pressed={tab.code === popularCountry}
+              onClick={() => setPopularCountry(tab.code)}
+            >
+              <span aria-hidden="true">{tab.flag}</span> {tab.label}
+            </button>
+          ))}
+        </div>
+        <ul className="city-grid">
+          {visibleDestinations.map((city) => (
             <CityCard
               key={`${city.name}-${city.country}`}
               city={{
@@ -460,50 +458,7 @@ function HomePage() {
               }}
             />
           ))}
-        </div>
-      </section>
-
-      {/* EXPLORE BY COUNTRY / CITY */}
-      <section className="section explore-section">
-        <div className="section-heading">
-          <p className="section-eyebrow">Discover</p>
-          <h2 className="section-title">Explore Student Homes</h2>
-          <p className="section-copy">Browse live, verified availability by country and city.</p>
-        </div>
-
-        <div className="explore-pill-row">
-          {COUNTRIES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`pill-btn${c === activeCountry ? " active" : ""}`}
-              onClick={() => setActiveCountry(c)}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        <div className="explore-pill-row explore-pill-row-cities">
-          {citiesForCountry.map((d) => (
-            <button
-              key={d.name}
-              type="button"
-              className={`pill-btn pill-btn-sm${d.name === activeCity ? " active" : ""}`}
-              onClick={() => setActiveCity(d.name)}
-            >
-              {d.name}
-            </button>
-          ))}
-        </div>
-
-        <div className="chp-row">
-          {exploreLoading && !exploreCache[activeCity]
-            ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="chp-skeleton" />)
-            : (exploreCache[activeCity] || []).length > 0
-              ? exploreCache[activeCity].slice(0, 8).map((listing) => <CompactPropertyCard key={listing.id} listing={listing} />)
-              : <p className="explore-empty">No live listings found for {activeCity} right now.</p>}
-        </div>
+        </ul>
       </section>
 
       {/* ROOM TYPES */}
