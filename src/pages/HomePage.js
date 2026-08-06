@@ -6,8 +6,8 @@ import "./HomePage.css";
 import { ROOM_TYPES } from "../data/accommodations.backup";
 import CityCard from "../components/cards/CityCard";
 import CompactPropertyCard from "../components/listing/CompactPropertyCard";
-import { getProperties, getPropertyBySlug, getCityStats } from "../services/amberApi";
-import { mapAmberPropertyToListing, safeListingList } from "../services/amberMapper";
+import { getProperties, getCachedCityStats } from "../services/amberApi";
+import { safeListingList } from "../services/amberMapper";
 import { getRecentSearches, getRecentProperties } from "../services/recentActivity";
 import { DESTINATIONS, COUNTRIES } from "../data/destinations";
 
@@ -55,25 +55,26 @@ function HomePage() {
     async function loadContinue() {
       setContinueLoading(true);
       setContinueError(false);
+
+      // Recently-viewed properties are stored as real summaries captured at
+      // the moment the user viewed them (see buildRecentPropertySummary in
+      // PropertyDetailPage.js) — reusing that data costs ZERO Amber requests,
+      // instead of the previous Promise.all(recent.map(getPropertyBySlug))
+      // burst which re-fetched every single one from scratch on every visit.
       const recent = getRecentProperties();
+      if (recent.length > 0) {
+        if (!cancelled) {
+          setContinueListings(recent);
+          setContinueTitle("Continue Exploring");
+          setContinueLoading(false);
+        }
+        return;
+      }
 
       try {
-        if (recent.length > 0) {
-          // LOW priority — this is background/preload, not something the user
-          // explicitly asked for right now, so it must never jump ahead of a
-          // property someone actually clicked into.
-          const raws = await Promise.all(recent.map((r) => getPropertyBySlug(r.slug, "LOW").catch(() => null)));
-          const mapped = raws.filter(Boolean).map(mapAmberPropertyToListing).filter(Boolean);
-          if (mapped.length > 0) {
-            if (!cancelled) {
-              setContinueListings(mapped);
-              setContinueTitle("Continue Exploring");
-            }
-            return;
-          }
-        }
-        // No history yet (or none of those properties resolved) — show real popular homes instead.
-        const fallback = await getProperties(DESTINATIONS[0].name, 1, 6);
+        // No history yet — show real popular homes instead. This is the ONLY
+        // Amber request this section ever makes.
+        const fallback = await getProperties(DESTINATIONS[0].name, 1, 50, "MEDIUM", "homepage-popular-fallback");
         if (!cancelled) {
           setContinueListings(safeListingList(fallback));
           setContinueTitle("Popular Student Homes");
@@ -90,25 +91,22 @@ function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
-  /* ── REAL PER-CITY STATS FOR POPULAR DESTINATIONS ──
-     amberApi throttles/caches every request centrally now, so this can just
-     ask for all of them — the service layer paces the actual network calls
-     and repeat visits within the cache window cost nothing at all. */
+  /* Cached city stats are display-only. Destination cards never fetch Amber;
+     they only read real stats previously derived from a city inventory response. */
   const [cityStats, setCityStats] = useState({});
+
   useEffect(() => {
     let cancelled = false;
-
-    async function loadCityStats() {
-      const results = await Promise.all(DESTINATIONS.map((d) => getCityStats(d.name).then((stats) => [d.name, stats])));
+    async function loadCachedCityStats() {
+      // IndexedDB reads only: a cache miss intentionally stays blank.
+      const results = await Promise.all(DESTINATIONS.map(async (d) => [d.name, await getCachedCityStats(d.name)]));
       if (cancelled) return;
       const updates = Object.fromEntries(results.filter(([, stats]) => stats));
       if (Object.keys(updates).length) setCityStats((prev) => ({ ...prev, ...updates }));
     }
-
-    loadCityStats();
+    loadCachedCityStats();
     return () => { cancelled = true; };
   }, []);
-
   const totalVerifiedProperties = useMemo(
     () => Object.values(cityStats).reduce((sum, s) => sum + (s.count || 0), 0),
     [cityStats]
@@ -131,10 +129,17 @@ function HomePage() {
     if (!activeCity || exploreCache[activeCity]) return;
     let cancelled = false;
     setExploreLoading(true);
-    getProperties(activeCity, 1, 8)
+    // limit=50 (not 8) deliberately — this makes the request identical to
+    // what the listings page asks for the same city, so the shared gateway
+    // cache serves both from one Amber call instead of two. Only the first 8
+    // are shown here (see the .slice(0, 8) at render below); nothing else changes.
+    getProperties(activeCity, 1, 50, "MEDIUM", "homepage-explore")
       .then((raw) => {
         if (cancelled) return;
         setExploreCache((prev) => ({ ...prev, [activeCity]: safeListingList(raw) }));
+        getCachedCityStats(activeCity).then((stats) => {
+          if (!cancelled && stats) setCityStats((prev) => ({ ...prev, [activeCity]: stats }));
+        });
       })
       .catch((err) => console.error("HomePage explore error:", err))
       .finally(() => { if (!cancelled) setExploreLoading(false); });

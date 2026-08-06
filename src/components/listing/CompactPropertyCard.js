@@ -4,6 +4,9 @@ import PropertyImageGallery from "./PropertyImageGallery";
 
 export default function CompactPropertyCard({ listing }) {
   const { name, address, images, price, rating, badges, slug } = listing;
+  const safeAddress = address || {};
+  const safePrice = price || { from: null };
+  const safeBadges = badges || [];
   const navigate = useNavigate();
 
   const goToDetails = () => {
@@ -26,13 +29,13 @@ export default function CompactPropertyCard({ listing }) {
       onClick={goToDetails}
       onKeyDown={handleKeyDown}
     >
-      <PropertyImageGallery images={images} alt={name} badge={badges[0]} />
+      <PropertyImageGallery images={images} alt={name} badge={safeBadges[0]} />
       <div className="chp-body">
         <h3 className="chp-title">{name}</h3>
-        <p className="chp-location">{[address.locality, address.country].filter(Boolean).join(", ")}</p>
+        <p className="chp-location">{[safeAddress.locality, safeAddress.country].filter(Boolean).join(", ")}</p>
         <div className="chp-footer">
-          {price.from !== null ? (
-            <span className="chp-price">From {price.currency}{price.from}/{price.duration || "wk"}</span>
+          {safePrice.from !== null ? (
+            <span className="chp-price">From {safePrice.currency}{safePrice.from}/{safePrice.duration || "wk"}</span>
           ) : (
             <span className="chp-price">Price on request</span>
           )}

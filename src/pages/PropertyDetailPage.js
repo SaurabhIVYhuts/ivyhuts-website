@@ -11,6 +11,23 @@ import "./PropertyDetailPage.css";
 
 const PAYMENT_FACT_LABELS = ["Guarantor", "Lease Duration", "Non-Students Allowed"];
 
+// A small REAL subset of the already-fetched, already-mapped property —
+// just enough for the homepage's "Continue Exploring" compact card. Reusing
+// this avoids ever re-fetching the property from Amber just to show it again.
+function buildRecentPropertySummary(property) {
+  if (!property || !property.slug) return null;
+  return {
+    id: property.id,
+    slug: property.slug,
+    name: property.name,
+    address: { locality: property.address?.locality || "", country: property.address?.country || "" },
+    images: (property.images || []).slice(0, 2),
+    price: { from: property.price?.from ?? null, currency: property.price?.currency || "", duration: property.price?.duration || "" },
+    rating: property.rating ? { overall: property.rating.overall } : null,
+    badges: (property.badges || []).slice(0, 1),
+  };
+}
+
 export default function PropertyDetailPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -28,8 +45,10 @@ export default function PropertyDetailPage() {
       try {
         const raw = await getPropertyBySlug(slug);
         if (cancelled) return;
-        setProperty(raw ? mapAmberPropertyDetails(raw) : null);
-        if (raw) addRecentProperty(slug);
+        const mapped = raw ? mapAmberPropertyDetails(raw) : null;
+        setProperty(mapped);
+        const summary = buildRecentPropertySummary(mapped);
+        if (summary) addRecentProperty(summary);
       } catch (err) {
         if (!cancelled) {
           console.error("PropertyDetailPage error:", err);
