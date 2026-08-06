@@ -5,11 +5,8 @@ import SiteNavbar from "../components/layout/SiteNavbar";
 import "./HomePage.css";
 import { ROOM_TYPES } from "../data/accommodations.backup";
 import CityCard from "../components/cards/CityCard";
-import CompactPropertyCard from "../components/listing/CompactPropertyCard";
-import { getProperties, getPropertyBySlug, getCityStats } from "../services/amberApi";
-import { mapAmberPropertyToListing, safeListingList } from "../services/amberMapper";
-import { getRecentSearches, getRecentProperties } from "../services/recentActivity";
-import { DESTINATIONS, COUNTRIES } from "../data/destinations";
+import { getCityStats } from "../services/amberApi";
+import { DESTINATIONS, COUNTRIES, countryFullName } from "../data/destinations";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -39,57 +36,6 @@ function HomePage() {
     navigate(`/properties?city=${encodeURIComponent(clean)}`);
   };
 
-  /* ── RECENT SEARCHES ── */
-  const [recentSearches, setRecentSearches] = useState([]);
-  useEffect(() => { setRecentSearches(getRecentSearches()); }, []);
-
-  /* ── CONTINUE EXPLORING / POPULAR STUDENT HOMES ── */
-  const [continueListings, setContinueListings] = useState([]);
-  const [continueTitle, setContinueTitle] = useState("Continue Exploring");
-  const [continueLoading, setContinueLoading] = useState(true);
-  const [continueError, setContinueError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadContinue() {
-      setContinueLoading(true);
-      setContinueError(false);
-      const recent = getRecentProperties();
-
-      try {
-        if (recent.length > 0) {
-          // LOW priority — this is background/preload, not something the user
-          // explicitly asked for right now, so it must never jump ahead of a
-          // property someone actually clicked into.
-          const raws = await Promise.all(recent.map((r) => getPropertyBySlug(r.slug, "LOW").catch(() => null)));
-          const mapped = raws.filter(Boolean).map(mapAmberPropertyToListing).filter(Boolean);
-          if (mapped.length > 0) {
-            if (!cancelled) {
-              setContinueListings(mapped);
-              setContinueTitle("Continue Exploring");
-            }
-            return;
-          }
-        }
-        // No history yet (or none of those properties resolved) — show real popular homes instead.
-        const fallback = await getProperties(DESTINATIONS[0].name, 1, 6);
-        if (!cancelled) {
-          setContinueListings(safeListingList(fallback));
-          setContinueTitle("Popular Student Homes");
-        }
-      } catch (err) {
-        console.error("HomePage continue-exploring error:", err);
-        if (!cancelled) setContinueError(true);
-      } finally {
-        if (!cancelled) setContinueLoading(false);
-      }
-    }
-
-    loadContinue();
-    return () => { cancelled = true; };
-  }, []);
-
   /* ── REAL PER-CITY STATS FOR POPULAR DESTINATIONS ──
      amberApi throttles/caches every request centrally now, so this can just
      ask for all of them — the service layer paces the actual network calls
@@ -115,31 +61,20 @@ function HomePage() {
   );
   const statsLoadedCount = Object.keys(cityStats).length;
 
-  /* ── EXPLORE BY COUNTRY / CITY ── */
-  const [activeCountry, setActiveCountry] = useState(COUNTRIES[0]);
-  const citiesForCountry = useMemo(() => DESTINATIONS.filter((d) => d.country === activeCountry), [activeCountry]);
-  const [activeCity, setActiveCity] = useState(citiesForCountry[0]?.name || null);
-  const [exploreCache, setExploreCache] = useState({});
-  const [exploreLoading, setExploreLoading] = useState(false);
-
-  useEffect(() => {
-    const first = DESTINATIONS.find((d) => d.country === activeCountry);
-    setActiveCity(first ? first.name : null);
-  }, [activeCountry]);
-
-  useEffect(() => {
-    if (!activeCity || exploreCache[activeCity]) return;
-    let cancelled = false;
-    setExploreLoading(true);
-    getProperties(activeCity, 1, 8)
-      .then((raw) => {
-        if (cancelled) return;
-        setExploreCache((prev) => ({ ...prev, [activeCity]: safeListingList(raw) }));
-      })
-      .catch((err) => console.error("HomePage explore error:", err))
-      .finally(() => { if (!cancelled) setExploreLoading(false); });
-    return () => { cancelled = true; };
-  }, [activeCity, exploreCache]);
+  /* ── POPULAR CITIES — COUNTRY FILTER TABS ── */
+  const [popularCountry, setPopularCountry] = useState("All");
+  const popularCountryTabs = useMemo(() => [
+    { code: "All", label: "All Destinations", flag: "🌍" },
+    ...COUNTRIES.map((code) => ({
+      code,
+      label: countryFullName(code),
+      flag: DESTINATIONS.find((d) => d.country === code)?.flag || "",
+    })),
+  ], []);
+  const visibleDestinations = useMemo(
+    () => (popularCountry === "All" ? DESTINATIONS : DESTINATIONS.filter((d) => d.country === popularCountry)),
+    [popularCountry]
+  );
 
   const handleWhyScroll = (e) => {
     const el = e.currentTarget;
@@ -365,35 +300,6 @@ function HomePage() {
         </div>{/* end hero-purple-box */}
       </section>
 
-      {/* RECENT SEARCHES — only shown when real search history exists */}
-      {recentSearches.length > 0 && (
-        <section className="section recent-searches-section">
-          <div className="recent-searches-row">
-            <span className="recent-searches-label">Recent Searches</span>
-            {recentSearches.map((s) => (
-              <button key={s} type="button" className="pill-btn pill-btn-sm" onClick={() => runSearch(s)}>
-                {s}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* CONTINUE EXPLORING / POPULAR STUDENT HOMES */}
-      {!continueError && (continueLoading || continueListings.length > 0) && (
-        <section className="section">
-          <div className="section-heading">
-            <p className="section-eyebrow">Pick Up Where You Left Off</p>
-            <h2 className="section-title">{continueTitle}</h2>
-          </div>
-          <div className="chp-row">
-            {continueLoading
-              ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="chp-skeleton" />)
-              : continueListings.map((listing) => <CompactPropertyCard key={listing.id} listing={listing} />)}
-          </div>
-        </section>
-      )}
-
       {/* TRUST BADGES */}
       <section className="trust-strip">
         <div className="trust-strip-inner">
@@ -443,8 +349,21 @@ function HomePage() {
             )}
           </p>
         </div>
-        <div className="city-grid">
-          {DESTINATIONS.map((city) => (
+        <div className="city-tab-row" role="group" aria-label="Filter popular cities by country">
+          {popularCountryTabs.map((tab) => (
+            <button
+              key={tab.code}
+              type="button"
+              className={`pill-btn${tab.code === popularCountry ? " active" : ""}`}
+              aria-pressed={tab.code === popularCountry}
+              onClick={() => setPopularCountry(tab.code)}
+            >
+              <span aria-hidden="true">{tab.flag}</span> {tab.label}
+            </button>
+          ))}
+        </div>
+        <ul className="city-grid">
+          {visibleDestinations.map((city) => (
             <CityCard
               key={`${city.name}-${city.country}`}
               city={{
@@ -455,50 +374,7 @@ function HomePage() {
               }}
             />
           ))}
-        </div>
-      </section>
-
-      {/* EXPLORE BY COUNTRY / CITY */}
-      <section className="section explore-section">
-        <div className="section-heading">
-          <p className="section-eyebrow">Discover</p>
-          <h2 className="section-title">Explore Student Homes</h2>
-          <p className="section-copy">Browse live, verified availability by country and city.</p>
-        </div>
-
-        <div className="explore-pill-row">
-          {COUNTRIES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`pill-btn${c === activeCountry ? " active" : ""}`}
-              onClick={() => setActiveCountry(c)}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        <div className="explore-pill-row explore-pill-row-cities">
-          {citiesForCountry.map((d) => (
-            <button
-              key={d.name}
-              type="button"
-              className={`pill-btn pill-btn-sm${d.name === activeCity ? " active" : ""}`}
-              onClick={() => setActiveCity(d.name)}
-            >
-              {d.name}
-            </button>
-          ))}
-        </div>
-
-        <div className="chp-row">
-          {exploreLoading && !exploreCache[activeCity]
-            ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="chp-skeleton" />)
-            : (exploreCache[activeCity] || []).length > 0
-              ? exploreCache[activeCity].slice(0, 8).map((listing) => <CompactPropertyCard key={listing.id} listing={listing} />)
-              : <p className="explore-empty">No live listings found for {activeCity} right now.</p>}
-        </div>
+        </ul>
       </section>
 
       {/* ROOM TYPES */}
