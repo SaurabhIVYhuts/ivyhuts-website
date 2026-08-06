@@ -24,6 +24,14 @@ const COUNTRIES = [
   { name: "Switzerland", flag: "🇨🇭" },
   { name: "South Korea", flag: "🇰🇷" },
   { name: "Japan",       flag: "🇯🇵" },
+  { name: "Malaysia",       flag: "🇲🇾" },
+  { name: "Hong Kong",      flag: "🇭🇰" },
+  { name: "Poland",         flag: "🇵🇱" },
+  { name: "Czech Republic", flag: "🇨🇿" },
+  { name: "Denmark",        flag: "🇩🇰" },
+  { name: "Portugal",       flag: "🇵🇹" },
+  { name: "Austria",        flag: "🇦🇹" },
+  { name: "Belgium",        flag: "🇧🇪" },
 ];
 const ROOM_TYPES = ["En-Suite", "Studio", "Shared Room", "Private Apartment", "No Preference"];
 const BUDGETS = [

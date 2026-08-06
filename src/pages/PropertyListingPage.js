@@ -6,6 +6,7 @@ import { addRecentSearch } from "../services/recentActivity";
 import { DESTINATIONS, findDestination, countryFullName } from "../data/destinations";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import SiteFooter from "../components/layout/SiteFooter";
+import TrustStrip from "../components/layout/TrustStrip";
 import ListingCard from "../components/listing/ListingCard";
 import CompactPropertyCard from "../components/listing/CompactPropertyCard";
 import CityCard from "../components/cards/CityCard";
@@ -15,6 +16,10 @@ const EMPTY_FILTERS = {
   query: "", minPrice: "", maxPrice: "", roomType: "", billsOnly: false,
   university: "", amenities: [], sortBy: "recommended",
 };
+
+// A hand-picked spread across regions so the shortcut row isn't UK-heavy —
+// every name here must exist in DESTINATIONS.
+const POPULAR_CITY_NAMES = ["London", "New York", "Toronto", "Sydney", "Dublin", "Amsterdam", "Berlin", "Tokyo"];
 
 const SORT_OPTIONS = [
   { value: "recommended", label: "Recommended" },
@@ -76,6 +81,19 @@ export default function PropertyListingPage() {
     () => (countryParam ? DESTINATIONS.filter((d) => d.country === countryParam) : []),
     [countryParam]
   );
+  const popularCities = useMemo(
+    () => POPULAR_CITY_NAMES.map((n) => findDestination(n)).filter(Boolean),
+    []
+  );
+
+  const [destQuery, setDestQuery] = useState("");
+  const filteredCountryGroups = useMemo(() => {
+    const q = destQuery.trim().toLowerCase();
+    if (!q) return countryGroups;
+    return countryGroups.filter(
+      (g) => countryFullName(g.country).toLowerCase().includes(q) || g.cities.some((c) => c.name.toLowerCase().includes(q))
+    );
+  }, [countryGroups, destQuery]);
 
   const [rawProperties, setRawProperties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -218,27 +236,69 @@ export default function PropertyListingPage() {
             <p className="destination-browser-sub">
               Pick a country to see the cities we cover, then browse real, verified rooms — no enquiry needed to look.
             </p>
+            <div className="destination-search-wrap">
+              <input
+                type="text"
+                className="destination-search-input"
+                placeholder="Search a country or city…"
+                value={destQuery}
+                onChange={(e) => setDestQuery(e.target.value)}
+                aria-label="Search a country or city"
+              />
+            </div>
           </div>
-          <div className="country-select-grid">
-            {countryGroups.map((g) => (
-              <Link
-                key={g.country}
-                to={{ search: `?country=${encodeURIComponent(g.country)}` }}
-                className="country-select-card"
-              >
-                <div className="country-select-image">
-                  <img src={g.cities[0]?.image} alt={countryFullName(g.country)} loading="lazy" />
-                  <span className="country-select-flag" aria-hidden="true">{g.flag}</span>
-                </div>
-                <div className="country-select-body">
-                  <span className="country-select-name">{countryFullName(g.country)}</span>
-                  <span className="country-select-count">{g.cities.length} {g.cities.length === 1 ? "city" : "cities"}</span>
-                </div>
-              </Link>
-            ))}
+
+          {!destQuery && popularCities.length > 0 && (
+            <div className="popular-cities-row">
+              <span className="popular-cities-label">Popular right now</span>
+              <div className="popular-cities-chips">
+                {popularCities.map((c) => (
+                  <Link key={c.name} to={`/properties?city=${encodeURIComponent(c.name)}`} className="popular-city-chip">
+                    <span aria-hidden="true">{c.flag}</span> {c.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {filteredCountryGroups.length > 0 ? (
+            <div className="country-select-grid">
+              {filteredCountryGroups.map((g) => (
+                <Link
+                  key={g.country}
+                  to={{ search: `?country=${encodeURIComponent(g.country)}` }}
+                  className="country-select-card"
+                >
+                  <div className="country-select-image">
+                    <img src={g.cities[0]?.image} alt={countryFullName(g.country)} loading="lazy" />
+                    <span className="country-select-flag" aria-hidden="true">{g.flag}</span>
+                  </div>
+                  <div className="country-select-body">
+                    <span className="country-select-name">{countryFullName(g.country)}</span>
+                    <span className="country-select-count">{g.cities.length} {g.cities.length === 1 ? "city" : "cities"}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="listings-empty">
+              <p>No countries or cities match "{destQuery}".</p>
+              <button type="button" className="toolbar-clear-btn" onClick={() => setDestQuery("")}>Clear search</button>
+            </div>
+          )}
+
+          <div className="destination-advisor-banner">
+            <div>
+              <strong>Not sure where to start?</strong>
+              <span>Tell us your budget and course, and a real advisor will shortlist rooms for you — free.</span>
+            </div>
+            <Link to="/enquire" className="btn btn-secondary" style={{ background: "rgba(255,255,255,0.14)", borderColor: "rgba(255,255,255,0.4)", color: "#fff" }}>
+              Talk to an Advisor
+            </Link>
           </div>
         </div>
       )}
+      {!city && !countryParam && <TrustStrip />}
 
       {!city && countryParam && (
         <div className="destination-browser">

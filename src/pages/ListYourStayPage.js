@@ -21,7 +21,8 @@ const COUNTRIES_LIST = [
   "UK", "Canada", "Australia", "USA", "Germany", "France",
   "Ireland", "Netherlands", "New Zealand", "Singapore",
   "UAE", "Sweden", "Italy", "Spain", "Switzerland",
-  "South Korea", "Japan", "Other",
+  "South Korea", "Japan", "Malaysia", "Hong Kong", "Poland",
+  "Czech Republic", "Denmark", "Portugal", "Austria", "Belgium", "Other",
 ];
 
 const AMENITIES_LIST = [

@@ -53,6 +53,16 @@ export const DESTINATIONS = [
   { name: "Busan", country: "South Korea", flag: "🇰🇷", description: "A coastal Korean city with beaches, culture and growing campuses.", image: "https://images.unsplash.com/photo-1591520284162-8e64eceebacf?w=900&q=80&auto=format&fit=crop" },
   { name: "Tokyo", country: "Japan", flag: "🇯🇵", description: "A global capital blending tradition with cutting-edge student life.", image: "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=900&q=80&auto=format&fit=crop" },
   { name: "Osaka", country: "Japan", flag: "🇯🇵", description: "Japan's food capital, with a friendly atmosphere and strong universities.", image: "https://images.unsplash.com/photo-1589452271712-64b8a66c7b71?w=900&q=80&auto=format&fit=crop" },
+  { name: "Kuala Lumpur", country: "Malaysia", flag: "🇲🇾", description: "An affordable, multicultural gateway to Southeast Asian study.", image: "https://images.unsplash.com/photo-1508062878650-88b52897f298?w=900&q=80&auto=format&fit=crop" },
+  { name: "Hong Kong", country: "Hong Kong", flag: "🇭🇰", description: "A dense, world-class financial hub with top-ranked universities.", image: "https://images.unsplash.com/photo-1620015092538-e33c665fc181?w=900&q=80&auto=format&fit=crop" },
+  { name: "Warsaw", country: "Poland", flag: "🇵🇱", description: "A fast-growing capital with affordable living and strong universities.", image: "https://images.unsplash.com/photo-1607078486875-a697a8a38e87?w=900&q=80&auto=format&fit=crop" },
+  { name: "Krakow", country: "Poland", flag: "🇵🇱", description: "A historic, budget-friendly city with a huge student population.", image: "https://images.unsplash.com/photo-1670166819528-aadfddc48070?w=900&q=80&auto=format&fit=crop" },
+  { name: "Prague", country: "Czech Republic", flag: "🇨🇿", description: "A fairy-tale city centre with low costs and English-taught degrees.", image: "https://images.unsplash.com/photo-1592906209472-a36b1f3782ef?w=900&q=80&auto=format&fit=crop" },
+  { name: "Copenhagen", country: "Denmark", flag: "🇩🇰", description: "Scandinavian quality of life with globally ranked universities.", image: "https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?w=900&q=80&auto=format&fit=crop" },
+  { name: "Lisbon", country: "Portugal", flag: "🇵🇹", description: "Sunny, affordable and increasingly popular with international students.", image: "https://images.unsplash.com/photo-1585208798174-6cedd86e019a?w=900&q=80&auto=format&fit=crop" },
+  { name: "Porto", country: "Portugal", flag: "🇵🇹", description: "A charming riverside city with a growing student community.", image: "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=900&q=80&auto=format&fit=crop" },
+  { name: "Vienna", country: "Austria", flag: "🇦🇹", description: "Consistently rated the world's most liveable city for students.", image: "https://images.unsplash.com/photo-1516550893923-42d28e5677af?w=900&q=80&auto=format&fit=crop" },
+  { name: "Brussels", country: "Belgium", flag: "🇧🇪", description: "Europe's political capital, with a truly international student mix.", image: "https://images.unsplash.com/photo-1559113202-c916b8e44373?w=900&q=80&auto=format&fit=crop" },
 ];
 
 export const COUNTRIES = Array.from(new Set(DESTINATIONS.map((d) => d.country)));
@@ -75,6 +85,14 @@ const COUNTRY_FULL_NAMES = {
   Switzerland: "Switzerland",
   "South Korea": "South Korea",
   Japan: "Japan",
+  Malaysia: "Malaysia",
+  "Hong Kong": "Hong Kong",
+  Poland: "Poland",
+  "Czech Republic": "Czech Republic",
+  Denmark: "Denmark",
+  Portugal: "Portugal",
+  Austria: "Austria",
+  Belgium: "Belgium",
 };
 
 export function findDestination(cityName) {
@@ -105,6 +123,14 @@ const COUNTRY_ISO_CODES = {
   Switzerland: "CH",
   "South Korea": "KR",
   Japan: "JP",
+  Malaysia: "MY",
+  "Hong Kong": "HK",
+  Poland: "PL",
+  "Czech Republic": "CZ",
+  Denmark: "DK",
+  Portugal: "PT",
+  Austria: "AT",
+  Belgium: "BE",
 };
 
 export function countryIsoCode(code) {
