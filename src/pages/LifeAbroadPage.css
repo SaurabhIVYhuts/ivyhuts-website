@@ -6,7 +6,6 @@
 .la-page {
   min-height: 100vh;
   background: #FBF4F8;
-  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
 }
 
 /* ── Hero ── */
@@ -78,15 +77,15 @@
 
 .la-filter-btn {
   background: #FBF4F8;
-  border: 1.5px solid #EDD5E3;
+  border: 1.5px solid var(--border-soft);
   color: #7B5B70;
   padding: 7px 16px;
-  border-radius: 20px;
+  border-radius: var(--radius-full);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
   font-family: inherit;
 }
 .la-filter-btn:hover {
@@ -101,7 +100,7 @@
 
 /* ── Content ── */
 .la-content {
-  max-width: 1200px;
+  max-width: var(--container-max);
   margin: 0 auto;
   padding: 40px 48px 60px;
 }
@@ -110,21 +109,21 @@
 .la-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  gap: var(--space-4);
   margin-bottom: 56px;
 }
 
 .la-video-card {
   background: white;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1.5px solid #EDD5E3;
-  box-shadow: 0 4px 16px rgba(94, 58, 107, 0.06);
-  transition: transform 0.25s, box-shadow 0.25s;
+  border: 1px solid var(--border-brand);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition), box-shadow var(--transition);
 }
 .la-video-card:hover {
   transform: translateY(-6px);
-  box-shadow: 0 16px 40px rgba(94, 58, 107, 0.12);
+  box-shadow: var(--shadow-lg);
 }
 
 .la-thumbnail {
@@ -208,7 +207,7 @@
 /* ── Submit Story CTA ── */
 .la-submit-cta {
   background: linear-gradient(135deg, #5E3A6B 0%, #B07898 100%);
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   padding: 36px 40px;
   color: white;
 }
@@ -238,22 +237,6 @@
   margin: 0;
   line-height: 1.5;
 }
-.la-submit-btn {
-  background: #C47A8A;
-  color: white;
-  border: none;
-  padding: 12px 28px;
-  border-radius: 10px;
-  font-size: 0.92rem;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: opacity 0.2s, transform 0.15s;
-  font-family: inherit;
-  flex-shrink: 0;
-}
-.la-submit-btn:hover { opacity: 0.9; transform: translateY(-1px); }
-
 /* ── Responsive ── */
 @media (max-width: 1024px) {
   .la-grid { grid-template-columns: repeat(2, 1fr); }
@@ -269,5 +252,5 @@
   .la-grid { grid-template-columns: 1fr; }
   .la-submit-cta { padding: 28px 24px; }
   .la-submit-cta-inner { flex-direction: column; align-items: flex-start; }
-  .la-submit-btn { width: 100%; text-align: center; }
+  .la-submit-cta-inner .btn { width: 100%; text-align: center; }
 }

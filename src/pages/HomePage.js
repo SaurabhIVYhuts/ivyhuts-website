@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import "./HomePage.css";
-import { ROOM_TYPES } from "../data/accommodations.backup";
 import CityCard from "../components/cards/CityCard";
 import { getCachedCityStats } from "../services/amberApi";
 import { DESTINATIONS, COUNTRIES, countryFullName } from "../data/destinations";
@@ -241,7 +240,7 @@ function HomePage() {
             </form>
 
             <div className="hero-actions">
-              <Link to="/find-rooms" className="hero-secondary-btn">Prefer we search for you? Fill our form →</Link>
+              <Link to="/enquire" className="hero-secondary-btn">Prefer we search for you? Fill our form →</Link>
             </div>
             <div className="hero-stats" ref={hutsStopRef}>
               <div className="hero-stat">
@@ -371,26 +370,6 @@ function HomePage() {
             />
           ))}
         </ul>
-      </section>
-
-      {/* ROOM TYPES */}
-      <section className="section roomtypes-section">
-        <p className="section-eyebrow">What We Offer</p>
-        <h2 className="section-title">Find the Right Room Type</h2>
-        <div className="section-underline" />
-        <div className="roomtypes-scroll-wrap">
-          <div className="roomtypes-grid">
-            {ROOM_TYPES.map((rt) => (
-              <div key={rt.type} className="roomtype-card">
-                <div className="roomtype-name">{rt.type}</div>
-                <div className="roomtype-desc">{rt.description}</div>
-                <div className="roomtype-footer">
-                  <span className="roomtype-best">Best for: {rt.bestFor}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </section>
 
       {/* WHY IVYHUTS — internal scroll stacking cards */}
@@ -536,7 +515,7 @@ function HomePage() {
           <h2>Your perfect student stay is one form away</h2>
           <p className="cta-sub">Tell us what you need and our team will do the rest. Free service, personalised results, within 24 hours.</p>
           <div className="cta-actions">
-            <Link to="/find-rooms" className="primary-btn" style={{ display: "inline-block" }}>Find My Stay →</Link>
+            <Link to="/enquire" className="primary-btn" style={{ display: "inline-block" }}>Find My Stay →</Link>
           </div>
         </div>
       </section>

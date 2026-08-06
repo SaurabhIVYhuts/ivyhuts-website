@@ -43,7 +43,7 @@ export default function ListingCard({ listing, onEnquire }) {
       onClick={goToDetails}
       onKeyDown={handleKeyDown}
     >
-      <PropertyImageGallery images={images} alt={name} badge={badges[0]} />
+      <PropertyImageGallery images={images} alt={name} badges={badges.slice(0, 2)} />
 
       <div className="listing-card-body">
         <div className="listing-card-top">
@@ -66,9 +66,9 @@ export default function ListingCard({ listing, onEnquire }) {
           </div>
         )}
 
-        {badges.length > 1 && (
+        {badges.length > 2 && (
           <div className="listing-chip-row">
-            {badges.slice(1, 4).map((b) => (
+            {badges.slice(2, 5).map((b) => (
               <span key={b} className="listing-chip listing-chip-highlight"><CheckBadgeIcon /> {b}</span>
             ))}
           </div>
@@ -113,7 +113,7 @@ export default function ListingCard({ listing, onEnquire }) {
 
           <button
             type="button"
-            className="listing-enquire-btn"
+            className="btn btn-primary btn-sm"
             onClick={(e) => { e.stopPropagation(); onEnquire(listing); }}
           >
             Enquire

@@ -441,7 +441,7 @@ export default function AccommodationFinderPage() {
 
             {/* SUBMIT */}
             <div className="form-submit-wrap">
-              <button type="submit" className="form-submit-btn" disabled={status === "sending"}>
+              <button type="submit" className="btn btn-primary btn-lg" disabled={status === "sending"}>
                 {status === "sending" ? "Sending..." : "Get in Touch"}
               </button>
               <p className="form-submit-note">
@@ -486,7 +486,7 @@ function SuccessScreen({ name }) {
           <span>Your details are safe. We never share your data.</span>
         </div>
       </div>
-      <Link to="/" className="success-home-btn">Back to Home</Link>
+      <Link to="/" className="btn btn-ghost">Back to Home</Link>
     </div>
   );
 }

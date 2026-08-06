@@ -3,11 +3,12 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { getProperties } from "../services/amberApi";
 import { safeListingList } from "../services/amberMapper";
 import { addRecentSearch } from "../services/recentActivity";
-import { findDestination, countryFullName } from "../data/destinations";
+import { DESTINATIONS, findDestination, countryFullName } from "../data/destinations";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import SiteFooter from "../components/layout/SiteFooter";
 import ListingCard from "../components/listing/ListingCard";
 import CompactPropertyCard from "../components/listing/CompactPropertyCard";
+import CityCard from "../components/cards/CityCard";
 import "./PropertyListingPage.css";
 
 const EMPTY_FILTERS = {
@@ -57,7 +58,24 @@ const HeadsetIcon = () => (
 export default function PropertyListingPage() {
   const [searchParams] = useSearchParams();
   const city = searchParams.get("city");
+  const countryParam = searchParams.get("country");
   const navigate = useNavigate();
+
+  // Grouped once from the static destinations list — no API call needed to
+  // show "which countries/cities can I browse", only fetch real inventory
+  // once a specific city is picked.
+  const countryGroups = useMemo(() => {
+    const map = new Map();
+    DESTINATIONS.forEach((d) => {
+      if (!map.has(d.country)) map.set(d.country, { country: d.country, flag: d.flag, cities: [] });
+      map.get(d.country).cities.push(d);
+    });
+    return Array.from(map.values());
+  }, []);
+  const citiesInCountry = useMemo(
+    () => (countryParam ? DESTINATIONS.filter((d) => d.country === countryParam) : []),
+    [countryParam]
+  );
 
   const [rawProperties, setRawProperties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,12 +85,21 @@ export default function PropertyListingPage() {
   const [descExpanded, setDescExpanded] = useState(false);
 
   useEffect(() => {
+    // No city selected yet — the user is on the country/city browse step,
+    // not a listing view, so there's nothing to fetch.
+    if (!city) {
+      setLoading(false);
+      setError(null);
+      setRawProperties([]);
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
       setLoading(true);
       setError(null);
-      if (city) addRecentSearch(city);
+      addRecentSearch(city);
       try {
         const data = await getProperties(city);
         if (!cancelled) setRawProperties(Array.isArray(data) ? data : []);
@@ -183,6 +210,63 @@ export default function PropertyListingPage() {
     <>
       <SiteNavbar />
 
+      {!city && !countryParam && (
+        <div className="destination-browser">
+          <div className="destination-browser-header">
+            <p className="section-eyebrow">Find Rooms</p>
+            <h1>Where are you headed?</h1>
+            <p className="destination-browser-sub">
+              Pick a country to see the cities we cover, then browse real, verified rooms — no enquiry needed to look.
+            </p>
+          </div>
+          <div className="country-select-grid">
+            {countryGroups.map((g) => (
+              <Link
+                key={g.country}
+                to={{ search: `?country=${encodeURIComponent(g.country)}` }}
+                className="country-select-card"
+              >
+                <div className="country-select-image">
+                  <img src={g.cities[0]?.image} alt={countryFullName(g.country)} loading="lazy" />
+                  <span className="country-select-flag" aria-hidden="true">{g.flag}</span>
+                </div>
+                <div className="country-select-body">
+                  <span className="country-select-name">{countryFullName(g.country)}</span>
+                  <span className="country-select-count">{g.cities.length} {g.cities.length === 1 ? "city" : "cities"}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!city && countryParam && (
+        <div className="destination-browser">
+          <nav aria-label="Breadcrumb" className="listings-breadcrumb">
+            <Link to="/">Home</Link>
+            <span>/</span>
+            <Link to={{ search: "" }}>Find Rooms</Link>
+            <span>/</span>
+            <span aria-current="page">{countryFullName(countryParam)}</span>
+          </nav>
+          <div className="destination-browser-header">
+            <p className="section-eyebrow">{countryFullName(countryParam)}</p>
+            <h1>Choose a city in {countryFullName(countryParam)}</h1>
+          </div>
+          {citiesInCountry.length > 0 ? (
+            <ul className="country-cities-grid">
+              {citiesInCountry.map((c) => <CityCard key={c.name} city={c} />)}
+            </ul>
+          ) : (
+            <div className="listings-empty">
+              <p>We don't have cities listed for this country yet.</p>
+              <Link to={{ search: "" }} className="toolbar-clear-btn">Back to all countries</Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      {city && (
       <div className="listings-page">
         {/* FILTER TOOLBAR */}
         <div className="listings-toolbar">
@@ -394,6 +478,7 @@ export default function PropertyListingPage() {
           </aside>
         </div>
       </div>
+      )}
 
       <SiteFooter />
     </>

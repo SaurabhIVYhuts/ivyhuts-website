@@ -5,7 +5,6 @@
 .lst-page {
   min-height: 100vh;
   background: #FBF4F8;
-  font-family: 'Poppins', system-ui, sans-serif;
 }
 
 /* ── WIZARD CONTAINER ── */
@@ -104,10 +103,10 @@
 
 .lst-panel {
   background: white;
-  border-radius: 24px;
-  border: 1.5px solid #EDD5E3;
+  border-radius: var(--radius-xl);
+  border: 1.5px solid var(--border-soft);
   padding: 40px 40px 32px;
-  box-shadow: 0 4px 24px rgba(94, 58, 107, 0.08);
+  box-shadow: var(--shadow-md);
   margin-bottom: 20px;
 }
 
@@ -157,15 +156,15 @@
   letter-spacing: 0.4px;
 }
 .lst-input {
-  border: 1.5px solid #EDD5E3;
-  border-radius: 12px;
-  padding: 11px 14px;
-  font-size: 0.9rem;
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 13px 16px;
+  font-size: 0.94rem;
   color: #3A2442;
   font-family: inherit;
   outline: none;
   background: #FDFAFC;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 .lst-input:focus {
   border-color: #B07898;
@@ -307,51 +306,6 @@
   color: #A68E9B;
   font-weight: 600;
 }
-.lst-btn-back {
-  background: #F8EEF4;
-  border: 1.5px solid #EDD5E3;
-  border-radius: 12px;
-  padding: 11px 22px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: #5E3A6B;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.15s, border-color 0.15s;
-}
-.lst-btn-back:hover { background: #EDD5E3; }
-
-.lst-btn-next {
-  background: linear-gradient(135deg, #5E3A6B, #B07898);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  padding: 12px 28px;
-  font-size: 0.92rem;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-  transition: opacity 0.2s, transform 0.15s;
-  box-shadow: 0 4px 16px rgba(94, 58, 107, 0.28);
-}
-.lst-btn-next:hover { opacity: 0.9; transform: translateY(-1px); }
-
-.lst-btn-submit {
-  background: linear-gradient(135deg, #2E7D32, #66BB6A);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  padding: 12px 28px;
-  font-size: 0.92rem;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-  transition: opacity 0.2s, transform 0.15s;
-  box-shadow: 0 4px 16px rgba(46, 125, 50, 0.3);
-}
-.lst-btn-submit:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
-.lst-btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
-
 /* ── SUCCESS ── */
 .lst-success-full {
   max-width: 600px;
@@ -404,20 +358,6 @@
   background: #5E3A6B;
   flex-shrink: 0;
 }
-.lst-back-btn {
-  display: inline-block;
-  background: #F8EEF4;
-  border: 1.5px solid #B07898;
-  border-radius: 12px;
-  padding: 11px 28px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #5E3A6B;
-  text-decoration: none;
-  transition: background 0.15s;
-}
-.lst-back-btn:hover { background: #EDD5E3; }
-
 /* ── RESPONSIVE ── */
 @media (max-width: 600px) {
   .lst-wizard { padding: 20px 16px 60px; }

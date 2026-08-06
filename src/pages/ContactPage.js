@@ -147,7 +147,7 @@ export default function ContactPage() {
               </svg>
               <h2>Message Sent!</h2>
               <p>Thanks for reaching out. We will get back to you at <strong>{form.email}</strong> within 24 hours.</p>
-              <button className="cp-reset-btn" onClick={() => { setStatus("idle"); setForm({ name: "", email: "", phone: "", subject: "", message: "" }); }}>
+              <button className="btn btn-secondary" onClick={() => { setStatus("idle"); setForm({ name: "", email: "", phone: "", subject: "", message: "" }); }}>
                 Send Another Message
               </button>
             </div>
@@ -190,7 +190,7 @@ export default function ContactPage() {
 
               {errors.submit && <div className="cp-submit-err">{errors.submit}</div>}
 
-              <button type="submit" className="cp-submit-btn" disabled={status === "sending"}>
+              <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={status === "sending"}>
                 {status === "sending" ? "Sending..." : "Send Message"}
               </button>
             </form>

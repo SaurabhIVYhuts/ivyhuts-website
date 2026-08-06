@@ -37,7 +37,7 @@
   color: #3A2442;
   margin: 0 0 12px;
   padding-bottom: 8px;
-  border-bottom: 2px solid #EDD5E3;
+  border-bottom: 2px solid var(--border-soft);
 }
 .legal-section p {
   font-size: 0.92rem;

@@ -143,7 +143,7 @@ export default function PartnerPage() {
             </svg>
             <h2>Thanks for reaching out!</h2>
             <p>We will review your enquiry and get back to you at <strong>{form.email}</strong> within 48 hours to discuss next steps.</p>
-            <button className="pp-reset-btn" onClick={() => { setStatus("idle"); setForm({ name: "", company: "", email: "", phone: "", partnerType: "", properties: "", countries: "", message: "" }); }}>
+            <button className="btn btn-secondary" onClick={() => { setStatus("idle"); setForm({ name: "", company: "", email: "", phone: "", partnerType: "", properties: "", countries: "", message: "" }); }}>
               Submit Another Enquiry
             </button>
           </div>
@@ -207,7 +207,7 @@ export default function PartnerPage() {
 
               {errors.submit && <div className="pp-submit-err">{errors.submit}</div>}
 
-              <button type="submit" className="pp-submit-btn" disabled={status === "sending"}>
+              <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={status === "sending"}>
                 {status === "sending" ? "Sending..." : "Send Partnership Enquiry"}
               </button>
             </form>
