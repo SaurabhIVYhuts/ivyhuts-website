@@ -14,12 +14,30 @@ const RATE_BUDGET_PER_MINUTE = Number(process.env.AMBER_MAX_REQUESTS_PER_MINUTE)
 const RATE_WINDOW_MS = 60_000;
 const DEFAULT_COOLDOWN_MS = 5 * 60_000; // Amber's documented halt — used whenever it doesn't tell us otherwise
 
-// Amber cold responses have been observed taking up to ~13.7s in production.
-// Deliberately NOT 5s or 10s — that would abort perfectly legitimate slow
-// responses. 20s gives ~45% margin over the worst observed case without
-// being unbounded. Configurable so it can be tuned from real data without a
+// Amber cold responses have been observed taking up to ~13.7s in production —
+// but confirmed Vercel Preview runtime evidence (Milestone 3C) showed a real
+// Amber upstream request that was STILL in flight at the full 20s mark,
+// which our own AbortController then aborted, producing a 504 the user only
+// had to reload past. 20s was therefore demonstrated to be too tight against
+// Vercel's own 30s function ceiling (vercel.json's maxDuration). 25s leaves
+// ~5s of headroom inside that 30s ceiling for the surrounding work a request
+// still needs after Amber responds (JSON parsing, the Redis cache write(s),
+// response serialization, network overhead) — enough to allow the confirmed
+// real Amber duration through without being unbounded or crowding out that
+// trailing work. Configurable so it can be tuned from real data without a
 // code change.
-const AMBER_FETCH_TIMEOUT_MS = Number(process.env.AMBER_FETCH_TIMEOUT_MS) || 20_000;
+const AMBER_FETCH_TIMEOUT_MS = Number(process.env.AMBER_FETCH_TIMEOUT_MS) || 25_000;
+
+// Below this much remaining time in a request's shared upstream deadline (see
+// fetchListings' deadlineAt), don't even attempt a fresh Amber call — it has
+// no realistic chance of completing and would still cost a budget slot for
+// nothing. Only matters for fetchListings' fallback leg; a normal single-call
+// request always starts with the full AMBER_FETCH_TIMEOUT_MS available, so
+// this floor is essentially never reached outside that fallback path.
+// Proportional to AMBER_FETCH_TIMEOUT_MS (10%, floor 500ms) rather than a
+// fixed absolute — an absolute floor could exceed a smaller configured
+// timeout entirely, making every single-call request fail immediately.
+const MIN_AMBER_ATTEMPT_MS = Math.max(500, Math.round(AMBER_FETCH_TIMEOUT_MS * 0.1));
 
 // Must safely outlive one full AMBER_FETCH_TIMEOUT_MS attempt plus a margin
 // for the surrounding work (reserving budget, writing the result to the
@@ -140,16 +158,20 @@ async function activateCooldown(retryAfterSeconds) {
 
 // Bounded so a hung upstream response can never hold a distributed lock (and
 // the serverless invocation carrying it) open indefinitely — see
-// AMBER_FETCH_TIMEOUT_MS's comment for why 20s, not something shorter.
-async function fetchFromAmberOnce(amberUrl) {
+// AMBER_FETCH_TIMEOUT_MS's comment for why 25s, not something shorter.
+// `timeoutMs` is passed explicitly (not read from the module constant
+// directly) so fetchListings' fallback leg can be given only whatever time
+// remains in the invocation's shared deadline, rather than a fresh full
+// AMBER_FETCH_TIMEOUT_MS on top of what the primary call already used.
+async function fetchFromAmberOnce(amberUrl, timeoutMs) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), AMBER_FETCH_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     let res;
     try {
         res = await fetch(amberUrl, { signal: controller.signal });
     } catch (err) {
         if (err.name === "AbortError") {
-            throw new AmberGatewayError(`Amber did not respond within ${AMBER_FETCH_TIMEOUT_MS}ms`, 504, null, "amber_timeout");
+            throw new AmberGatewayError(`Amber did not respond within ${timeoutMs}ms`, 504, null, "amber_timeout");
         }
         throw err;
     } finally {
@@ -183,9 +205,15 @@ function staleOnRedisFailure(err, cached, source, priority, cacheKey) {
     return null;
 }
 
-async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "unknown" }) {
+async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "unknown", deadlineAt }) {
     const cacheKey = buildCacheKey(type, params);
     const ttl = TTL[type] || TTL.listings;
+    // A single call defaults to a fresh full AMBER_FETCH_TIMEOUT_MS window
+    // (unchanged behavior). fetchListings sets one explicit deadlineAt and
+    // passes it to both its primary and fallback calls, so the two together
+    // share ONE upstream time budget instead of each getting an independent
+    // full timeout — see fetchListings' own comment for why.
+    const deadline = deadlineAt || Date.now() + AMBER_FETCH_TIMEOUT_MS;
     const cached = await sharedGet(cacheKey);
 
     if (cached && isFresh(cached, ttl.freshSeconds)) {
@@ -263,6 +291,17 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
     }
 
     try {
+        // If most/all of the shared deadline was already spent (only reachable
+        // via fetchListings' fallback leg, after a slow-but-successful primary
+        // call), don't reserve a budget slot for an attempt with no realistic
+        // chance of completing — fail the same clean way a real timeout would,
+        // without spending Amber quota on it.
+        const remainingBeforeReserve = deadline - Date.now();
+        if (remainingBeforeReserve < MIN_AMBER_ATTEMPT_MS) {
+            log(`source=${source} priority=${priority} cache=MISS key=${cacheKey} action=DEADLINE_EXHAUSTED remainingMs=${remainingBeforeReserve}`);
+            throw new AmberGatewayError("Amber upstream time budget exhausted for this request", 504, null, "amber_timeout");
+        }
+
         // Atomic check-and-record — see the long comment on tryReserveSlot in
         // sharedStore.js for why this must not be two separate steps.
         const granted = await tryReserveSlot(RATE_WINDOW_MS, RATE_BUDGET_PER_MINUTE);
@@ -284,7 +323,7 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
         console.log(`[AMBER UPSTREAM] REQUEST #${used} type=${type} city=${params.city || "-"} slug=${params.slug || "-"} budget=${used}/${RATE_BUDGET_PER_MINUTE}`);
         log(`source=${source} priority=${priority} cache=MISS key=${cacheKey} budget=${used}/${RATE_BUDGET_PER_MINUTE} action=AMBER_REQUEST`);
 
-        const json = await fetchFromAmberOnce(amberUrl);
+        const json = await fetchFromAmberOnce(amberUrl, Math.max(0, deadline - Date.now()));
         try {
             await sharedSet(cacheKey, { data: json, cachedAt: Date.now() }, ttl.maxAgeSeconds);
         } catch (err) {
@@ -395,16 +434,42 @@ function matchesCity(item, cityLower) {
 // it's cached/budgeted/stampede-protected exactly like any other request.
 // Once that unfiltered dataset is cached once, every city's fallback becomes
 // a free cache hit instead of a second Amber call.
+//
+// Both legs share ONE deadlineAt, established here once, rather than each
+// defaulting to its own fresh AMBER_FETCH_TIMEOUT_MS. Without this, a slow
+// (but successful, empty-result) primary Amber call followed by a fallback
+// that also needs a real Amber attempt could sum to up to 2x
+// AMBER_FETCH_TIMEOUT_MS — incompatible with a single Vercel invocation's
+// maxDuration. With a shared deadline, the fallback only gets whatever time
+// the primary didn't use; fetchAmberInner's own MIN_AMBER_ATTEMPT_MS check
+// skips the fallback's Amber attempt entirely (failing amber_timeout, or
+// serving stale if available) rather than wasting a budget slot on an
+// attempt that can't realistically finish in time.
 async function fetchListings(params, priority, source) {
-    const primary = await fetchAmber({ type: "listings", params, priority, source });
+    const deadlineAt = Date.now() + AMBER_FETCH_TIMEOUT_MS;
+    const primary = await fetchAmber({ type: "listings", params, priority, source, deadlineAt });
     if (extractResultArray(primary.data).length > 0 || !params.city) return primary;
 
-    const fallback = await fetchAmber({
-        type: "listings",
-        params: { page: params.page, limit: params.limit },
-        priority,
-        source: `${source}-fallback`,
-    });
+    // The fallback can now legitimately fail to even attempt Amber (deadline
+    // already spent by a slow primary — see MIN_AMBER_ATTEMPT_MS) as well as
+    // fail the ordinary ways (lock busy, budget exceeded, genuine timeout).
+    // None of that should crash this request: the primary already succeeded,
+    // just with zero results, which is a perfectly valid — if not ideal —
+    // thing to show the user. Losing the fallback must degrade to "primary's
+    // empty result", never to a hard error the primary itself didn't have.
+    let fallback;
+    try {
+        fallback = await fetchAmber({
+            type: "listings",
+            params: { page: params.page, limit: params.limit },
+            priority,
+            source: `${source}-fallback`,
+            deadlineAt,
+        });
+    } catch (err) {
+        log(`source=${source} priority=${priority} action=FALLBACK_FAILED_SERVING_PRIMARY error=${err.message}`);
+        return primary;
+    }
     const cityLower = normalizeCityName(params.city);
     const filtered = extractResultArray(fallback.data).filter((item) => matchesCity(item, cityLower));
     return {
