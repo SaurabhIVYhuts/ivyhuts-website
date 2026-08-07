@@ -5,10 +5,7 @@ import SiteNavbar from "../components/layout/SiteNavbar";
 import "./HomePage.css";
 import { ROOM_TYPES } from "../data/accommodations.backup";
 import CityCard from "../components/cards/CityCard";
-import CompactPropertyCard from "../components/listing/CompactPropertyCard";
-import { getProperties, getCachedCityStats, lazyFetchCityStats } from "../services/amberApi";
-import { safeListingList } from "../services/amberMapper";
-import { getRecentSearches, getRecentProperties } from "../services/recentActivity";
+import { getCachedCityStats, lazyFetchCityStats } from "../services/amberApi";
 import { DESTINATIONS, COUNTRIES, countryFullName } from "../data/destinations";
 
 function HomePage() {
@@ -38,58 +35,6 @@ function HomePage() {
     setSuggestionsOpen(false);
     navigate(`/properties?city=${encodeURIComponent(clean)}`);
   };
-
-  /* ── RECENT SEARCHES ── */
-  const [recentSearches, setRecentSearches] = useState([]);
-  useEffect(() => { setRecentSearches(getRecentSearches()); }, []);
-
-  /* ── CONTINUE EXPLORING / POPULAR STUDENT HOMES ── */
-  const [continueListings, setContinueListings] = useState([]);
-  const [continueTitle, setContinueTitle] = useState("Continue Exploring");
-  const [continueLoading, setContinueLoading] = useState(true);
-  const [continueError, setContinueError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadContinue() {
-      setContinueLoading(true);
-      setContinueError(false);
-
-      // Recently-viewed properties are stored as real summaries captured at
-      // the moment the user viewed them (see buildRecentPropertySummary in
-      // PropertyDetailPage.js) — reusing that data costs ZERO Amber requests,
-      // instead of the previous Promise.all(recent.map(getPropertyBySlug))
-      // burst which re-fetched every single one from scratch on every visit.
-      const recent = getRecentProperties();
-      if (recent.length > 0) {
-        if (!cancelled) {
-          setContinueListings(recent);
-          setContinueTitle("Continue Exploring");
-          setContinueLoading(false);
-        }
-        return;
-      }
-
-      try {
-        // No history yet — show real popular homes instead. This is the ONLY
-        // Amber request this section ever makes.
-        const fallback = await getProperties(DESTINATIONS[0].name, 1, 50, "MEDIUM", "homepage-popular-fallback");
-        if (!cancelled) {
-          setContinueListings(safeListingList(fallback));
-          setContinueTitle("Popular Student Homes");
-        }
-      } catch (err) {
-        console.error("HomePage continue-exploring error:", err);
-        if (!cancelled) setContinueError(true);
-      } finally {
-        if (!cancelled) setContinueLoading(false);
-      }
-    }
-
-    loadContinue();
-    return () => { cancelled = true; };
-  }, []);
 
   /* Cached city stats are display-only. Destination cards never fetch Amber;
      they only read real stats previously derived from a city inventory response. */
