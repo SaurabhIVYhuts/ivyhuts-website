@@ -294,6 +294,28 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
             // won't benefit other instances/requests until Redis recovers.
             log(`source=${source} priority=${priority} key=${cacheKey} action=CACHE_WRITE_FAILED_REDIS_UNAVAILABLE`);
         }
+
+        // Reuse: a full listings page already contains everything a separate
+        // citystats call would need (Amber's inventories endpoint returns the
+        // same shape for both — citystats is just the same query with
+        // limit=1). Populate the citystats cache entry for this city from data
+        // we already paid for, so a citystats request that follows shortly
+        // after — from cache warming, the homepage trickle, or another user —
+        // is a free HIT instead of a second Amber round-trip. Best-effort only:
+        // this must never break the primary listings response if it fails.
+        if (type === "listings" && params.city) {
+            try {
+                const statsPayload = buildCityStatsPayloadFromListings(json);
+                if (statsPayload) {
+                    const statsCacheKey = buildCacheKey("citystats", { city: params.city });
+                    await sharedSet(statsCacheKey, { data: statsPayload, cachedAt: Date.now() }, TTL.citystats.maxAgeSeconds);
+                    log(`source=${source} priority=${priority} key=${statsCacheKey} action=CITYSTATS_DERIVED_FROM_LISTINGS`);
+                }
+            } catch (err) {
+                if (!(err instanceof RedisUnavailableError)) throw err;
+            }
+        }
+
         return { data: json, cacheStatus: "MISS" };
     } catch (err) {
         const fallback = staleOnRedisFailure(err, cached, source, priority, cacheKey);
@@ -335,6 +357,27 @@ function extractResultArray(json) {
     return Array.isArray(json?.data?.result) ? json.data.result : [];
 }
 
+// Builds a citystats-shaped payload out of an already-fetched listings
+// response, keeping only what a citystats consumer actually reads (pricing +
+// count) — not the full item objects (images, descriptions, room/tenancy
+// data), which is most of what makes a full listings payload large. Mirrors
+// the shape fetchFromAmberOnce would have returned for a real citystats call
+// ({message, data:{result, meta:{count}}}), so both this gateway's own
+// isFresh/isUsable checks and the client's deriveCityStats (amberApi.js) work
+// on it unmodified.
+function buildCityStatsPayloadFromListings(json) {
+    const items = extractResultArray(json);
+    const count = json?.data?.meta?.count;
+    if (count == null && items.length === 0) return null;
+    return {
+        message: json?.message || "success",
+        data: {
+            result: items.map((item) => ({ canonical_name: item.canonical_name, pricing: item.pricing })),
+            meta: { count: count ?? items.length },
+        },
+    };
+}
+
 function matchesCity(item, cityLower) {
     const checks = [];
     if (item.location) {
@@ -370,4 +413,15 @@ async function fetchListings(params, priority, source) {
     };
 }
 
-module.exports = { fetchAmber, fetchListings, buildCacheKey, buildAmberUrl, normalizeCityName, AmberGatewayError, RATE_BUDGET_PER_MINUTE, RATE_WINDOW_MS };
+module.exports = {
+    fetchAmber,
+    fetchListings,
+    buildCacheKey,
+    buildAmberUrl,
+    normalizeCityName,
+    AmberGatewayError,
+    RATE_BUDGET_PER_MINUTE,
+    RATE_WINDOW_MS,
+    TTL,
+    isUsable,
+};

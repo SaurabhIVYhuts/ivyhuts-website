@@ -163,46 +163,17 @@ function HomePage() {
     () => (popularCountry === "All" ? DESTINATIONS : DESTINATIONS.filter((d) => d.country === popularCountry)),
     [popularCountry]
   );
-  /* ── EXPLORE BY COUNTRY / CITY ── */
-  const [activeCountry, setActiveCountry] = useState(COUNTRIES[0]);
-  const citiesForCountry = useMemo(() => DESTINATIONS.filter((d) => d.country === activeCountry), [activeCountry]);
-  const [activeCity, setActiveCity] = useState(citiesForCountry[0]?.name || null);
-  const [exploreCache, setExploreCache] = useState({});
-  const [exploreLoading, setExploreLoading] = useState(false);
-
-  useEffect(() => {
-    const first = DESTINATIONS.find((d) => d.country === activeCountry);
-    setActiveCity(first ? first.name : null);
-  }, [activeCountry]);
-
-  useEffect(() => {
-    if (!activeCity || exploreCache[activeCity]) return;
-    let cancelled = false;
-    setExploreLoading(true);
-    // limit=50 (not 8) deliberately — this makes the request identical to
-    // what the listings page asks for the same city, so the shared gateway
-    // cache serves both from one Amber call instead of two. Only the first 8
-    // are shown here (see the .slice(0, 8) at render below); nothing else changes.
-    //
-    // LOW priority (not MEDIUM): this effect fires automatically on mount for
-    // the default city, before any real user interaction. Its only current
-    // visible effect is opportunistically priming cityStats[activeCity] a
-    // little earlier — the same data the LOW-priority trickle below already
-    // fills in for every destination. It must not compete with a real user's
-    // navigation for the shared Amber budget just because it happened to run
-    // first on a cold load.
-    getProperties(activeCity, 1, 50, "LOW", "homepage-explore")
-      .then((raw) => {
-        if (cancelled) return;
-        setExploreCache((prev) => ({ ...prev, [activeCity]: safeListingList(raw) }));
-        getCachedCityStats(activeCity).then((stats) => {
-          if (!cancelled && stats) setCityStats((prev) => ({ ...prev, [activeCity]: stats }));
-        });
-      })
-      .catch((err) => console.error("HomePage explore error:", err))
-      .finally(() => { if (!cancelled) setExploreLoading(false); });
-    return () => { cancelled = true; };
-  }, [activeCity, exploreCache]);
+  // A previous "Explore by Country/City" mechanism used to live here: it
+  // auto-fetched a full 50-item listings page for a default city on every
+  // cold mount (activeCountry/activeCity/exploreCache state, driven by a
+  // useEffect keyed on activeCity). It was removed after an audit found none
+  // of that state (exploreCache, activeCity, citiesForCountry) was ever read
+  // by any JSX below — the only real effect was priming cityStats for one
+  // city slightly earlier than the trickle above already does for every
+  // destination. The cheapest Amber request is the one never made; the
+  // trickle already covers the same ground with a much lighter citystats-only
+  // call. Popular Destinations' cards (below) still get their stats from the
+  // cache-only read effect and the trickle — nothing user-visible changed.
 
   const handleWhyScroll = (e) => {
     const el = e.currentTarget;
