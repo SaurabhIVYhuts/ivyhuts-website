@@ -237,6 +237,10 @@ export default function PropertyListingPage() {
               Pick a country to see the cities we cover, then browse real, verified rooms — no enquiry needed to look.
             </p>
             <div className="destination-search-wrap">
+              <svg className="destination-search-icon" viewBox="0 0 20 20" fill="none" width="19" height="19" aria-hidden="true">
+                <circle cx="9" cy="9" r="6.2" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M13.6 13.6L17.5 17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
               <input
                 type="text"
                 className="destination-search-input"
@@ -245,7 +249,27 @@ export default function PropertyListingPage() {
                 onChange={(e) => setDestQuery(e.target.value)}
                 aria-label="Search a country or city"
               />
+              {destQuery && (
+                <button
+                  type="button"
+                  className="destination-search-clear"
+                  onClick={() => setDestQuery("")}
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
             </div>
+          </div>
+
+          <div className="destination-advisor-banner">
+            <div>
+              <strong>Not sure where to start?</strong>
+              <span>Tell us your budget and course, and a real advisor will shortlist rooms for you — free.</span>
+            </div>
+            <Link to="/enquire" className="btn btn-secondary" style={{ background: "rgba(255,255,255,0.14)", borderColor: "rgba(255,255,255,0.4)", color: "#fff" }}>
+              Talk to an Advisor
+            </Link>
           </div>
 
           {!destQuery && popularCities.length > 0 && (
@@ -286,16 +310,6 @@ export default function PropertyListingPage() {
               <button type="button" className="toolbar-clear-btn" onClick={() => setDestQuery("")}>Clear search</button>
             </div>
           )}
-
-          <div className="destination-advisor-banner">
-            <div>
-              <strong>Not sure where to start?</strong>
-              <span>Tell us your budget and course, and a real advisor will shortlist rooms for you — free.</span>
-            </div>
-            <Link to="/enquire" className="btn btn-secondary" style={{ background: "rgba(255,255,255,0.14)", borderColor: "rgba(255,255,255,0.4)", color: "#fff" }}>
-              Talk to an Advisor
-            </Link>
-          </div>
         </div>
       )}
       {!city && !countryParam && <TrustStrip />}

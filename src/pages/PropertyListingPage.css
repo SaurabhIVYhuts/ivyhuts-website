@@ -43,27 +43,85 @@
 }
 
 .destination-search-wrap {
-  max-width: 420px;
+  position: relative;
+  max-width: 700px;
   margin: var(--space-4) auto 0;
+}
+
+.destination-search-icon {
+  position: absolute;
+  left: 26px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-faint);
+  pointer-events: none;
+  transition: color var(--transition);
 }
 
 .destination-search-input {
   width: 100%;
-  padding: 13px 18px;
+  padding: 19px 58px;
   border-radius: var(--radius-full);
   border: 1.5px solid var(--border-soft);
   font-family: inherit;
-  font-size: 0.94rem;
+  font-size: 1.05rem;
   color: var(--ink);
   outline: none;
   background: #fff;
-  box-shadow: var(--shadow-sm);
-  transition: border-color var(--transition), box-shadow var(--transition);
+  box-shadow: var(--shadow-md, var(--shadow-sm));
+  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+}
+
+.destination-search-input:hover {
+  border-color: var(--border-brand, var(--brand-rose));
 }
 
 .destination-search-input:focus {
   border-color: var(--brand-rose);
-  box-shadow: 0 0 0 3px rgba(176, 120, 152, 0.12);
+  box-shadow: 0 0 0 5px rgba(176, 120, 152, 0.16), var(--shadow-md, var(--shadow-sm));
+  transform: translateY(-1px);
+}
+
+.destination-search-wrap:focus-within .destination-search-icon {
+  color: var(--brand-rose);
+}
+
+.destination-search-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.destination-search-clear {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-subtle, #f1eef3);
+  color: var(--ink-soft);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.destination-search-clear:hover {
+  background: var(--brand-rose);
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .destination-search-input {
+    padding: 16px 46px;
+    font-size: 0.98rem;
+  }
+  .destination-search-icon { left: 18px; }
+  .destination-search-clear { right: 12px; }
 }
 
 /* ── POPULAR CITIES SHORTCUT ROW ── */
@@ -118,7 +176,8 @@
   justify-content: space-between;
   gap: var(--space-4);
   flex-wrap: wrap;
-  margin-top: var(--space-6);
+  margin: var(--space-5) auto var(--space-6);
+  max-width: 900px;
   padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-xl);
   background: linear-gradient(135deg, #3A2442 0%, #5E3A6B 60%, #8B6088 100%);
