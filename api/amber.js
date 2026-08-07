@@ -48,11 +48,18 @@ module.exports = async (req, res) => {
         // Never leak upstream internals (stack traces, raw Amber error bodies) —
         // just enough for the frontend to show its existing friendly states.
         const retryAfterSeconds = err instanceof AmberGatewayError && err.retryAfterSeconds ? err.retryAfterSeconds : 300;
-        console.log(`[GATEWAY] type=${type} city=${city || "-"} slug=${slug || "-"} source=${source || "unknown"} priority=${priority || "MEDIUM"} cache=MISS upstream=NO cooldown=${status === 429 ? retryAfterSeconds : 0}`);
+        // `code` is the specific, stable reason (cooldown / budget_exceeded /
+        // lock_busy / cache_unavailable / amber_timeout / upstream_error) —
+        // lets the frontend distinguish these cases where it wants to, without
+        // requiring any UI change (existing callers that only look at `error`
+        // or HTTP status keep working exactly as before).
+        const code = (err instanceof AmberGatewayError && err.code) || (status === 429 ? "rate_limited" : "upstream_error");
+        console.log(`[GATEWAY] type=${type} city=${city || "-"} slug=${slug || "-"} source=${source || "unknown"} priority=${priority || "MEDIUM"} cache=MISS upstream=NO code=${code} cooldown=${status === 429 ? retryAfterSeconds : 0}`);
         if (status === 429) res.setHeader("Retry-After", String(retryAfterSeconds));
         res.status(status).json({
             ok: false,
-            error: status === 429 ? "rate_limited" : "upstream_error",
+            error: code,
+            retryAfterSeconds: status === 429 ? retryAfterSeconds : undefined,
             message: status === 429 ? "Amber is temporarily unavailable — please try again shortly." : "Could not load property data right now.",
         });
     }

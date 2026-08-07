@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "api/amber.js": { "maxDuration": 30 }
+  },
   "headers": [
     {
       "source": "/(.*)",

@@ -17,6 +17,20 @@ export class AmberRateLimitError extends Error {
     }
 }
 
+// A gateway-reported temporary condition that isn't "rate limited" in the
+// classic sense — someone else is refreshing this exact key (lock_busy), or
+// the shared cache backend itself is unreachable (cache_unavailable). Kept
+// distinct from AmberRateLimitError so a caller that wants to branch on the
+// specific reason can (via `.reason`), without changing behavior for any
+// existing caller that only checks `.isRateLimit`.
+export class AmberUnavailableError extends Error {
+    constructor(reason, message) {
+        super(message || "Amber data is temporarily unavailable");
+        this.name = "AmberUnavailableError";
+        this.reason = reason || "unavailable";
+    }
+}
+
 // If our own gateway reports it's mid-cooldown, remember that locally too —
 // not for correctness (the gateway is authoritative and re-checks this on
 // every call regardless), just so the UI can fail fast without a round trip,
@@ -35,8 +49,30 @@ let rateLimitedUntil = readRateLimitedUntil();
 // IndexedDB (not sessionStorage) because a full listings response can run
 // into the low tens of MB once room/tenancy data is included — measured
 // ~13.7MB for one 20-item city page — which blows past any Web Storage quota.
-const CACHE_FRESH_MS = 60_000; // short — the server's own cache is the real source of truth
-const CACHE_USABLE_MS = 10 * 60_000;
+//
+// True stale-while-revalidate: "fresh" data returns instantly with no network
+// at all; "stale" (past fresh, still under the usable window) ALSO returns
+// instantly, and separately kicks off a non-blocking background refresh —
+// the caller never waits on it. Only truly absent/expired data blocks on a
+// real fetch. A browser tab is long-lived (unlike the serverless gateway,
+// which can't reliably do fire-and-forget work after responding), so this is
+// safe to do client-side even though the server intentionally doesn't.
+//
+// These numbers are mirrored server-side in api/_lib/amberGateway.js's own
+// TTL table (its maxAgeSeconds is deliberately kept a little LONGER than the
+// matching staleMs here, per city — the server cache must not expire before
+// the client stops considering its own copy usable, or the client's "instant
+// stale response" would silently start missing and fall through to a real
+// blocking fetch). CRA's build (this file) and the Vercel function (that
+// file) are separate bundling contexts — CRA's ModuleScopePlugin blocks
+// importing anything outside src/, so a single shared constants module isn't
+// practical here without ejecting/reconfiguring the build. Keep both tables
+// in sync by hand if either changes.
+const CLIENT_TTL = {
+    listings: { freshMs: 3 * 60_000, staleMs: 45 * 60_000 },
+    detail: { freshMs: 5 * 60_000, staleMs: 60 * 60_000 },
+    citystats: { freshMs: 60 * 60_000, staleMs: 24 * 60 * 60_000 },
+};
 const DB_NAME = "ivyhuts-amber-cache";
 const DB_STORE = "responses";
 const CITY_STATS_CACHE_PREFIX = "amber:cached-city-stats:";
@@ -91,8 +127,8 @@ function setCached(key, data) {
     idbSet(key, entry);
 }
 
-function isFresh(entry) { return Date.now() - entry.cachedAt < CACHE_FRESH_MS; }
-function isUsable(entry) { return Date.now() - entry.cachedAt < CACHE_USABLE_MS; }
+function isFresh(entry, ttl) { return Date.now() - entry.cachedAt < ttl.freshMs; }
+function isUsable(entry, ttl) { return Date.now() - entry.cachedAt < ttl.staleMs; }
 
 // Builds the request to OUR gateway (not Amber). `key` doubles as the L1
 // cache key and is stable/normalized the same way the server normalizes its
@@ -137,27 +173,19 @@ function rememberInventoryData(city, json) {
         if (item?.canonical_name) setCached(listingSummaryCacheKey(item.canonical_name), item);
     });
 }
-async function callGateway(type, params, { priority = "MEDIUM", source = "unknown" } = {}) {
-    const key = gatewayUrl(type, keyParamsFor(type, params));
-
-    const mem = memoryCache.get(key);
-    if (mem && isFresh(mem)) {
-        devLog("L1 CACHE HIT", key);
-        return mem.data;
-    }
-
+// Does the actual network round-trip (or reuses one already in flight for
+// this exact key). Shared by both the blocking "no usable cache" path and
+// the non-blocking background-refresh path below, so a stale-triggered
+// refresh and a genuine cache-miss for the same key never double-fetch.
+function startNetworkFetch(key, type, params, priority, source, persisted) {
     if (inFlight.has(key)) {
         devLog("L1 DEDUPED", key);
         return inFlight.get(key);
     }
 
     const promise = (async () => {
-        const persisted = mem || (await idbGet(key));
-        if (persisted && !mem) memoryCache.set(key, persisted);
-        if (persisted && isFresh(persisted)) return persisted.data;
-
         if (Date.now() < rateLimitedUntil) {
-            if (persisted && isUsable(persisted)) return persisted.data;
+            if (persisted) return persisted.data;
             const remaining = Math.ceil((rateLimitedUntil - Date.now()) / 1000);
             throw new AmberRateLimitError(remaining);
         }
@@ -180,6 +208,17 @@ async function callGateway(type, params, { priority = "MEDIUM", source = "unknow
             writeRateLimitedUntil(rateLimitedUntil);
             if (persisted) return persisted.data;
             throw new AmberRateLimitError(retryAfter);
+        }
+
+        if (res.status === 503) {
+            // Gateway-level temporary condition — a concurrent refresh for this
+            // exact key is already in progress, or the shared cache backend
+            // (Redis) is itself unreachable right now. Neither means "no data
+            // exists"; both are transient. Not persisted as a client-side
+            // cooldown like 429 is, since this isn't Amber's own rate limit.
+            const body = await res.json().catch(() => null);
+            if (persisted) return persisted.data;
+            throw new AmberUnavailableError(body?.error, body?.message);
         }
 
         if (!res.ok) {
@@ -213,6 +252,45 @@ async function callGateway(type, params, { priority = "MEDIUM", source = "unknow
     inFlight.set(key, promise);
     promise.then(() => inFlight.delete(key), () => inFlight.delete(key));
     return promise;
+}
+
+async function callGateway(type, params, { priority = "MEDIUM", source = "unknown" } = {}) {
+    const ttl = CLIENT_TTL[type] || CLIENT_TTL.listings;
+    const key = gatewayUrl(type, keyParamsFor(type, params));
+
+    const mem = memoryCache.get(key);
+    if (mem && isFresh(mem, ttl)) {
+        devLog("L1 CACHE HIT", key);
+        return mem.data;
+    }
+
+    if (inFlight.has(key)) {
+        devLog("L1 DEDUPED", key);
+        return inFlight.get(key);
+    }
+
+    const persisted = mem || (await idbGet(key));
+    if (persisted && !mem) memoryCache.set(key, persisted);
+    if (persisted && isFresh(persisted, ttl)) return persisted.data;
+
+    if (persisted && isUsable(persisted, ttl)) {
+        // Stale-while-revalidate: real cached data, just not the newest —
+        // return it immediately and refresh in the background. The caller
+        // never waits on the network for this; a failed background refresh
+        // is silently swallowed since stale data was already served.
+        //
+        // The background refresh always runs at LOW priority, regardless of
+        // what priority the foreground caller asked for (e.g. HIGH for a
+        // property detail page). The user already has data on screen — this
+        // request exists purely to freshen it, so it must never queue ahead
+        // of, or consume shared Amber budget that, a real waiting user needs.
+        devLog("L1 STALE — serving immediately, revalidating in background (LOW priority)", key);
+        startNetworkFetch(key, type, params, "LOW", `${source}-swr-refresh`, persisted).catch(() => {});
+        return persisted.data;
+    }
+
+    // No usable cache at all — this is the only path that blocks on the network.
+    return startNetworkFetch(key, type, params, priority, source, persisted);
 }
 
 function extractArray(json) {
@@ -257,4 +335,23 @@ export async function getCachedCityStats(city) {
     if (!entry) return null;
     memoryCache.set(key, entry);
     return entry.data;
+}
+
+// The one deliberate exception to "cache-only": an explicit, opt-in, always
+// LOW-priority live fetch — meant to be called sparingly (e.g. a slow,
+// staggered background trickle, never an unconditional per-city burst on
+// mount). LOW priority means the gateway itself will skip it outright rather
+// than block if the shared Amber budget is tight, so this can never compete
+// with a real user action (property open, search, listings navigation).
+export async function lazyFetchCityStats(city) {
+    if (!city) return null;
+    try {
+        const json = await callGateway("citystats", { city }, { priority: "LOW", source: "homepage-lazy-city-stats" });
+        if (!json) return null; // gateway deliberately skipped it — budget was tight
+        rememberInventoryData(city, json);
+        return deriveCityStats(json);
+    } catch (err) {
+        if (!err.isRateLimit) devLog("lazyFetchCityStats failed for", city, err.message);
+        return null;
+    }
 }

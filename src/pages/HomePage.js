@@ -6,10 +6,10 @@ import "./HomePage.css";
 import { ROOM_TYPES } from "../data/accommodations.backup";
 import CityCard from "../components/cards/CityCard";
 import CompactPropertyCard from "../components/listing/CompactPropertyCard";
-import { getProperties, getCachedCityStats } from "../services/amberApi";
+import { getProperties, getCachedCityStats, lazyFetchCityStats } from "../services/amberApi";
 import { safeListingList } from "../services/amberMapper";
 import { getRecentSearches, getRecentProperties } from "../services/recentActivity";
-import { DESTINATIONS, COUNTRIES } from "../data/destinations";
+import { DESTINATIONS, COUNTRIES, countryFullName } from "../data/destinations";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -107,6 +107,42 @@ function HomePage() {
     loadCachedCityStats();
     return () => { cancelled = true; };
   }, []);
+
+  // Gentle, slow, budget-safe trickle: fill in a FEW more cities' stats over
+  // time for destinations with no cached data yet, so the aggregate stat
+  // line keeps growing during the session without ever bursting. Always LOW
+  // priority — the gateway skips it outright rather than block if the
+  // shared Amber budget is tight, so it can never compete with a property
+  // open, search, or listings navigation. Re-checks a live ref (not the
+  // closed-over state) before every attempt so it never re-fetches a city
+  // that got filled in the meantime by the cache read above or by the
+  // Explore section.
+  const cityStatsRef = useRef(cityStats);
+  useEffect(() => { cityStatsRef.current = cityStats; }, [cityStats]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const TRICKLE_DELAY_MS = 6000;
+    const MAX_TRICKLE_CITIES = 8;
+
+    async function trickle() {
+      let attempted = 0;
+      for (const d of DESTINATIONS) {
+        if (cancelled || attempted >= MAX_TRICKLE_CITIES) return;
+        if (cityStatsRef.current[d.name]) continue;
+        await new Promise((resolve) => setTimeout(resolve, TRICKLE_DELAY_MS));
+        if (cancelled) return;
+        if (cityStatsRef.current[d.name]) continue; // filled in while we waited
+        attempted += 1;
+        const stats = await lazyFetchCityStats(d.name);
+        if (!cancelled && stats) setCityStats((prev) => (prev[d.name] ? prev : { ...prev, [d.name]: stats }));
+      }
+    }
+
+    trickle();
+    return () => { cancelled = true; };
+  }, []);
+
   const totalVerifiedProperties = useMemo(
     () => Object.values(cityStats).reduce((sum, s) => sum + (s.count || 0), 0),
     [cityStats]
@@ -147,7 +183,15 @@ function HomePage() {
     // what the listings page asks for the same city, so the shared gateway
     // cache serves both from one Amber call instead of two. Only the first 8
     // are shown here (see the .slice(0, 8) at render below); nothing else changes.
-    getProperties(activeCity, 1, 50, "MEDIUM", "homepage-explore")
+    //
+    // LOW priority (not MEDIUM): this effect fires automatically on mount for
+    // the default city, before any real user interaction. Its only current
+    // visible effect is opportunistically priming cityStats[activeCity] a
+    // little earlier — the same data the LOW-priority trickle below already
+    // fills in for every destination. It must not compete with a real user's
+    // navigation for the shared Amber budget just because it happened to run
+    // first on a cold load.
+    getProperties(activeCity, 1, 50, "LOW", "homepage-explore")
       .then((raw) => {
         if (cancelled) return;
         setExploreCache((prev) => ({ ...prev, [activeCity]: safeListingList(raw) }));
