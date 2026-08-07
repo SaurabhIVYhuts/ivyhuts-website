@@ -323,7 +323,23 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
         console.log(`[AMBER UPSTREAM] REQUEST #${used} type=${type} city=${params.city || "-"} slug=${params.slug || "-"} budget=${used}/${RATE_BUDGET_PER_MINUTE}`);
         log(`source=${source} priority=${priority} cache=MISS key=${cacheKey} budget=${used}/${RATE_BUDGET_PER_MINUTE} action=AMBER_REQUEST`);
 
-        const json = await fetchFromAmberOnce(amberUrl, Math.max(0, deadline - Date.now()));
+        // Duration/outcome logging for the upstream call itself — unconditional
+        // (not the NODE_ENV-gated log() helper) so this is always visible in
+        // Vercel logs, and separate from the "request received" AMBER_REQUEST
+        // line above since that's logged before we know how long Amber will
+        // actually take. Never logs the full amberUrl (would include the
+        // partner ID) or any response body — just type/city/duration/outcome.
+        const amberStartedAt = Date.now();
+        let json;
+        try {
+            json = await fetchFromAmberOnce(amberUrl, Math.max(0, deadline - Date.now()));
+        } catch (err) {
+            const durationMs = Date.now() - amberStartedAt;
+            const event = err instanceof AmberGatewayError && err.code === "amber_timeout" ? "AMBER_TIMEOUT" : "AMBER_FAILED";
+            console.log(`[AMBER] event=${event} type=${type} city=${params.city || "-"} durationMs=${durationMs} status=${(err instanceof AmberGatewayError && err.status) || "-"} source=${source}`);
+            throw err;
+        }
+        console.log(`[AMBER] event=AMBER_SUCCESS type=${type} city=${params.city || "-"} durationMs=${Date.now() - amberStartedAt} source=${source}`);
         try {
             await sharedSet(cacheKey, { data: json, cachedAt: Date.now() }, ttl.maxAgeSeconds);
         } catch (err) {

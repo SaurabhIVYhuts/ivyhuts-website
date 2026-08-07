@@ -18,8 +18,16 @@ const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 const REDIS_AVAILABLE = Boolean(UPSTASH_URL && UPSTASH_TOKEN);
 
+// Deliberately unconditional (previously gated behind NODE_ENV !== "production",
+// which suppressed every one of these lines on Vercel — Vercel sets
+// NODE_ENV=production for both Preview and Production builds, not just
+// Production, so that gate meant this diagnostic trail was silently absent
+// exactly where it was needed most). Every call site here logs only
+// non-sensitive structured fields (source/priority/cache-status/action/cache
+// keys/budget counts/error messages) — never a token, secret, Authorization
+// header, or full response body.
 function log(...args) {
-    if (process.env.NODE_ENV !== "production") console.log("[Amber Gateway]", ...args);
+    console.log("[Amber Gateway]", ...args);
 }
 
 let warnedFallback = false;
