@@ -9,8 +9,9 @@
 // tested directly with plain Node, without needing a live Vercel/HTTP
 // round-trip.
 const { fetchAmber, fetchListings, AmberGatewayError } = require("./_lib/amberGateway");
+const { getInventoryStats } = require("./_lib/inventoryStats");
 
-const VALID_TYPES = new Set(["listings", "detail", "citystats"]);
+const VALID_TYPES = new Set(["listings", "detail", "citystats", "inventorystats"]);
 const VALID_PRIORITIES = new Set(["HIGH", "MEDIUM", "LOW"]);
 
 module.exports = async (req, res) => {
@@ -22,7 +23,7 @@ module.exports = async (req, res) => {
     const { type, city, slug, page, limit, priority, source } = req.query;
 
     if (!VALID_TYPES.has(type)) {
-        res.status(400).json({ error: "Invalid or missing 'type' (expected listings, detail, or citystats)" });
+        res.status(400).json({ error: "Invalid or missing 'type' (expected listings, detail, citystats, or inventorystats)" });
         return;
     }
     if (type === "detail" && !slug) {
@@ -33,7 +34,9 @@ module.exports = async (req, res) => {
     try {
         const p = VALID_PRIORITIES.has(priority) ? priority : "MEDIUM";
         const s = source || "unknown";
-        const result = type === "listings"
+        const result = type === "inventorystats"
+            ? { data: await getInventoryStats(), cacheStatus: "COMPUTED" }
+            : type === "listings"
             ? await fetchListings({ city, page, limit }, p, s)
             : await fetchAmber({ type, params: { city, slug, page, limit }, priority: p, source: s });
 

@@ -192,6 +192,10 @@ export default function AccommodationFinderPage() {
     setStatus("sending");
     lastSubmitTime = now;
 
+    const countriesLabel = data.countries.includes("Other")
+      ? [...data.countries.filter(c => c !== "Other"), `Other: ${otherCountry.trim()}`].join(", ")
+      : data.countries.join(", ");
+
     try {
       fetch(SHEETS_URL, {
         method: "POST",
@@ -202,7 +206,7 @@ export default function AccommodationFinderPage() {
           "Email":          data.email.trim(),
           "Phone":          data.phone.trim() || "Not provided",
           "University":     data.university.trim(),
-          "Countries":      data.countries.includes("Other") ? [...data.countries.filter(c => c !== "Other"), `Other: ${otherCountry.trim()}`].join(", ") : data.countries.join(", "),
+          "Countries":      countriesLabel,
           "Room Type":      data.roomType,
           "Budget":         data.budget,
           "Intake":         data.intake,
@@ -212,6 +216,37 @@ export default function AccommodationFinderPage() {
         }),
       });
     } catch (_) {}
+
+    // Email notification — fire-and-forget, same-origin. Must never block or
+    // affect the success screen: a failed/misconfigured mailer still shows success.
+    console.log("[Enquiry] Form submitted");
+    try {
+      const enquiryPayload = {
+        studentName: data.fullName.trim(),
+        studentEmail: data.email.trim(),
+        phoneNumber: data.phone.trim(),
+        university: data.university.trim(),
+        preferredCity: countriesLabel,
+        message: data.otherQuery.trim() || "None",
+        websiteSource: "ivyhuts.com/enquire",
+      };
+      console.log("[Enquiry] Calling /api/enquire — request payload:", enquiryPayload);
+      fetch("/api/enquire", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(enquiryPayload),
+      })
+        .then((res) => res.json().catch(() => ({})).then((resBody) => ({ ok: res.ok, resBody })))
+        .then(({ ok, resBody }) => {
+          if (ok && resBody.emailSent) {
+            console.log("[Enquiry] Notification email sent successfully");
+          } else {
+            console.error("[Enquiry] Notification email failed:", resBody.message || resBody.error || "unknown error");
+          }
+        })
+        .catch((err) => console.error("[Enquiry] /api/enquire request failed:", err));
+    } catch (_) {}
+
     setStatus("success");
   };
 

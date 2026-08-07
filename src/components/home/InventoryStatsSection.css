@@ -1,0 +1,110 @@
+/* Homepage inventory stats — matches the site's existing card language
+   (.service-card / .chp-card): white surface, var(--radius-xl), soft brand
+   border + shadow tokens, small lift-on-hover. No new colors introduced. */
+.stats-cards {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  max-width: var(--container-max);
+  margin: 0 auto;
+}
+
+.stat-card {
+  background: var(--surface-white);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5) var(--space-4);
+  width: 220px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+
+.stat-card::after {
+  content: "";
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--stat-accent, var(--brand-purple));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--transition);
+}
+
+.stat-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--brand-rose);
+}
+
+.stat-card:hover::after {
+  transform: scaleX(1);
+}
+
+.stat-card-icon-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-3);
+  background: var(--stat-accent-soft, rgba(94, 58, 107, 0.12));
+  transition: transform var(--transition);
+}
+
+.stat-card:hover .stat-card-icon-badge {
+  transform: scale(1.08);
+}
+
+.stat-card-icon {
+  width: 26px;
+  height: 26px;
+  color: var(--stat-accent, var(--brand-purple));
+}
+
+.stat-card-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+}
+
+.stat-card-label {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-softer);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* Loading state — same shimmer treatment already used on PropertyDetailPage. */
+.stat-skel {
+  height: 2rem;
+  width: 84px;
+  margin: 0 auto;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #f3ecf1 25%, #ece0e8 37%, #f3ecf1 63%);
+  background-size: 400% 100%;
+  animation: stats-shimmer 1.4s ease infinite;
+}
+
+@keyframes stats-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.stats-error {
+  text-align: center;
+  color: var(--ink-softer);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 640px) {
+  .stat-card { width: 100%; max-width: 280px; }
+}

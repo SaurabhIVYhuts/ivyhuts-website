@@ -5,6 +5,7 @@ import SiteNavbar from "../components/layout/SiteNavbar";
 import TrustStrip from "../components/layout/TrustStrip";
 import "./HomePage.css";
 import CityCard from "../components/cards/CityCard";
+import InventoryStatsSection from "../components/home/InventoryStatsSection";
 import { getCachedCityStats } from "../services/amberApi";
 import { DESTINATIONS, COUNTRIES, countryFullName } from "../data/destinations";
 
@@ -298,6 +299,9 @@ function HomePage() {
 
       {/* TRUST BADGES */}
       <TrustStrip />
+
+      {/* INVENTORY STATS */}
+      <InventoryStatsSection />
 
       {/* POPULAR CITIES */}
       <section className="section discovery-section">

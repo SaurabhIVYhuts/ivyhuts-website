@@ -249,6 +249,36 @@ export async function getPropertyBySlug(slug, priority = "HIGH", source = "prope
     return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
 }
 
+// Site-wide Total/Sold Out/Remaining counters for the homepage stats
+// section. Deliberately bypasses the L1 cache above — the response is tiny
+// and the gateway itself is already the source of truth/caching layer for
+// this (see api/_lib/inventoryStats.js). `ready:false` means the server-side
+// aggregate hasn't finished its first build pass yet (caller should retry
+// shortly) — that is NOT an error and must not be treated as one. Real
+// failures (network error, non-2xx, malformed body) are thrown so the
+// caller can tell "still building" apart from "actually broke".
+export async function getInventoryStats() {
+    const url = "/api/amber?type=inventorystats&priority=LOW&source=homepage-stats";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Inventory stats request failed (${res.status})`);
+    const bodyText = await res.text();
+    const body = JSON.parse(bodyText);
+    if (!body?.ok) throw new Error(body?.message || "Inventory stats request failed");
+    const data = body.data || { ready: false };
+
+    // DEBUG — temporary, safe to delete once live stats are verified in prod.
+    devLog("inventory-stats debug", {
+        requestUrl: url,
+        responseStatus: res.status,
+        responseLength: bodyText.length,
+        total: data.total,
+        soldOut: data.soldOut,
+        remaining: data.remaining,
+    });
+
+    return data;
+}
+
 // Cache-only by design: homepage cards never contact /api/amber on a miss.
 export async function getCachedCityStats(city) {
     if (!city) return null;
