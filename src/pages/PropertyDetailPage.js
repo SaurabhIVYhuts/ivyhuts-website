@@ -112,7 +112,7 @@ export default function PropertyDetailPage() {
           <h1>We couldn't load this property right now.</h1>
           <p>
             {error.isRateLimit
-              ? `Amber is briefly limiting requests — please try again in about ${Math.ceil(error.retryAfterSeconds / 60)} minute${Math.ceil(error.retryAfterSeconds / 60) === 1 ? "" : "s"}.`
+              ? `Our Server fetching your request Please Wait for  ${Math.ceil(error.retryAfterSeconds / 60)} minute${Math.ceil(error.retryAfterSeconds / 60) === 1 ? "" : "s"}.`
               : "Please try again in a moment."}
           </p>
           <Link to="/properties" className="pdp-back-link">← Back to listings</Link>
@@ -333,7 +333,7 @@ export default function PropertyDetailPage() {
               ) : (
                 <div className="pdp-sidebar-price-label">Price on request</div>
               )}
-              <button type="button" className="pdp-enquire-btn" onClick={() => handleEnquire()}>Enquire</button>
+              <button type="button" className="btn btn-primary btn-block btn-lg" onClick={() => handleEnquire()}>Enquire</button>
               {social.shortlisted && <p className="pdp-sidebar-social">{social.shortlisted}</p>}
             </div>
             <div className="pdp-sidebar-card">

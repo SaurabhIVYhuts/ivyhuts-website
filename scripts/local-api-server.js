@@ -8,9 +8,19 @@
 // CRA's dev server proxies /api requests here automatically — see
 // src/setupProxy.js. Started together with `react-scripts start` by
 // `npm start` (see scripts/start-local.js).
+const path = require("path");
+// Plain `node` (unlike `vercel dev`) never loads .env files on its own, so
+// without this, any local .env/.env.local values (ENQUIRY_NOTIFY_EMAILS,
+// UPSTASH_*, AMBER_MAX_REQUESTS_PER_MINUTE, ...) would silently never reach
+// process.env under `npm start` — this MUST run before requiring the API
+// handlers below, since some of them read env vars at require-time.
+require("dotenv").config({ path: path.join(__dirname, "..", ".env.local") });
+require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
+
 const http = require("http");
 const { URL } = require("url");
 const amberHandler = require("../api/amber.js");
+const enquireHandler = require("../api/enquire.js");
 
 const PORT = process.env.LOCAL_API_PORT || 3001;
 
@@ -23,11 +33,26 @@ function adaptResponse(res) {
     return res;
 }
 
+function readJsonBody(req) {
+    return new Promise((resolve) => {
+        let raw = "";
+        req.on("data", (chunk) => { raw += chunk; });
+        req.on("end", () => {
+            try { resolve(JSON.parse(raw || "{}")); } catch { resolve({}); }
+        });
+    });
+}
+
 const server = http.createServer(async (req, res) => {
     try {
         const url = new URL(req.url, `http://${req.headers.host}`);
         req.query = Object.fromEntries(url.searchParams.entries());
         adaptResponse(res);
+        if (url.pathname === "/api/enquire") {
+            req.body = await readJsonBody(req);
+            await enquireHandler(req, res);
+            return;
+        }
         await amberHandler(req, res);
     } catch (err) {
         console.error("[local-api-server] handler error:", err);

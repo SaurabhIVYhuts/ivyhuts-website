@@ -21,7 +21,8 @@ const COUNTRIES_LIST = [
   "UK", "Canada", "Australia", "USA", "Germany", "France",
   "Ireland", "Netherlands", "New Zealand", "Singapore",
   "UAE", "Sweden", "Italy", "Spain", "Switzerland",
-  "South Korea", "Japan", "Other",
+  "South Korea", "Japan", "Malaysia", "Hong Kong", "Poland",
+  "Czech Republic", "Denmark", "Portugal", "Austria", "Belgium", "Other",
 ];
 
 const AMENITIES_LIST = [
@@ -528,7 +529,7 @@ export default function ListYourStayPage() {
             <div className="lst-success-step"><span className="lst-step-dot" /> Prepare property photos to share via WhatsApp</div>
             <div className="lst-success-step"><span className="lst-step-dot" /> Once verified, your listing goes live on IvyHuts</div>
           </div>
-          <Link to="/" className="lst-back-btn">Back to Home</Link>
+          <Link to="/" className="btn btn-secondary">Back to Home</Link>
         </div>
       ) : (
         <div className="lst-wizard" ref={formRef}>
@@ -567,18 +568,18 @@ export default function ListYourStayPage() {
           {/* NAVIGATION */}
           <div className="lst-nav">
             {step > 0 && (
-              <button type="button" className="lst-btn-back" onClick={goBack}>← Back</button>
+              <button type="button" className="btn btn-secondary" onClick={goBack}>← Back</button>
             )}
             <div className="lst-nav-right">
               <span className="lst-step-count">Step {step + 1} of {STEPS.length}</span>
               {step < STEPS.length - 1 ? (
-                <button type="button" className="lst-btn-next" onClick={goNext}>
+                <button type="button" className="btn btn-primary" onClick={goNext}>
                   Continue →
                 </button>
               ) : (
                 <button
                   type="button"
-                  className="lst-btn-submit"
+                  className="btn btn-primary"
                   disabled={status === "sending"}
                   onClick={handleSubmit}
                 >

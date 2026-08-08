@@ -105,7 +105,8 @@ function buildCacheKey(type, params) {
     const city = normalizeCityName(params.city);
     const page = Number(params.page) || 1;
     const limit = Number(params.limit) || 50;
-    return `amber:listings:${city || "all"}:p${page}:l${limit}`;
+    const availSuffix = params.available === true ? ":avail1" : params.available === false ? ":avail0" : "";
+    return `amber:listings:${city || "all"}:p${page}:l${limit}${availSuffix}`;
 }
 
 function buildAmberUrl(type, params) {
@@ -117,8 +118,17 @@ function buildAmberUrl(type, params) {
     }
     const page = Number(params.page) || 1;
     const limit = Math.min(50, Number(params.limit) || 50); // never exceed Amber's own 50/request cap
-    const base = `${BASE_URL}/inventories?p=${page}&limit=${limit}`;
-    return params.city ? `${base}&location_place_name=${encodeURIComponent(normalizeCityName(params.city))}` : base;
+    let url = `${BASE_URL}/inventories?p=${page}&limit=${limit}`;
+    if (params.city) url += `&location_place_name=${encodeURIComponent(normalizeCityName(params.city))}`;
+    // Amber's own `available` filter — confirmed live against the real API:
+    // it changes meta.count to the true filtered total (not just the page),
+    // e.g. available=true -> 3221, available=false -> 1060, unfiltered -> 4281
+    // (3221 + 1060 matches exactly). That lets inventoryStats.js get exact
+    // Total/Sold Out/Remaining counts from meta.count on two limit=1 calls
+    // instead of paging through the entire ~4,300-item catalog.
+    if (params.available === true) url += "&available=true";
+    else if (params.available === false) url += "&available=false";
+    return url;
 }
 
 function isFresh(entry, freshSeconds) {

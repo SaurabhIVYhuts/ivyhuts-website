@@ -60,7 +60,7 @@
 }
 
 .pdp-breadcrumb-inner {
-  max-width: 1160px;
+  max-width: var(--container-max);
   margin: 0 auto;
   padding: 12px 20px;
   display: flex;
@@ -79,9 +79,9 @@
 .pdp-breadcrumb-current { color: #3A2442; font-weight: 600; }
 
 .pdp-main {
-  max-width: 1160px;
+  max-width: var(--container-max);
   margin: 0 auto;
-  padding: 20px 20px 60px;
+  padding: var(--space-3) 20px 60px;
 }
 
 /* ── GALLERY ── */
@@ -97,10 +97,11 @@
   position: relative;
   width: 100%;
   aspect-ratio: 21 / 8;
-  max-height: 360px;
-  border-radius: 18px;
+  max-height: 420px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   background: #f3ecf1;
+  box-shadow: var(--shadow-sm);
 }
 
 .pg-main img {
@@ -313,10 +314,11 @@
   gap: 4px;
   overflow-x: auto;
   background: #fff;
-  border: 1px solid rgba(94, 58, 107, 0.1);
-  border-radius: 999px;
+  border: 1px solid var(--border-brand);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
   padding: 6px;
-  margin: 18px 0;
+  margin: var(--space-4) 0;
   position: sticky;
   top: 78px;
   z-index: 50;
@@ -340,10 +342,11 @@
 /* ── SECTIONS ── */
 .pdp-section {
   background: #fff;
-  border: 1px solid rgba(94, 58, 107, 0.1);
-  border-radius: 18px;
-  padding: 22px;
-  margin-bottom: 18px;
+  border: 1px solid var(--border-brand);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
   scroll-margin-top: 130px;
 }
 
@@ -428,9 +431,14 @@
 .room-type-card {
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(94, 58, 107, 0.1);
-  border-radius: 16px;
-  padding: 14px;
+  border: 1px solid var(--border-brand);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  transition: box-shadow var(--transition);
+}
+
+.room-type-card:hover {
+  box-shadow: var(--shadow-sm);
 }
 
 .room-type-unavailable { opacity: 0.65; }
@@ -626,25 +634,6 @@
 
 .room-tenancy-unit { font-weight: 500; color: #6B4E5E; font-size: 0.76rem; }
 
-.room-tenancy-enquire-btn {
-  padding: 7px 16px;
-  border-radius: 8px;
-  border: none;
-  background: #5E3A6B;
-  color: #fff;
-  font-family: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.room-tenancy-enquire-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(94, 58, 107, 0.28);
-}
-
 .room-tenancy-status {
   font-size: 0.72rem;
   font-weight: 700;
@@ -772,9 +761,10 @@
 
 .pdp-sidebar-card {
   background: #fff;
-  border: 1px solid rgba(94, 58, 107, 0.1);
-  border-radius: 16px;
-  padding: 18px;
+  border: 1px solid var(--border-brand);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4);
 }
 
 .pdp-sidebar-name {
@@ -796,25 +786,6 @@
 .pdp-sidebar-price strong { font-size: 1.35rem; color: #3A2442; }
 
 .pdp-sidebar-price-duration { font-size: 0.82rem; color: #6B4E5E; }
-
-.pdp-enquire-btn {
-  width: 100%;
-  padding: 13px;
-  border-radius: 12px;
-  border: none;
-  background: #5E3A6B;
-  color: #fff;
-  font-family: inherit;
-  font-size: 0.94rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.pdp-enquire-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 22px rgba(94, 58, 107, 0.3);
-}
 
 .pdp-sidebar-social {
   margin: 10px 0 0;
@@ -860,7 +831,7 @@
 
   .room-tenancy-footer { margin-left: 0; justify-content: space-between; }
 
-  .room-tenancy-enquire-btn { flex: 1; }
+  .room-tenancy-footer .btn { flex: 1; }
 
   .pdp-rating-row { grid-template-columns: 90px 1fr 28px; }
 

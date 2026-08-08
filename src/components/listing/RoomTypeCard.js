@@ -47,7 +47,7 @@ function TenancyRow({ tenancy, room, onEnquire }) {
           )}
         </span>
         {tenancy.available ? (
-          <button type="button" className="room-tenancy-enquire-btn" onClick={handleEnquire}>Enquire</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={handleEnquire}>Enquire</button>
         ) : (
           <span className="room-tenancy-status">Sold Out</span>
         )}

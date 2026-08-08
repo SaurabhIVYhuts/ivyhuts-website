@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHuts! I'm looking for student accommodation abroad. Can you help?")}`;
@@ -15,6 +15,14 @@ export default function SiteNavbar() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   // The homepage already has its own prominent hero search — the navbar search
   // is for every other page, matching Amber's pattern of a persistent search
@@ -59,7 +67,7 @@ export default function SiteNavbar() {
 
   return (
     <>
-      <nav className="navbar">
+      <nav className={`navbar${scrolled ? " navbar-scrolled" : ""}`}>
         <div className="logo">
           <Link to="/" style={{ textDecoration: "none" }} onClick={close}>
             <span className="logo-ivy">IVY</span><span className="logo-huts">huts</span>
