@@ -82,7 +82,6 @@ export default function InventoryStatsSection() {
       }
       setError(true);
       setLoading(false);
-      console.log("Loading:", false);
       if (attempt < FAST_ATTEMPTS + SLOW_ATTEMPTS) {
         timer = setTimeout(load, SLOW_RETRY_MS);
       }
@@ -110,7 +109,6 @@ export default function InventoryStatsSection() {
         setStats({ total, soldOut, remaining });
         setError(false);
         setLoading(false);
-        console.log("Loading:", false);
         return;
       }
 
