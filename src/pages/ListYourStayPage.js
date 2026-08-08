@@ -203,7 +203,7 @@ export default function ListYourStayPage() {
         studentEmail: data.hostEmail.trim(),
         phoneNumber: data.hostPhone.trim(),
         preferredCity: `${data.city.trim()}, ${data.country}`,
-        message: `New host listing submission — ${data.propertyType}, ${data.unitsAvailable.trim()} room(s), from ${data.currency.trim()}${data.rentFrom.trim()}${data.rentTo ? `-${data.rentTo}` : "+"}/month. Role: ${data.hostRole}. Full details are in the Google Sheet.`,
+        message: `New host listing submission — ${data.propertyType}, ${data.unitsAvailable.trim()} available, from ${data.currency.trim()}${data.rentFrom.trim()}${data.rentTo ? `-${data.rentTo}` : "+"}/month. Role: ${data.hostRole}. Full details are in the Google Sheet.`,
         websiteSource: "ivyhuts.com/list-your-stay",
       };
       fetch("/api/enquire", {
