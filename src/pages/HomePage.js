@@ -384,20 +384,50 @@ function HomePage() {
 
       {/* BEYOND ACCOMMODATION — kept minimal by design */}
       <section className="section services-section">
-        <div className="services-visual" aria-hidden="true">
-          <svg viewBox="0 0 64 64" fill="none" width="52" height="52">
-            <circle cx="32" cy="32" r="25" stroke="#5E3A6B" strokeWidth="2"/>
-            <ellipse cx="32" cy="32" rx="25" ry="10.5" stroke="#5E3A6B" strokeWidth="1.3" opacity="0.5"/>
-            <line x1="7" y1="32" x2="57" y2="32" stroke="#5E3A6B" strokeWidth="1.3" opacity="0.5"/>
-            <path d="M32 7c6 7 6 43 0 50" stroke="#5E3A6B" strokeWidth="1.3" opacity="0.35"/>
-            <path d="M32 7c-6 7-6 43 0 50" stroke="#5E3A6B" strokeWidth="1.3" opacity="0.35"/>
-            <circle cx="32" cy="32" r="3.2" fill="#C8960C"/>
-          </svg>
-        </div>
+        
         <p className="section-eyebrow">Beyond Accommodation</p>
         <p className="services-simple-line">
-          We also help with <strong>airport pickup</strong>, <strong>bank account setup</strong>, <strong>SIM cards</strong> and <strong>guarantor services</strong> — all free.
+          We also help you settle in abroad — completely free.
         </p>
+        <div className="services-icon-row">
+          <div className="services-icon-item">
+            <span className="services-icon-badge services-icon-badge--purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 3L3 10.5l7.5 3L13.5 21 21 3z"/>
+              </svg>
+            </span>
+            <span>Airport Pickup</span>
+          </div>
+          <div className="services-icon-item">
+            <span className="services-icon-badge services-icon-badge--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 10l9-6 9 6"/>
+                <path d="M5 10v9M9 10v9M15 10v9M19 10v9"/>
+                <path d="M3 19h18"/>
+              </svg>
+            </span>
+            <span>Bank Account</span>
+          </div>
+          <div className="services-icon-item">
+            <span className="services-icon-badge services-icon-badge--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 3h8l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>
+                <path d="M15 3v4h4"/>
+                <rect x="9" y="10.5" width="6" height="6" rx="1"/>
+              </svg>
+            </span>
+            <span>SIM Card</span>
+          </div>
+          <div className="services-icon-item">
+            <span className="services-icon-badge services-icon-badge--gold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/>
+                <path d="M9 12l2 2 4-4"/>
+              </svg>
+            </span>
+            <span>Guarantor Service</span>
+          </div>
+        </div>
       </section>
 
 
