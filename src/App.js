@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 import "./styles/global.css";
 import HomePage from "./pages/HomePage";
 import PropertyListingPage from "./pages/PropertyListingPage";
+import { initMetaPixel, trackPageView } from "./lib/metaPixel";
 
 const AccommodationFinderPage = lazy(() => import("./pages/AccommodationFinderPage"));
 const PropertyDetailPage       = lazy(() => import("./pages/PropertyDetailPage"));
@@ -20,11 +21,20 @@ function ScrollToTop() {
   return null;
 }
 
+/* ── META PIXEL — init once, PageView on every route change (incl. client-side nav) ── */
+function MetaPixelTracker() {
+  const { pathname } = useLocation();
+  useEffect(() => { initMetaPixel(); }, []);
+  useEffect(() => { trackPageView(); }, [pathname]);
+  return null;
+}
+
 /* ── MAIN APP ── */
 function App() {
   return (
     <Router>
       <ScrollToTop />
+      <MetaPixelTracker />
       <Suspense fallback={<div style={{ minHeight: "100vh", background: "#FBF4F8" }} />}>
         <Routes>
           <Route path="/"               element={<HomePage />} />

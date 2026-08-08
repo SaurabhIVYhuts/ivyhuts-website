@@ -67,6 +67,35 @@ export default function PartnerPage() {
         }),
       });
     } catch (_) {}
+
+    // Email notification — fire-and-forget, same-origin. Must never block or
+    // affect the success screen: a failed/misconfigured mailer still shows success.
+    try {
+      const enquiryPayload = {
+        propertyName: form.company || undefined,
+        studentName: form.name.trim(),
+        studentEmail: form.email.trim(),
+        phoneNumber: form.phone.trim(),
+        preferredCity: form.countries || undefined,
+        message: `Partner Type: ${form.partnerType}. Properties/Rooms: ${form.properties || "Not specified"}.\n\n${form.message.trim()}`,
+        websiteSource: "ivyhuts.com/partner",
+      };
+      fetch("/api/enquire", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(enquiryPayload),
+      })
+        .then((res) => res.json().catch(() => ({})).then((resBody) => ({ ok: res.ok, resBody })))
+        .then(({ ok, resBody }) => {
+          if (ok && resBody.emailSent) {
+            console.log("[Partner] Notification email sent successfully");
+          } else {
+            console.error("[Partner] Notification email failed:", resBody.message || resBody.error || "unknown error");
+          }
+        })
+        .catch((err) => console.error("[Partner] /api/enquire request failed:", err));
+    } catch (_) {}
+
     setStatus("success");
   };
 

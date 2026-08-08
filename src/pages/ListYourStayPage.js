@@ -193,6 +193,35 @@ export default function ListYourStayPage() {
         }),
       });
     } catch (_) {}
+
+    // Email notification — fire-and-forget, same-origin. Must never block or
+    // affect the success screen: a failed/misconfigured mailer still shows success.
+    try {
+      const enquiryPayload = {
+        propertyName: data.propertyName.trim(),
+        studentName: data.hostName.trim(),
+        studentEmail: data.hostEmail.trim(),
+        phoneNumber: data.hostPhone.trim(),
+        preferredCity: `${data.city.trim()}, ${data.country}`,
+        message: `New host listing submission — ${data.propertyType}, ${data.unitsAvailable.trim()} room(s), from ${data.currency.trim()}${data.rentFrom.trim()}${data.rentTo ? `-${data.rentTo}` : "+"}/month. Role: ${data.hostRole}. Full details are in the Google Sheet.`,
+        websiteSource: "ivyhuts.com/list-your-stay",
+      };
+      fetch("/api/enquire", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(enquiryPayload),
+      })
+        .then((res) => res.json().catch(() => ({})).then((resBody) => ({ ok: res.ok, resBody })))
+        .then(({ ok, resBody }) => {
+          if (ok && resBody.emailSent) {
+            console.log("[ListYourStay] Notification email sent successfully");
+          } else {
+            console.error("[ListYourStay] Notification email failed:", resBody.message || resBody.error || "unknown error");
+          }
+        })
+        .catch((err) => console.error("[ListYourStay] /api/enquire request failed:", err));
+    } catch (_) {}
+
     setStatus("success");
   };
 

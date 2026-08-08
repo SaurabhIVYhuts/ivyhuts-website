@@ -1,0 +1,117 @@
+/* ═══ HOMEPAGE LEAD POPUP ═══ */
+.lead-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(58, 36, 66, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: lead-popup-fade-in 0.25s ease;
+}
+@keyframes lead-popup-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.lead-popup {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: var(--radius-xl);
+  padding: 32px 28px 28px;
+  box-shadow: var(--shadow-lg);
+  animation: lead-popup-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes lead-popup-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.lead-popup-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #3A2442;
+  margin: 0 0 6px;
+}
+.lead-popup-sub {
+  font-size: 0.88rem;
+  color: #7B5B70;
+  line-height: 1.5;
+  margin: 0 0 22px;
+}
+
+.lead-popup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lead-popup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.lead-popup-field label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #7B5B70;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.lead-popup-field input {
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 0.94rem;
+  font-family: inherit;
+  color: #3A2442;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.lead-popup-field input:focus {
+  border-color: #B07898;
+  box-shadow: 0 0 0 3px rgba(176,120,152,0.12);
+}
+.lead-popup-field input.input-error {
+  border-color: #C0392B;
+}
+.lead-popup-error {
+  font-size: 0.73rem;
+  color: #C0392B;
+  font-weight: 600;
+}
+.lead-popup-submit-error {
+  background: #FFF0F0;
+  border: 1px solid #FFCCCC;
+  border-radius: 8px;
+  padding: 9px 13px;
+  font-size: 0.8rem;
+  color: #C0392B;
+  line-height: 1.5;
+}
+.lead-popup-submit-error a { color: #C0392B; text-decoration: underline; }
+
+.lead-popup-success {
+  text-align: center;
+  padding: 12px 4px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.lead-popup-success p {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #3A2442;
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 480px) {
+  .lead-popup { padding: 28px 20px 22px; }
+}

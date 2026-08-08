@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { countryFullName, countryIsoCode } from '../../data/destinations';
 
-function CityCard({ city }) {
+function CityCard({ city, compact = false }) {
   const href = `/properties?city=${encodeURIComponent(city.name)}`;
   const countryName = countryFullName(city.country);
 
@@ -22,17 +22,19 @@ function CityCard({ city }) {
             </p>
           </div>
         </div>
-        <div className="city-card-body">
-          <div className="city-card-meta">
-            {city.price != null && city.currency ? (
-              <span>Starting from {city.currency}{city.price}/week</span>
-            ) : (
-              <span className="city-card-meta-loading">Availability on request</span>
-            )}
-            {city.properties != null && <span>{city.properties} properties</span>}
+        {!compact && (
+          <div className="city-card-body">
+            <div className="city-card-meta">
+              {city.price != null && city.currency ? (
+                <span>Starting from {city.currency}{city.price}/week</span>
+              ) : (
+                <span className="city-card-meta-loading">Availability on request</span>
+              )}
+              {city.properties != null && <span>{city.properties} properties</span>}
+            </div>
+            <p className="city-card-description">{city.description}</p>
           </div>
-          <p className="city-card-description">{city.description}</p>
-        </div>
+        )}
       </Link>
     </li>
   );

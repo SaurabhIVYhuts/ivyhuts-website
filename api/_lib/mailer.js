@@ -24,7 +24,7 @@ const FORMSUBMIT_ENDPOINT = "https://formsubmit.co/ajax/";
 // request) and ties an activated address to the domain that first triggered
 // activation — so this MUST be the production site's own URL, not a generic
 // placeholder. Override via env if the site is ever served from elsewhere.
-const SITE_URL = process.env.SITE_URL || "https://ivyhuts.com/";
+const SITE_URL = process.env.SITE_URL || "https://www.ivyhuts.com/";
 
 // `fields`: ordered [label, value] pairs. Resolves with { sent: true } on
 // real success. Throws on ANY failure (no recipients configured, FormSubmit

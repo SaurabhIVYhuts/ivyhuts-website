@@ -801,36 +801,6 @@
   box-shadow: var(--shadow-sm);
 }
 
-.listings-sidebar-map {
-  position: relative;
-  aspect-ratio: 4 / 3;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background:
-    radial-gradient(circle, rgba(94,58,107,0.14) 1.5px, transparent 1.5px) 0 0 / 22px 22px,
-    linear-gradient(135deg, #F8EEF4 0%, #FBF4F8 100%);
-  border: 1px solid rgba(94, 58, 107, 0.1);
-}
-
-.listings-sidebar-map-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 11px 20px;
-  border-radius: 999px;
-  border: 1px solid rgba(94, 58, 107, 0.22);
-  background: #fff;
-  color: #5E3A6B;
-  font-family: inherit;
-  font-weight: 700;
-  font-size: 0.86rem;
-  cursor: not-allowed;
-  box-shadow: 0 8px 20px rgba(58, 36, 66, 0.08);
-}
-
 .listings-sidebar-row {
   display: flex;
   align-items: flex-start;

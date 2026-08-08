@@ -61,6 +61,35 @@
   font-weight: 500;
 }
 
+/* Social icons */
+.cp-social-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+.cp-social-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(94, 58, 107, 0.1);
+  color: #5E3A6B;
+  border: 1.5px solid rgba(94, 58, 107, 0.22);
+  transition: background var(--transition), color var(--transition), transform var(--transition);
+}
+a.cp-social-icon:hover {
+  background: #5E3A6B;
+  color: #fff;
+  transform: translateY(-2px);
+}
+.cp-social-icon--pending {
+  opacity: 0.8;
+  cursor: default;
+}
+
 /* Info list */
 .cp-info-list { display: flex; flex-direction: column; gap: 20px; }
 

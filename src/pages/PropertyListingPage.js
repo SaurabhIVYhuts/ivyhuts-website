@@ -47,9 +47,6 @@ const ListViewIcon = () => (
 const GridViewIcon = () => (
   <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.5"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.5"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.5"/><rect x="11" y="11" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.5"/></svg>
 );
-const MapPinIcon = () => (
-  <svg viewBox="0 0 32 32" fill="none" width="20" height="20"><path d="M16 4c-5 0-9 3.8-9 9 0 6.8 9 15 9 15s9-8.2 9-15c0-5.2-4-9-9-9z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><circle cx="16" cy="13" r="3" stroke="currentColor" strokeWidth="1.8"/></svg>
-);
 const ShieldIcon = () => (
   <svg viewBox="0 0 32 32" fill="none" width="22" height="22"><path d="M16 3l11 4v8c0 6-4.5 10.5-11 13C9.5 25.5 5 21 5 15V7l11-4z" stroke="#5E3A6B" strokeWidth="2" strokeLinejoin="round"/><path d="M11 16l3.5 3.5 6-6" stroke="#5E3A6B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
 );
@@ -521,11 +518,6 @@ export default function PropertyListingPage() {
           </div>
 
           <aside className="listings-sidebar">
-            <div className="listings-sidebar-map">
-              <button type="button" className="listings-sidebar-map-btn" disabled>
-                <MapPinIcon /> Map View Coming Soon
-              </button>
-            </div>
             <div className="listings-sidebar-card">
               <div className="listings-sidebar-row">
                 <TagIcon />

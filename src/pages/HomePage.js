@@ -6,6 +6,8 @@ import TrustStrip from "../components/layout/TrustStrip";
 import "./HomePage.css";
 import CityCard from "../components/cards/CityCard";
 import InventoryStatsSection from "../components/home/InventoryStatsSection";
+import LeadPopup from "../components/popups/LeadPopup";
+import "../components/popups/LeadPopup.css";
 import { getCachedCityStats } from "../services/amberApi";
 import { DESTINATIONS, COUNTRIES, countryFullName } from "../data/destinations";
 
@@ -62,7 +64,7 @@ function HomePage() {
   /* ── POPULAR CITIES — COUNTRY FILTER TABS ── */
   const [popularCountry, setPopularCountry] = useState("All");
   const popularCountryTabs = useMemo(() => [
-    { code: "All", label: "All Destinations", flag: "🌍" },
+    
     ...COUNTRIES.map((code) => ({
       code,
       label: countryFullName(code),
@@ -113,6 +115,8 @@ function HomePage() {
 
   return (
     <div>
+
+      <LeadPopup />
 
       <SiteNavbar />
 
@@ -330,15 +334,7 @@ function HomePage() {
         </div>
         <ul className="city-grid">
           {visibleDestinations.map((city) => (
-            <CityCard
-              key={`${city.name}-${city.country}`}
-              city={{
-                ...city,
-                currency: cityStats[city.name] ? currencySymbolLocal(cityStats[city.name].currency) : null,
-                price: cityStats[city.name]?.price ?? null,
-                properties: cityStats[city.name]?.count ?? null,
-              }}
-            />
+            <CityCard key={`${city.name}-${city.country}`} city={city} compact />
           ))}
         </ul>
       </section>
@@ -386,59 +382,22 @@ function HomePage() {
         </div>
       </section>
 
-      {/* SERVICES STRIP */}
+      {/* BEYOND ACCOMMODATION — kept minimal by design */}
       <section className="section services-section">
-        <p className="section-eyebrow">Beyond Accommodation</p>
-        <h2 className="section-title">Everything You Need to Settle In</h2>
-        <div className="section-underline" />
-        <div className="cards">
-          <div className="service-card">
-            <svg className="service-icon" viewBox="0 0 48 48" fill="none">
-              <rect x="6" y="18" width="36" height="20" rx="5" stroke="#5E3A6B" strokeWidth="2"/>
-              <path d="M14 18V14a10 10 0 0 1 20 0v4" stroke="#5E3A6B" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M24 10v4" stroke="#5E3A6B" strokeWidth="1.5" strokeLinecap="round"/>
-              <circle cx="17" cy="28" r="2.5" fill="#5E3A6B"/>
-              <circle cx="24" cy="28" r="2.5" fill="#B07898"/>
-              <circle cx="31" cy="28" r="2.5" fill="#C8960C"/>
-            </svg>
-            <div className="service-title">Airport Pickup</div>
-            <div className="service-subtitle">On arrival</div>
-            <div className="service-desc">Arrange a trusted transfer from airport to your new home, day or night</div>
-          </div>
-          <div className="service-card">
-            <svg className="service-icon" viewBox="0 0 48 48" fill="none">
-              <rect x="6" y="14" width="36" height="24" rx="5" stroke="#2E7D32" strokeWidth="2"/>
-              <path d="M6 21h36" stroke="#2E7D32" strokeWidth="2"/>
-              <circle cx="13" cy="31" r="3" fill="#2E7D32"/>
-              <rect x="20" y="29" width="14" height="5" rx="2.5" fill="#2E7D32" opacity=".3"/>
-            </svg>
-            <div className="service-title">Bank Account</div>
-            <div className="service-subtitle">Setup support</div>
-            <div className="service-desc">Get a local bank account open in your destination country before you land</div>
-          </div>
-          <div className="service-card">
-            <svg className="service-icon" viewBox="0 0 48 48" fill="none">
-              <rect x="14" y="6" width="20" height="36" rx="5" stroke="#4A90D9" strokeWidth="2"/>
-              <rect x="18" y="10" width="12" height="6" rx="2" fill="#4A90D9" opacity=".3"/>
-              <circle cx="24" cy="34" r="2.5" fill="#4A90D9"/>
-              <path d="M20 20h8M20 25h5" stroke="#4A90D9" strokeWidth="1.8" strokeLinecap="round"/>
-            </svg>
-            <div className="service-title">SIM Card</div>
-            <div className="service-subtitle">Stay connected</div>
-            <div className="service-desc">We help you choose and activate the best local SIM plan for students</div>
-          </div>
-          <div className="service-card">
-            <svg className="service-icon" viewBox="0 0 48 48" fill="none">
-              <circle cx="24" cy="17" r="7" stroke="#C8960C" strokeWidth="2"/>
-              <path d="M12 42c0-6.6 5.4-12 12-12s12 5.4 12 12" stroke="#C8960C" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M33 20l5-2v8l-5-2" stroke="#C8960C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-              <rect x="33" y="18" width="8" height="12" rx="2" stroke="#C8960C" strokeWidth="1.8"/>
-            </svg>
-            <div className="service-title">Guarantor Service</div>
-            <div className="service-subtitle">No local guarantor?</div>
-            <div className="service-desc">We act as your guarantor so you can rent without barriers, no matter where you are from</div>
-          </div>
+        <div className="services-visual" aria-hidden="true">
+          <svg viewBox="0 0 64 64" fill="none" width="52" height="52">
+            <circle cx="32" cy="32" r="25" stroke="#5E3A6B" strokeWidth="2"/>
+            <ellipse cx="32" cy="32" rx="25" ry="10.5" stroke="#5E3A6B" strokeWidth="1.3" opacity="0.5"/>
+            <line x1="7" y1="32" x2="57" y2="32" stroke="#5E3A6B" strokeWidth="1.3" opacity="0.5"/>
+            <path d="M32 7c6 7 6 43 0 50" stroke="#5E3A6B" strokeWidth="1.3" opacity="0.35"/>
+            <path d="M32 7c-6 7-6 43 0 50" stroke="#5E3A6B" strokeWidth="1.3" opacity="0.35"/>
+            <circle cx="32" cy="32" r="3.2" fill="#C8960C"/>
+          </svg>
         </div>
+        <p className="section-eyebrow">Beyond Accommodation</p>
+        <p className="services-simple-line">
+          We also help with <strong>airport pickup</strong>, <strong>bank account setup</strong>, <strong>SIM cards</strong> and <strong>guarantor services</strong> — all free.
+        </p>
       </section>
 
 
@@ -500,12 +459,5 @@ function HomePage() {
   );
 }
 
-// Minimal local currency-word -> symbol map (mirrors amberMapper's, kept tiny
-// and self-contained here since HomePage only needs it for city-stat badges).
-function currencySymbolLocal(word) {
-  const map = { pound: "£", gbp: "£", dollar: "$", usd: "$", euro: "€", eur: "€" };
-  if (!word) return "";
-  return map[String(word).toLowerCase()] || word;
-}
 
 export default HomePage;

@@ -1320,7 +1320,7 @@ a { text-decoration: none; }
   .rooms-promise-cta { width: 100%; text-align: center; }
 }
 
-/* ── SERVICES ── */
+/* ── BEYOND ACCOMMODATION — deliberately minimal, one line ── */
 .services-section {
   background:
     radial-gradient(ellipse at 0% 50%, rgba(126,184,201,0.09) 0%, transparent 50%),
@@ -1328,71 +1328,30 @@ a { text-decoration: none; }
     #FBF4F8;
   position: relative;
   overflow: hidden;
-}
-.cards {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 20px;
-  max-width: var(--container-max);
-  margin: 0 auto;
-}
-
-.service-card {
-  background: white;
-  border: 1.5px solid #EDD5E3;
-  border-radius: 20px;
-  padding: 32px 24px 28px;
-  width: 210px;
   text-align: center;
-  box-shadow: 0 4px 18px rgba(176, 120, 152, 0.06);
-  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s, border-color 0.25s;
-  cursor: default;
-  position: relative;
-  overflow: hidden;
+  padding-top: 40px;
+  padding-bottom: 40px;
 }
-.service-card::after {
-  content: "";
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #5E3A6B, #C47A8A);
-  transform: scaleX(0);
-  transition: transform 0.3s ease;
-  transform-origin: left;
+.services-visual {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(94,58,107,0.08) 0%, rgba(94,58,107,0.02) 70%, transparent 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.service-card:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 20px 48px rgba(94, 58, 107, 0.14);
-  border-color: #B07898;
-}
-.service-card:hover::after {
-  transform: scaleX(1);
-}
-.service-icon {
-  width: 48px;
-  height: 48px;
-  margin-bottom: 16px;
-  flex-shrink: 0;
-}
-.service-title {
+.services-simple-line {
+  max-width: 640px;
+  margin: 0 auto;
   font-size: 1rem;
-  font-weight: 800;
-  color: #3A2442;
-  margin-bottom: 4px;
+  color: #6B4E5E;
+  line-height: 1.7;
 }
-.service-subtitle {
-  font-size: 0.72rem;
+.services-simple-line strong {
+  color: #5E3A6B;
   font-weight: 700;
-  color: #B07898;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-.service-desc {
-  font-size: 0.8rem;
-  color: #A68E9B;
-  line-height: 1.5;
 }
 
 /* ── WHY IVYHUTS — SCROLL-DRIVEN STACKING CARDS ── */
@@ -1743,6 +1702,34 @@ a { text-decoration: none; }
 }
 .footer-contact-row svg { flex-shrink: 0; opacity: 0.7; }
 .footer-contact-row:hover svg { opacity: 1; }
+.footer-social-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.footer-social-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  transition: background var(--transition), color var(--transition), transform var(--transition);
+}
+a.footer-social-icon:hover {
+  background: rgba(245, 194, 204, 0.22);
+  color: #F5C2CC;
+  border-color: rgba(245, 194, 204, 0.4);
+  transform: translateY(-2px);
+}
+.footer-social-icon--pending {
+  opacity: 0.8;
+  cursor: default;
+}
 .footer-bottom {
   max-width: var(--container-max);
   margin: 0 auto;

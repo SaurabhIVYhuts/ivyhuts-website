@@ -1,5 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { socialLinks } from "../../config/socialLinks";
+import { SOCIAL_ICONS } from "../icons/SocialIcons";
 
 const MailIcon = () => (
   <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -53,9 +55,27 @@ export default function SiteFooter() {
         </div>
         <div className="footer-links">
           <h4>Get in Touch</h4>
-          <a href="mailto:saurabh@ivyhuts.com" className="footer-contact-row"><MailIcon /> saurabh@ivyhuts.com</a>
+          <a href="mailto:contact@ivyhuts.com" className="footer-contact-row"><MailIcon /> contact@ivyhuts.com</a>
           <a href="https://wa.me/918847725089" target="_blank" rel="noopener noreferrer" className="footer-contact-row"><WhatsAppIcon /> +91 884 772 5089</a>
           <Link to="/find-rooms">Find Accommodation</Link>
+          <div className="footer-social-row">
+            {SOCIAL_ICONS.map(({ key, label, Icon }) => {
+              const href = socialLinks[key];
+              const Tag = href ? "a" : "span";
+              return (
+                <Tag
+                  key={key}
+                  href={href || undefined}
+                  target={href ? "_blank" : undefined}
+                  rel={href ? "noopener noreferrer" : undefined}
+                  className={`footer-social-icon${href ? "" : " footer-social-icon--pending"}`}
+                  aria-label={label}
+                >
+                  <Icon size={20} />
+                </Tag>
+              );
+            })}
+          </div>
         </div>
       </div>
       <div className="footer-bottom">

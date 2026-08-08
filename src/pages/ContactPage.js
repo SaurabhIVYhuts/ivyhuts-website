@@ -3,6 +3,8 @@ import { Link, useSearchParams } from "react-router-dom"; // eslint-disable-line
 import "./ContactPage.css";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
+import { socialLinks } from "../config/socialLinks";
+import { SOCIAL_ICONS } from "../components/icons/SocialIcons";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 
@@ -85,6 +87,36 @@ export default function ContactPage() {
         }),
       });
     } catch (_) {}
+
+    // Email notification — fire-and-forget, same-origin. Must never block or
+    // affect the success screen: a failed/misconfigured mailer still shows success.
+    try {
+      const enquiryPayload = {
+        propertyName: propertyName || undefined,
+        propertyId: inventoryId || undefined,
+        studentName: form.name.trim(),
+        studentEmail: form.email.trim(),
+        phoneNumber: form.phone.trim(),
+        preferredCity: roomName || undefined,
+        message: `Subject: ${form.subject.trim()}\n\n${form.message.trim()}`,
+        websiteSource: "ivyhuts.com/contact",
+      };
+      fetch("/api/enquire", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(enquiryPayload),
+      })
+        .then((res) => res.json().catch(() => ({})).then((resBody) => ({ ok: res.ok, resBody })))
+        .then(({ ok, resBody }) => {
+          if (ok && resBody.emailSent) {
+            console.log("[Contact] Notification email sent successfully");
+          } else {
+            console.error("[Contact] Notification email failed:", resBody.message || resBody.error || "unknown error");
+          }
+        })
+        .catch((err) => console.error("[Contact] /api/enquire request failed:", err));
+    } catch (_) {}
+
     setStatus("success");
   };
 
@@ -117,7 +149,7 @@ export default function ContactPage() {
               <div className="cp-info-dot cp-info-dot--purple" />
               <div>
                 <div className="cp-info-label">Email</div>
-                <a href="mailto:saurabh@ivyhuts.com" className="cp-info-value">saurabh@ivyhuts.com</a>
+                <a href="mailto:contact@ivyhuts.com" className="cp-info-value">contact@ivyhuts.com</a>
               </div>
             </div>
             <div className="cp-info-item">
@@ -134,6 +166,25 @@ export default function ContactPage() {
                 <span className="cp-info-value">Built by IIM grads</span>
               </div>
             </div>
+          </div>
+
+          <div className="cp-social-row">
+            {SOCIAL_ICONS.map(({ key, label, Icon }) => {
+              const href = socialLinks[key];
+              const Tag = href ? "a" : "span";
+              return (
+                <Tag
+                  key={key}
+                  href={href || undefined}
+                  target={href ? "_blank" : undefined}
+                  rel={href ? "noopener noreferrer" : undefined}
+                  className={`cp-social-icon${href ? "" : " cp-social-icon--pending"}`}
+                  aria-label={label}
+                >
+                  <Icon size={20} />
+                </Tag>
+              );
+            })}
           </div>
         </div>
 
