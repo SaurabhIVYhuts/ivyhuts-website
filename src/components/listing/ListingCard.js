@@ -4,6 +4,10 @@ import PropertyImageGallery from "./PropertyImageGallery";
 
 const AMENITY_LIMIT = 6;
 
+const CheckBadgeIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" width="11" height="11"><circle cx="10" cy="10" r="8.5" stroke="currentColor" strokeWidth="1.6"/><path d="M6.5 10.2l2.2 2.2 4.3-4.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+);
+
 export default function ListingCard({ listing, onEnquire }) {
   const { name, address, images, price, distances, amenities, badges, rooms, rating, social, slug } = listing;
   const navigate = useNavigate();
@@ -39,7 +43,7 @@ export default function ListingCard({ listing, onEnquire }) {
       onClick={goToDetails}
       onKeyDown={handleKeyDown}
     >
-      <PropertyImageGallery images={images} alt={name} badge={badges[0]} />
+      <PropertyImageGallery images={images} alt={name} badges={badges.slice(0, 2)} />
 
       <div className="listing-card-body">
         <div className="listing-card-top">
@@ -62,10 +66,10 @@ export default function ListingCard({ listing, onEnquire }) {
           </div>
         )}
 
-        {badges.length > 1 && (
+        {badges.length > 2 && (
           <div className="listing-chip-row">
-            {badges.slice(1, 4).map((b) => (
-              <span key={b} className="listing-chip listing-chip-highlight">{b}</span>
+            {badges.slice(2, 5).map((b) => (
+              <span key={b} className="listing-chip listing-chip-highlight"><CheckBadgeIcon /> {b}</span>
             ))}
           </div>
         )}
@@ -109,7 +113,7 @@ export default function ListingCard({ listing, onEnquire }) {
 
           <button
             type="button"
-            className="listing-enquire-btn"
+            className="btn btn-primary btn-sm"
             onClick={(e) => { e.stopPropagation(); onEnquire(listing); }}
           >
             Enquire

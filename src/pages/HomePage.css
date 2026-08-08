@@ -100,7 +100,7 @@
 .pill-btn {
   flex: 0 0 auto;
   padding: 10px 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   border: 1.5px solid rgba(94, 58, 107, 0.18);
   background: #fff;
   color: #5E3A6B;
@@ -109,15 +109,19 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background var(--transition), color var(--transition), border-color var(--transition), transform var(--transition);
 }
 
-.pill-btn:hover { border-color: #B07898; }
+.pill-btn:hover {
+  border-color: #B07898;
+  transform: translateY(-1px);
+}
 
 .pill-btn.active {
   background: #5E3A6B;
   border-color: #5E3A6B;
   color: #fff;
+  font-weight: 700;
 }
 
 .pill-btn-sm {
@@ -125,59 +129,36 @@
   font-size: 0.82rem;
 }
 
-/* ── RECENT SEARCHES ── */
-.recent-searches-section { padding-top: 8px; padding-bottom: 8px; }
-
-.recent-searches-row {
+/* ── POPULAR CITIES COUNTRY TABS ── */
+.city-tab-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap;
+  gap: 10px;
   overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.recent-searches-label {
-  flex: 0 0 auto;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #A68E9B;
-  margin-right: 4px;
-}
-
-/* ── COMPACT DISCOVERY CARD ── */
-.chp-row {
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  scroll-snap-type: x proximity;
-}
-
-/* .chp-card and friends moved to global.css — CompactPropertyCard is now
-   also used by the listings page's Grid view, not just the homepage. */
-
-.explore-empty {
-  color: #A68E9B;
-  font-size: 0.9rem;
-  padding: 20px 0;
-}
-
-/* ── EXPLORE BY COUNTRY / CITY ── */
-.explore-pill-row {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 20px;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.explore-pill-row-cities { margin-bottom: 18px; }
+.city-tab-row::-webkit-scrollbar {
+  display: none;
+}
 
-/* ── CITY CARD LOADING STATE ── */
-.city-card-meta-loading {
-  color: #A68E9B;
-  font-style: italic;
+.city-tab-row .pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Amber-style active filter: red border + light red fill, using the
+   error-red already established in the toolbar (PropertyListingPage.css)
+   rather than introducing a new colour into the palette. */
+.city-tab-row .pill-btn.active {
+  background: #FCEBEE;
+  border-color: #B00020;
+  color: #B00020;
 }
 
 /* ── RESPONSIVE ── */
@@ -188,6 +169,4 @@
   }
 
   .hero-search-btn { width: 100%; }
-
-  .chp-card, .chp-skeleton { flex-basis: 200px; }
 }

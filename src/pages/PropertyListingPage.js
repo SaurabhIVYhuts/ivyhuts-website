@@ -3,17 +3,23 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { getProperties } from "../services/amberApi";
 import { safeListingList } from "../services/amberMapper";
 import { addRecentSearch } from "../services/recentActivity";
-import { findDestination, countryFullName } from "../data/destinations";
+import { DESTINATIONS, findDestination, countryFullName } from "../data/destinations";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import SiteFooter from "../components/layout/SiteFooter";
+import TrustStrip from "../components/layout/TrustStrip";
 import ListingCard from "../components/listing/ListingCard";
 import CompactPropertyCard from "../components/listing/CompactPropertyCard";
+import CityCard from "../components/cards/CityCard";
 import "./PropertyListingPage.css";
 
 const EMPTY_FILTERS = {
   query: "", minPrice: "", maxPrice: "", roomType: "", billsOnly: false,
   university: "", amenities: [], sortBy: "recommended",
 };
+
+// A hand-picked spread across regions so the shortcut row isn't UK-heavy —
+// every name here must exist in DESTINATIONS.
+const POPULAR_CITY_NAMES = ["London", "New York", "Toronto", "Sydney", "Dublin", "Amsterdam", "Berlin", "Tokyo"];
 
 const SORT_OPTIONS = [
   { value: "recommended", label: "Recommended" },
@@ -25,10 +31,69 @@ const SORT_OPTIONS = [
 const UNIVERSITY_RE = /university|college/i;
 const AMENITY_OPTION_LIMIT = 16;
 
+/* ── SMALL INLINE ICONS (match the stroke-icon style used in the trust strip) ── */
+const FilterIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><path d="M3 5h14M6 10h8M8.5 15h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+);
+const SortIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><path d="M6 4v12M6 4L3 7M6 4l3 3M14 16V4M14 16l3-3M14 16l-3-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+);
+const ReceiptIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><path d="M5 3h10v14l-2-1.3L11 17l-2-1.3L7 17l-2-1.3V3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M7.5 7h5M7.5 10h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+);
+const ListViewIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><path d="M4 5.5h12M4 10h12M4 14.5h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+);
+const GridViewIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.5"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.5"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.5"/><rect x="11" y="11" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.5"/></svg>
+);
+const MapPinIcon = () => (
+  <svg viewBox="0 0 32 32" fill="none" width="20" height="20"><path d="M16 4c-5 0-9 3.8-9 9 0 6.8 9 15 9 15s9-8.2 9-15c0-5.2-4-9-9-9z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><circle cx="16" cy="13" r="3" stroke="currentColor" strokeWidth="1.8"/></svg>
+);
+const ShieldIcon = () => (
+  <svg viewBox="0 0 32 32" fill="none" width="22" height="22"><path d="M16 3l11 4v8c0 6-4.5 10.5-11 13C9.5 25.5 5 21 5 15V7l11-4z" stroke="#5E3A6B" strokeWidth="2" strokeLinejoin="round"/><path d="M11 16l3.5 3.5 6-6" stroke="#5E3A6B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+);
+const TagIcon = () => (
+  <svg viewBox="0 0 32 32" fill="none" width="22" height="22"><path d="M4 4h11l13 13-11 11L4 15V4z" stroke="#C8960C" strokeWidth="2" strokeLinejoin="round"/><circle cx="10" cy="10" r="2" fill="#C8960C"/></svg>
+);
+const HeadsetIcon = () => (
+  <svg viewBox="0 0 32 32" fill="none" width="22" height="22"><circle cx="16" cy="16" r="13" stroke="#4A90D9" strokeWidth="2"/><path d="M13 13c0-1.7 1.3-3 3-3s3 1.3 3 3c0 2-3 2.5-3 5" stroke="#4A90D9" strokeWidth="2" strokeLinecap="round"/><circle cx="16" cy="22" r="1.2" fill="#4A90D9"/></svg>
+);
+
 export default function PropertyListingPage() {
   const [searchParams] = useSearchParams();
   const city = searchParams.get("city");
+  const countryParam = searchParams.get("country");
   const navigate = useNavigate();
+
+  // Grouped once from the static destinations list — no API call needed to
+  // show "which countries/cities can I browse", only fetch real inventory
+  // once a specific city is picked.
+  const countryGroups = useMemo(() => {
+    const map = new Map();
+    DESTINATIONS.forEach((d) => {
+      if (!map.has(d.country)) map.set(d.country, { country: d.country, flag: d.flag, cities: [] });
+      map.get(d.country).cities.push(d);
+    });
+    return Array.from(map.values());
+  }, []);
+  const citiesInCountry = useMemo(
+    () => (countryParam ? DESTINATIONS.filter((d) => d.country === countryParam) : []),
+    [countryParam]
+  );
+  const popularCities = useMemo(
+    () => POPULAR_CITY_NAMES.map((n) => findDestination(n)).filter(Boolean),
+    []
+  );
+
+  const [destQuery, setDestQuery] = useState("");
+  const filteredCountryGroups = useMemo(() => {
+    const q = destQuery.trim().toLowerCase();
+    if (!q) return countryGroups;
+    return countryGroups.filter(
+      (g) => countryFullName(g.country).toLowerCase().includes(q) || g.cities.some((c) => c.name.toLowerCase().includes(q))
+    );
+  }, [countryGroups, destQuery]);
 
   const [rawProperties, setRawProperties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,12 +103,21 @@ export default function PropertyListingPage() {
   const [descExpanded, setDescExpanded] = useState(false);
 
   useEffect(() => {
+    // No city selected yet — the user is on the country/city browse step,
+    // not a listing view, so there's nothing to fetch.
+    if (!city) {
+      setLoading(false);
+      setError(null);
+      setRawProperties([]);
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
       setLoading(true);
       setError(null);
-      if (city) addRecentSearch(city);
+      addRecentSearch(city);
       try {
         const data = await getProperties(city);
         if (!cancelled) setRawProperties(Array.isArray(data) ? data : []);
@@ -154,6 +228,119 @@ export default function PropertyListingPage() {
     <>
       <SiteNavbar />
 
+      {!city && !countryParam && (
+        <div className="destination-browser">
+          <div className="destination-browser-header">
+            <p className="section-eyebrow">Find Rooms</p>
+            <h1>Where are you headed?</h1>
+            <p className="destination-browser-sub">
+              Pick a country to see the cities we cover, then browse real, verified rooms — no enquiry needed to look.
+            </p>
+            <div className="destination-search-wrap">
+              <svg className="destination-search-icon" viewBox="0 0 20 20" fill="none" width="19" height="19" aria-hidden="true">
+                <circle cx="9" cy="9" r="6.2" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M13.6 13.6L17.5 17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              <input
+                type="text"
+                className="destination-search-input"
+                placeholder="Search a country or city…"
+                value={destQuery}
+                onChange={(e) => setDestQuery(e.target.value)}
+                aria-label="Search a country or city"
+              />
+              {destQuery && (
+                <button
+                  type="button"
+                  className="destination-search-clear"
+                  onClick={() => setDestQuery("")}
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="destination-advisor-banner">
+            <div>
+              <strong>Not sure where to start?</strong>
+              <span>Tell us your budget and course, and a real advisor will shortlist rooms for you — free.</span>
+            </div>
+            <Link to="/enquire" className="btn btn-secondary" style={{ background: "rgba(255,255,255,0.14)", borderColor: "rgba(255,255,255,0.4)", color: "#fff" }}>
+              Talk to an Advisor
+            </Link>
+          </div>
+
+          {!destQuery && popularCities.length > 0 && (
+            <div className="popular-cities-row">
+              <span className="popular-cities-label">Popular right now</span>
+              <div className="popular-cities-chips">
+                {popularCities.map((c) => (
+                  <Link key={c.name} to={`/properties?city=${encodeURIComponent(c.name)}`} className="popular-city-chip">
+                    <span aria-hidden="true">{c.flag}</span> {c.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {filteredCountryGroups.length > 0 ? (
+            <div className="country-select-grid">
+              {filteredCountryGroups.map((g) => (
+                <Link
+                  key={g.country}
+                  to={{ search: `?country=${encodeURIComponent(g.country)}` }}
+                  className="country-select-card"
+                >
+                  <div className="country-select-image">
+                    <img src={g.cities[0]?.image} alt={countryFullName(g.country)} loading="lazy" />
+                    <span className="country-select-flag" aria-hidden="true">{g.flag}</span>
+                  </div>
+                  <div className="country-select-body">
+                    <span className="country-select-name">{countryFullName(g.country)}</span>
+                    <span className="country-select-count">{g.cities.length} {g.cities.length === 1 ? "city" : "cities"}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="listings-empty">
+              <p>No countries or cities match "{destQuery}".</p>
+              <button type="button" className="toolbar-clear-btn" onClick={() => setDestQuery("")}>Clear search</button>
+            </div>
+          )}
+        </div>
+      )}
+      {!city && !countryParam && <TrustStrip />}
+
+      {!city && countryParam && (
+        <div className="destination-browser">
+          <nav aria-label="Breadcrumb" className="listings-breadcrumb">
+            <Link to="/">Home</Link>
+            <span>/</span>
+            <Link to={{ search: "" }}>Find Rooms</Link>
+            <span>/</span>
+            <span aria-current="page">{countryFullName(countryParam)}</span>
+          </nav>
+          <div className="destination-browser-header">
+            <p className="section-eyebrow">{countryFullName(countryParam)}</p>
+            <h1>Choose a city in {countryFullName(countryParam)}</h1>
+          </div>
+          {citiesInCountry.length > 0 ? (
+            <ul className="country-cities-grid">
+              {citiesInCountry.map((c) => <CityCard key={c.name} city={c} />)}
+            </ul>
+          ) : (
+            <div className="listings-empty">
+              <p>We don't have cities listed for this country yet.</p>
+              <Link to={{ search: "" }} className="toolbar-clear-btn">Back to all countries</Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      {city && (
       <div className="listings-page">
         {/* FILTER TOOLBAR */}
         <div className="listings-toolbar">
@@ -166,7 +353,7 @@ export default function PropertyListingPage() {
           />
 
           <details className="toolbar-dropdown">
-            <summary>Filters{advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}</summary>
+            <summary><FilterIcon /> Filters{advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}</summary>
             <div className="toolbar-panel">
               <div className="toolbar-panel-group">
                 <span className="toolbar-panel-label">Budget</span>
@@ -227,7 +414,7 @@ export default function PropertyListingPage() {
           </details>
 
           <details className="toolbar-dropdown">
-            <summary>Sort: {SORT_OPTIONS.find((o) => o.value === filters.sortBy)?.label}</summary>
+            <summary><SortIcon /> Sort: {SORT_OPTIONS.find((o) => o.value === filters.sortBy)?.label}</summary>
             <div className="toolbar-panel toolbar-sort-panel">
               {SORT_OPTIONS.map((o) => (
                 <button
@@ -244,7 +431,7 @@ export default function PropertyListingPage() {
 
           <label className="toolbar-checkbox">
             <input type="checkbox" checked={filters.billsOnly} onChange={(e) => setFilter("billsOnly")(e.target.checked)} />
-            Bills Included
+            <ReceiptIcon /> Bills Included
           </label>
 
           {filtersActive && (
@@ -283,10 +470,10 @@ export default function PropertyListingPage() {
 
           <div className="view-toggle" role="group" aria-label="Switch between list and grid view">
             <button type="button" aria-pressed={view === "list"} className={view === "list" ? "active" : ""} onClick={() => setView("list")}>
-              List
+              <ListViewIcon /> List
             </button>
             <button type="button" aria-pressed={view === "grid"} className={view === "grid" ? "active" : ""} onClick={() => setView("grid")}>
-              Grid
+              <GridViewIcon /> Grid
             </button>
           </div>
         </div>
@@ -334,28 +521,38 @@ export default function PropertyListingPage() {
           </div>
 
           <aside className="listings-sidebar">
-            <div className="listings-sidebar-card">
+            <div className="listings-sidebar-map">
               <button type="button" className="listings-sidebar-map-btn" disabled>
-                Map Coming Soon
+                <MapPinIcon /> Map View Coming Soon
               </button>
-              <div className="listings-sidebar-item">
-                <div className="listings-sidebar-title">Lowest Price Guarantee</div>
-                <div className="listings-sidebar-text">We find you the lowest available weekly price.</div>
-              </div>
             </div>
             <div className="listings-sidebar-card">
-              <div className="listings-sidebar-item">
-                <div className="listings-sidebar-title">Verified Properties</div>
-                <div className="listings-sidebar-text">Only verified listings shown.</div>
+              <div className="listings-sidebar-row">
+                <TagIcon />
+                <div>
+                  <div className="listings-sidebar-title">Lowest Price Guarantee</div>
+                  <div className="listings-sidebar-text">We find you the lowest available weekly price.</div>
+                </div>
               </div>
-              <div className="listings-sidebar-item">
-                <div className="listings-sidebar-title">24/7 Support</div>
-                <div className="listings-sidebar-text">Always here for you.</div>
+              <div className="listings-sidebar-row">
+                <ShieldIcon />
+                <div>
+                  <div className="listings-sidebar-title">Verified Properties</div>
+                  <div className="listings-sidebar-text">Only verified listings shown.</div>
+                </div>
+              </div>
+              <div className="listings-sidebar-row">
+                <HeadsetIcon />
+                <div>
+                  <div className="listings-sidebar-title">24/7 Support</div>
+                  <div className="listings-sidebar-text">Always here for you.</div>
+                </div>
               </div>
             </div>
           </aside>
         </div>
       </div>
+      )}
 
       <SiteFooter />
     </>

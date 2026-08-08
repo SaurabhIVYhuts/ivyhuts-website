@@ -185,7 +185,7 @@ function LifeAbroadPage() {
               <h3>Share Your Story</h3>
               <p>Are you studying or working abroad? We'd love to feature your experience and help future students.</p>
             </div>
-            <Link to="/contact" className="la-submit-btn">Submit Your Story</Link>
+            <Link to="/contact" className="btn btn-secondary" style={{ background: "rgba(255,255,255,0.14)", borderColor: "rgba(255,255,255,0.4)", color: "#fff" }}>Submit Your Story</Link>
           </div>
         </div>
       </div></main>

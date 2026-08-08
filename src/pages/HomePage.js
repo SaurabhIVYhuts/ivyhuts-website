@@ -2,14 +2,12 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
+import TrustStrip from "../components/layout/TrustStrip";
 import "./HomePage.css";
-import { ROOM_TYPES } from "../data/accommodations.backup";
 import CityCard from "../components/cards/CityCard";
-import CompactPropertyCard from "../components/listing/CompactPropertyCard";
-import { getProperties, getCachedCityStats } from "../services/amberApi";
-import { safeListingList } from "../services/amberMapper";
-import { getRecentSearches, getRecentProperties } from "../services/recentActivity";
-import { DESTINATIONS, COUNTRIES } from "../data/destinations";
+import InventoryStatsSection from "../components/home/InventoryStatsSection";
+import { getCachedCityStats } from "../services/amberApi";
+import { DESTINATIONS, COUNTRIES, countryFullName } from "../data/destinations";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -39,58 +37,6 @@ function HomePage() {
     navigate(`/properties?city=${encodeURIComponent(clean)}`);
   };
 
-  /* ── RECENT SEARCHES ── */
-  const [recentSearches, setRecentSearches] = useState([]);
-  useEffect(() => { setRecentSearches(getRecentSearches()); }, []);
-
-  /* ── CONTINUE EXPLORING / POPULAR STUDENT HOMES ── */
-  const [continueListings, setContinueListings] = useState([]);
-  const [continueTitle, setContinueTitle] = useState("Continue Exploring");
-  const [continueLoading, setContinueLoading] = useState(true);
-  const [continueError, setContinueError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadContinue() {
-      setContinueLoading(true);
-      setContinueError(false);
-
-      // Recently-viewed properties are stored as real summaries captured at
-      // the moment the user viewed them (see buildRecentPropertySummary in
-      // PropertyDetailPage.js) — reusing that data costs ZERO Amber requests,
-      // instead of the previous Promise.all(recent.map(getPropertyBySlug))
-      // burst which re-fetched every single one from scratch on every visit.
-      const recent = getRecentProperties();
-      if (recent.length > 0) {
-        if (!cancelled) {
-          setContinueListings(recent);
-          setContinueTitle("Continue Exploring");
-          setContinueLoading(false);
-        }
-        return;
-      }
-
-      try {
-        // No history yet — show real popular homes instead. This is the ONLY
-        // Amber request this section ever makes.
-        const fallback = await getProperties(DESTINATIONS[0].name, 1, 50, "MEDIUM", "homepage-popular-fallback");
-        if (!cancelled) {
-          setContinueListings(safeListingList(fallback));
-          setContinueTitle("Popular Student Homes");
-        }
-      } catch (err) {
-        console.error("HomePage continue-exploring error:", err);
-        if (!cancelled) setContinueError(true);
-      } finally {
-        if (!cancelled) setContinueLoading(false);
-      }
-    }
-
-    loadContinue();
-    return () => { cancelled = true; };
-  }, []);
-
   /* Cached city stats are display-only. Destination cards never fetch Amber;
      they only read real stats previously derived from a city inventory response. */
   const [cityStats, setCityStats] = useState({});
@@ -113,39 +59,20 @@ function HomePage() {
   );
   const statsLoadedCount = Object.keys(cityStats).length;
 
-  /* ── EXPLORE BY COUNTRY / CITY ── */
-  const [activeCountry, setActiveCountry] = useState(COUNTRIES[0]);
-  const citiesForCountry = useMemo(() => DESTINATIONS.filter((d) => d.country === activeCountry), [activeCountry]);
-  const [activeCity, setActiveCity] = useState(citiesForCountry[0]?.name || null);
-  const [exploreCache, setExploreCache] = useState({});
-  const [exploreLoading, setExploreLoading] = useState(false);
-
-  useEffect(() => {
-    const first = DESTINATIONS.find((d) => d.country === activeCountry);
-    setActiveCity(first ? first.name : null);
-  }, [activeCountry]);
-
-  useEffect(() => {
-    if (!activeCity || exploreCache[activeCity]) return;
-    let cancelled = false;
-    setExploreLoading(true);
-    // limit=50 (not 8) deliberately — this makes the request identical to
-    // what the listings page asks for the same city, so the shared gateway
-    // cache serves both from one Amber call instead of two. Only the first 8
-    // are shown here (see the .slice(0, 8) at render below); nothing else changes.
-    getProperties(activeCity, 1, 50, "MEDIUM", "homepage-explore")
-      .then((raw) => {
-        if (cancelled) return;
-        setExploreCache((prev) => ({ ...prev, [activeCity]: safeListingList(raw) }));
-        getCachedCityStats(activeCity).then((stats) => {
-          if (!cancelled && stats) setCityStats((prev) => ({ ...prev, [activeCity]: stats }));
-        });
-      })
-      .catch((err) => console.error("HomePage explore error:", err))
-      .finally(() => { if (!cancelled) setExploreLoading(false); });
-    return () => { cancelled = true; };
-  }, [activeCity, exploreCache]);
-
+  /* ── POPULAR CITIES — COUNTRY FILTER TABS ── */
+  const [popularCountry, setPopularCountry] = useState("All");
+  const popularCountryTabs = useMemo(() => [
+    { code: "All", label: "All Destinations", flag: "🌍" },
+    ...COUNTRIES.map((code) => ({
+      code,
+      label: countryFullName(code),
+      flag: DESTINATIONS.find((d) => d.country === code)?.flag || "",
+    })),
+  ], []);
+  const visibleDestinations = useMemo(
+    () => (popularCountry === "All" ? DESTINATIONS : DESTINATIONS.filter((d) => d.country === popularCountry)),
+    [popularCountry]
+  );
   const handleWhyScroll = (e) => {
     const el = e.currentTarget;
     const total = el.scrollHeight - el.clientHeight;
@@ -315,7 +242,7 @@ function HomePage() {
             </form>
 
             <div className="hero-actions">
-              <Link to="/find-rooms" className="hero-secondary-btn">Prefer we search for you? Fill our form →</Link>
+              <Link to="/enquire" className="hero-secondary-btn">Prefer we search for you? Fill our form →</Link>
             </div>
             <div className="hero-stats" ref={hutsStopRef}>
               <div className="hero-stat">
@@ -370,71 +297,11 @@ function HomePage() {
         </div>{/* end hero-purple-box */}
       </section>
 
-      {/* RECENT SEARCHES — only shown when real search history exists */}
-      {recentSearches.length > 0 && (
-        <section className="section recent-searches-section">
-          <div className="recent-searches-row">
-            <span className="recent-searches-label">Recent Searches</span>
-            {recentSearches.map((s) => (
-              <button key={s} type="button" className="pill-btn pill-btn-sm" onClick={() => runSearch(s)}>
-                {s}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* CONTINUE EXPLORING / POPULAR STUDENT HOMES */}
-      {!continueError && (continueLoading || continueListings.length > 0) && (
-        <section className="section">
-          <div className="section-heading">
-            <p className="section-eyebrow">Pick Up Where You Left Off</p>
-            <h2 className="section-title">{continueTitle}</h2>
-          </div>
-          <div className="chp-row">
-            {continueLoading
-              ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="chp-skeleton" />)
-              : continueListings.map((listing) => <CompactPropertyCard key={listing.id} listing={listing} />)}
-          </div>
-        </section>
-      )}
-
       {/* TRUST BADGES */}
-      <section className="trust-strip">
-        <div className="trust-strip-inner">
-          <div className="trust-badge">
-            <svg className="trust-icon" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="15" stroke="#5E3A6B" strokeWidth="2"/><path d="M9 16.5l4.5 4.5 9-9" stroke="#5E3A6B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            <div>
-              <div className="trust-label">100% Verified</div>
-              <div className="trust-sub">Every listing checked</div>
-            </div>
-          </div>
-          <div className="trust-divider" />
-          <div className="trust-badge">
-            <svg className="trust-icon" viewBox="0 0 32 32" fill="none"><path d="M16 3l11 4v8c0 6-4.5 10.5-11 13C9.5 25.5 5 21 5 15V7l11-4z" stroke="#2E7D32" strokeWidth="2" strokeLinejoin="round"/><path d="M11 16l3.5 3.5 6-6" stroke="#2E7D32" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            <div>
-              <div className="trust-label">No Visa No Pay</div>
-              <div className="trust-sub">Full refund if visa refused</div>
-            </div>
-          </div>
-          <div className="trust-divider" />
-          <div className="trust-badge">
-            <svg className="trust-icon" viewBox="0 0 32 32" fill="none"><rect x="4" y="9" width="24" height="16" rx="3" stroke="#C8960C" strokeWidth="2"/><path d="M4 14h24" stroke="#C8960C" strokeWidth="2"/><circle cx="10" cy="20" r="2" fill="#C8960C"/></svg>
-            <div>
-              <div className="trust-label">No Hidden Fees</div>
-              <div className="trust-sub">Price shown is price paid</div>
-            </div>
-          </div>
-          <div className="trust-divider" />
-          <div className="trust-badge">
-            <svg className="trust-icon" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="#4A90D9" strokeWidth="2"/><path d="M13 13c0-1.7 1.3-3 3-3s3 1.3 3 3c0 2-3 2.5-3 5" stroke="#4A90D9" strokeWidth="2" strokeLinecap="round"/><circle cx="16" cy="22" r="1.2" fill="#4A90D9"/></svg>
-            <div>
-              <div className="trust-label">24/7 Support</div>
-              <div className="trust-sub">Always here for you</div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <TrustStrip />
+
+      {/* INVENTORY STATS */}
+      <InventoryStatsSection />
 
       {/* POPULAR CITIES */}
       <section className="section discovery-section">
@@ -448,8 +315,21 @@ function HomePage() {
             )}
           </p>
         </div>
-        <div className="city-grid">
-          {DESTINATIONS.map((city) => (
+        <div className="city-tab-row" role="group" aria-label="Filter popular cities by country">
+          {popularCountryTabs.map((tab) => (
+            <button
+              key={tab.code}
+              type="button"
+              className={`pill-btn${tab.code === popularCountry ? " active" : ""}`}
+              aria-pressed={tab.code === popularCountry}
+              onClick={() => setPopularCountry(tab.code)}
+            >
+              <span aria-hidden="true">{tab.flag}</span> {tab.label}
+            </button>
+          ))}
+        </div>
+        <ul className="city-grid">
+          {visibleDestinations.map((city) => (
             <CityCard
               key={`${city.name}-${city.country}`}
               city={{
@@ -460,70 +340,7 @@ function HomePage() {
               }}
             />
           ))}
-        </div>
-      </section>
-
-      {/* EXPLORE BY COUNTRY / CITY */}
-      <section className="section explore-section">
-        <div className="section-heading">
-          <p className="section-eyebrow">Discover</p>
-          <h2 className="section-title">Explore Student Homes</h2>
-          <p className="section-copy">Browse live, verified availability by country and city.</p>
-        </div>
-
-        <div className="explore-pill-row">
-          {COUNTRIES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`pill-btn${c === activeCountry ? " active" : ""}`}
-              onClick={() => setActiveCountry(c)}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        <div className="explore-pill-row explore-pill-row-cities">
-          {citiesForCountry.map((d) => (
-            <button
-              key={d.name}
-              type="button"
-              className={`pill-btn pill-btn-sm${d.name === activeCity ? " active" : ""}`}
-              onClick={() => setActiveCity(d.name)}
-            >
-              {d.name}
-            </button>
-          ))}
-        </div>
-
-        <div className="chp-row">
-          {exploreLoading && !exploreCache[activeCity]
-            ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="chp-skeleton" />)
-            : (exploreCache[activeCity] || []).length > 0
-              ? exploreCache[activeCity].slice(0, 8).map((listing) => <CompactPropertyCard key={listing.id} listing={listing} />)
-              : <p className="explore-empty">No live listings found for {activeCity} right now.</p>}
-        </div>
-      </section>
-
-      {/* ROOM TYPES */}
-      <section className="section roomtypes-section">
-        <p className="section-eyebrow">What We Offer</p>
-        <h2 className="section-title">Find the Right Room Type</h2>
-        <div className="section-underline" />
-        <div className="roomtypes-scroll-wrap">
-          <div className="roomtypes-grid">
-            {ROOM_TYPES.map((rt) => (
-              <div key={rt.type} className="roomtype-card">
-                <div className="roomtype-name">{rt.type}</div>
-                <div className="roomtype-desc">{rt.description}</div>
-                <div className="roomtype-footer">
-                  <span className="roomtype-best">Best for: {rt.bestFor}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        </ul>
       </section>
 
       {/* WHY IVYHUTS — internal scroll stacking cards */}
@@ -669,7 +486,7 @@ function HomePage() {
           <h2>Your perfect student stay is one form away</h2>
           <p className="cta-sub">Tell us what you need and our team will do the rest. Free service, personalised results, within 24 hours.</p>
           <div className="cta-actions">
-            <Link to="/find-rooms" className="primary-btn" style={{ display: "inline-block" }}>Find My Stay →</Link>
+            <Link to="/enquire" className="primary-btn" style={{ display: "inline-block" }}>Find My Stay →</Link>
           </div>
         </div>
       </section>

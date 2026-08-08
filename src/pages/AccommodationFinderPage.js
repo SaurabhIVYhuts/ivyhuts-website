@@ -24,6 +24,14 @@ const COUNTRIES = [
   { name: "Switzerland", flag: "🇨🇭" },
   { name: "South Korea", flag: "🇰🇷" },
   { name: "Japan",       flag: "🇯🇵" },
+  { name: "Malaysia",       flag: "🇲🇾" },
+  { name: "Hong Kong",      flag: "🇭🇰" },
+  { name: "Poland",         flag: "🇵🇱" },
+  { name: "Czech Republic", flag: "🇨🇿" },
+  { name: "Denmark",        flag: "🇩🇰" },
+  { name: "Portugal",       flag: "🇵🇹" },
+  { name: "Austria",        flag: "🇦🇹" },
+  { name: "Belgium",        flag: "🇧🇪" },
 ];
 const ROOM_TYPES = ["En-Suite", "Studio", "Shared Room", "Private Apartment", "No Preference"];
 const BUDGETS = [
@@ -184,6 +192,10 @@ export default function AccommodationFinderPage() {
     setStatus("sending");
     lastSubmitTime = now;
 
+    const countriesLabel = data.countries.includes("Other")
+      ? [...data.countries.filter(c => c !== "Other"), `Other: ${otherCountry.trim()}`].join(", ")
+      : data.countries.join(", ");
+
     try {
       fetch(SHEETS_URL, {
         method: "POST",
@@ -194,7 +206,7 @@ export default function AccommodationFinderPage() {
           "Email":          data.email.trim(),
           "Phone":          data.phone.trim() || "Not provided",
           "University":     data.university.trim(),
-          "Countries":      data.countries.includes("Other") ? [...data.countries.filter(c => c !== "Other"), `Other: ${otherCountry.trim()}`].join(", ") : data.countries.join(", "),
+          "Countries":      countriesLabel,
           "Room Type":      data.roomType,
           "Budget":         data.budget,
           "Intake":         data.intake,
@@ -204,6 +216,37 @@ export default function AccommodationFinderPage() {
         }),
       });
     } catch (_) {}
+
+    // Email notification — fire-and-forget, same-origin. Must never block or
+    // affect the success screen: a failed/misconfigured mailer still shows success.
+    console.log("[Enquiry] Form submitted");
+    try {
+      const enquiryPayload = {
+        studentName: data.fullName.trim(),
+        studentEmail: data.email.trim(),
+        phoneNumber: data.phone.trim(),
+        university: data.university.trim(),
+        preferredCity: countriesLabel,
+        message: data.otherQuery.trim() || "None",
+        websiteSource: "ivyhuts.com/enquire",
+      };
+      console.log("[Enquiry] Calling /api/enquire — request payload:", enquiryPayload);
+      fetch("/api/enquire", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(enquiryPayload),
+      })
+        .then((res) => res.json().catch(() => ({})).then((resBody) => ({ ok: res.ok, resBody })))
+        .then(({ ok, resBody }) => {
+          if (ok && resBody.emailSent) {
+            console.log("[Enquiry] Notification email sent successfully");
+          } else {
+            console.error("[Enquiry] Notification email failed:", resBody.message || resBody.error || "unknown error");
+          }
+        })
+        .catch((err) => console.error("[Enquiry] /api/enquire request failed:", err));
+    } catch (_) {}
+
     setStatus("success");
   };
 
@@ -441,7 +484,7 @@ export default function AccommodationFinderPage() {
 
             {/* SUBMIT */}
             <div className="form-submit-wrap">
-              <button type="submit" className="form-submit-btn" disabled={status === "sending"}>
+              <button type="submit" className="btn btn-primary btn-lg" disabled={status === "sending"}>
                 {status === "sending" ? "Sending..." : "Get in Touch"}
               </button>
               <p className="form-submit-note">
@@ -486,7 +529,7 @@ function SuccessScreen({ name }) {
           <span>Your details are safe. We never share your data.</span>
         </div>
       </div>
-      <Link to="/" className="success-home-btn">Back to Home</Link>
+      <Link to="/" className="btn btn-ghost">Back to Home</Link>
     </div>
   );
 }

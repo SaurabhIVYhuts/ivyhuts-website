@@ -30,6 +30,7 @@ export default function CompactPropertyCard({ listing }) {
       onKeyDown={handleKeyDown}
     >
       <PropertyImageGallery images={images} alt={name} badge={safeBadges[0]} />
+      <PropertyImageGallery images={images} alt={name} badges={badges.slice(0, 2)} />
       <div className="chp-body">
         <h3 className="chp-title">{name}</h3>
         <p className="chp-location">{[safeAddress.locality, safeAddress.country].filter(Boolean).join(", ")}</p>

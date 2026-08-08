@@ -18,8 +18,16 @@ const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 const REDIS_AVAILABLE = Boolean(UPSTASH_URL && UPSTASH_TOKEN);
 
+// Deliberately unconditional (previously gated behind NODE_ENV !== "production",
+// which suppressed every one of these lines on Vercel — Vercel sets
+// NODE_ENV=production for both Preview and Production builds, not just
+// Production, so that gate meant this diagnostic trail was silently absent
+// exactly where it was needed most). Every call site here logs only
+// non-sensitive structured fields (source/priority/cache-status/action/cache
+// keys/budget counts/error messages) — never a token, secret, Authorization
+// header, or full response body.
 function log(...args) {
-    if (process.env.NODE_ENV !== "production") console.log("[Amber Gateway]", ...args);
+    console.log("[Amber Gateway]", ...args);
 }
 
 let warnedFallback = false;
@@ -33,10 +41,36 @@ function warnFallbackOnce() {
     );
 }
 
+// Thrown when Redis IS configured (env vars present — this is production, or
+// at least meant to behave like it) but the Upstash REST endpoint itself
+// fails or is unreachable at request time. This is deliberately NOT the same
+// thing as "Redis isn't configured" (REDIS_AVAILABLE === false), which is the
+// expected, accepted local-dev shape that legitimately falls back to the
+// in-memory Maps below. A configured-but-unreachable Redis must NOT fall
+// back the same way: every one of Vercel's concurrently-running instances
+// would silently start enforcing the FULL budget/lock/cooldown independently
+// against its own empty in-memory state, multiplying the effective Amber
+// request rate by however many instances happen to be warm — exactly the
+// failure mode this whole architecture exists to prevent. Callers that can
+// safely treat this as "temporarily unavailable" (see fetchAmber in
+// amberGateway.js) catch this specific error and fail closed instead.
+class RedisUnavailableError extends Error {
+    constructor(cause) {
+        super(`Redis is configured but temporarily unreachable: ${cause?.message || cause}`);
+        this.name = "RedisUnavailableError";
+        this.cause = cause;
+    }
+}
+
 async function redisCommand(...args) {
     const url = `${UPSTASH_URL}/${args.map(encodeURIComponent).join("/")}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` } });
-    if (!res.ok) throw new Error(`Upstash command failed: ${res.status}`);
+    let res;
+    try {
+        res = await fetch(url, { headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` } });
+    } catch (err) {
+        throw new RedisUnavailableError(err);
+    }
+    if (!res.ok) throw new RedisUnavailableError(new Error(`Upstash command failed: ${res.status}`));
     const json = await res.json();
     return json.result;
 }
@@ -45,12 +79,17 @@ async function redisCommand(...args) {
 // script body contains characters (quotes, newlines) that don't survive
 // being encoded as URL path segments.
 async function redisCommandPost(commandArray) {
-    const res = await fetch(UPSTASH_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify(commandArray),
-    });
-    if (!res.ok) throw new Error(`Upstash command failed: ${res.status}`);
+    let res;
+    try {
+        res = await fetch(UPSTASH_URL, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify(commandArray),
+        });
+    } catch (err) {
+        throw new RedisUnavailableError(err);
+    }
+    if (!res.ok) throw new RedisUnavailableError(new Error(`Upstash command failed: ${res.status}`));
     const json = await res.json();
     return json.result;
 }
@@ -148,29 +187,63 @@ async function peekRecentRequestCount(windowMs) {
 // other concurrent caller for the same cache key backs off instead of also
 // hitting Amber. Redis: SET key value NX PX <ttl> is the standard atomic
 // acquire-if-absent pattern.
+//
+// The lock value is a random per-acquisition token, not a constant — this is
+// what makes releaseLock ownership-safe (see below). Returns the token on
+// success (falsy on failure), and the caller must pass that same token back
+// to releaseLock. Without this, if a lock TTL expired while its holder was
+// still legitimately running (a slow Amber response) and a second caller
+// then acquired a fresh lock for the same key, the FIRST caller's eventual
+// `finally { releaseLock(key) }` would delete the SECOND caller's still-live
+// lock — letting a third caller in while the second is still working, and
+// defeating the one-upstream-request-per-key guarantee this exists for.
 async function acquireLock(key, ttlMs) {
+    const token = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     if (REDIS_AVAILABLE) {
-        const result = await redisCommand("SET", key, "1", "NX", "PX", String(ttlMs));
-        return result === "OK";
+        const result = await redisCommand("SET", key, token, "NX", "PX", String(ttlMs));
+        return result === "OK" ? token : null;
     }
     warnFallbackOnce();
     const now = Date.now();
     const existing = memLocks.get(key);
-    if (existing && now < existing) return false;
-    memLocks.set(key, now + ttlMs);
-    return true;
+    if (existing && now < existing.expiresAt) return null;
+    memLocks.set(key, { token, expiresAt: now + ttlMs });
+    return token;
 }
 
-async function releaseLock(key) {
+// Compare-and-delete: only removes the lock if its current value still
+// matches the token this caller was granted at acquire time. A plain
+// unconditional DEL would happily delete a *different, newer* holder's lock
+// (see acquireLock's comment) — this must be atomic (read+compare+delete as
+// one step), hence the Lua script for the Redis path, the same reasoning as
+// tryReserveSlot's RESERVE_SLOT_SCRIPT above.
+const RELEASE_LOCK_SCRIPT = `
+local key = KEYS[1]
+local expectedToken = ARGV[1]
+if redis.call('GET', key) == expectedToken then
+  return redis.call('DEL', key)
+else
+  return 0
+end
+`;
+
+async function releaseLock(key, token) {
     if (REDIS_AVAILABLE) {
-        await redisCommand("DEL", key).catch(() => {});
+        await redisCommandPost(["EVAL", RELEASE_LOCK_SCRIPT, "1", key, token]).catch(() => {
+            // Best-effort: if this fails, the lock simply expires on its own
+            // TTL instead of being released early. Never let a release failure
+            // surface as a request failure — the fetch it was protecting has
+            // already succeeded or failed on its own by this point.
+        });
         return;
     }
-    memLocks.delete(key);
+    const existing = memLocks.get(key);
+    if (existing && existing.token === token) memLocks.delete(key);
 }
 
 module.exports = {
     REDIS_AVAILABLE,
+    RedisUnavailableError,
     sharedGet,
     sharedSet,
     tryReserveSlot,
