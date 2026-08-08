@@ -409,25 +409,6 @@ a { text-decoration: none; }
 .nav-links a:hover { color: #5E3A6B; }
 .nav-links a:hover::after { transform: scaleX(1); }
 
-.nav-wa-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  background: #25D366;
-  color: white;
-  border-radius: 50%;
-  margin-left: 10px;
-  flex-shrink: 0;
-  transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 2px 8px rgba(37,211,102,0.35);
-}
-.nav-wa-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(37,211,102,0.45);
-}
-
 /* ── MOBILE NAV ── */
 .nav-mobile-right {
   display: none;
@@ -488,7 +469,6 @@ a { text-decoration: none; }
 .mobile-nav-link:last-child { border-bottom: none; }
 .mobile-nav-link:active { background: #F8EEF4; }
 .mobile-nav-active { color: #5E3A6B; }
-.mobile-nav-wa { border-bottom: none !important; padding-top: 16px; }
 
 /* ── HERO ── */
 .hero {

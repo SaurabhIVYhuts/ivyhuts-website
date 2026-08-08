@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 
 // Shows at most once per browser tab session — set the instant the popup is
 // triggered (not just on close/submit) so a fast scroll-past-and-back never
@@ -97,6 +98,9 @@ export default function LeadPopup() {
   return (
     <div className="lead-popup-overlay">
       <div className="lead-popup" role="dialog" aria-modal="true" aria-labelledby="lead-popup-title" ref={dialogRef}>
+        <button type="button" className="lead-popup-close" onClick={() => setOpen(false)} aria-label="Close">
+          <X size={18} strokeWidth={2.25} />
+        </button>
         {status === "success" ? (
           <div className="lead-popup-success">
             <svg viewBox="0 0 56 56" fill="none" width="48" height="48">

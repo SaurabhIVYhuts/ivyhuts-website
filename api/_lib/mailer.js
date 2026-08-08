@@ -1,6 +1,14 @@
-// Reusable email service — the only place in this deployment that talks to
-// FormSubmit (https://formsubmit.co). Config comes from environment
-// variables only (never hardcoded).
+// Reusable email service — builds the notification HTML with Mailgen and
+// sends it via Resend's API. Config comes from environment variables only
+// (never hardcoded).
+//
+// History: this originally used FormSubmit's AJAX API, which turned out to
+// block server-to-server requests from cloud/datacenter IPs (like Vercel's)
+// as suspected bot traffic — confirmed by reproducing the identical request
+// from a residential IP (succeeded) vs. from the deployed function (403 for
+// every submission). A brief SMTP+nodemailer version replaced it, but was
+// itself swapped for Resend to avoid SMTP host/port/app-password setup —
+// Resend needs only a single API key.
 //
 // Unlike the rest of the enquiry pipeline (which is fire-and-forget and must
 // never break the form's success screen), THIS module fails loudly: it
@@ -8,28 +16,22 @@
 // step. The caller (api/enquire.js) is what decides how to turn that into an
 // HTTP response — this module's job is just to never lie about whether the
 // email actually went out.
-//
-// FormSubmit needs no API key — it's a plain POST to
-// https://formsubmit.co/ajax/{recipient}. The recipient in the URL is the
-// "primary" address; the free tier's `_cc` field fans out to the rest of
-// ENQUIRY_NOTIFY_EMAILS. NOTE: the first time any address is used with
-// FormSubmit, they email that address a one-time activation link — until
-// it's clicked, sends to it silently fail (FormSubmit still returns success
-// from the API), so every address in ENQUIRY_NOTIFY_EMAILS must be
-// activated once before notifications actually arrive there.
-const FORMSUBMIT_ENDPOINT = "https://formsubmit.co/ajax/";
+const Mailgen = require("mailgen");
+const { Resend } = require("resend");
 
-// FormSubmit rejects AJAX requests that arrive with no Referer header (it's
-// how it tells a real webpage submission apart from a bare script/file://
-// request) and ties an activated address to the domain that first triggered
-// activation — so this MUST be the production site's own URL, not a generic
-// placeholder. Override via env if the site is ever served from elsewhere.
+// Used only for the cosmetic "view this email" / copyright link Mailgen
+// prints in the template footer — has no bearing on delivery.
 const SITE_URL = process.env.SITE_URL || "https://www.ivyhuts.com/";
 
+const mailGenerator = new Mailgen({
+    theme: "default",
+    product: { name: "IVYhuts", link: SITE_URL },
+});
+
 // `fields`: ordered [label, value] pairs. Resolves with { sent: true } on
-// real success. Throws on ANY failure (no recipients configured, FormSubmit
-// HTTP/API error) — it never silently returns a false "sent: false" the
-// caller might miss.
+// real success. Throws on ANY failure (no recipients configured, missing
+// Resend API key, Resend API error) — it never silently returns a false
+// "sent: false" the caller might miss.
 async function sendEnquiryEmail(fields) {
     const recipients = String(process.env.ENQUIRY_NOTIFY_EMAILS || "")
         .split(",")
@@ -40,53 +42,59 @@ async function sendEnquiryEmail(fields) {
         console.error(`[mailer] FAIL-FAST — ${message}`);
         throw new Error(message);
     }
-    const [primary, ...cc] = recipients;
-    console.log(`[mailer] Recipients: primary=${primary}${cc.length ? ` cc=${cc.join(", ")}` : ""}`);
 
-    const payload = {
-        _subject: "New IVYHUTS Property Enquiry",
-        _template: "table",
-        _captcha: "false",
-    };
-    if (cc.length > 0) payload._cc = cc.join(",");
-    for (const [label, value] of fields) {
-        payload[label] = value ?? "";
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+        const message = "RESEND_API_KEY is not set — cannot send enquiry emails";
+        console.error(`[mailer] FAIL-FAST — ${message}`);
+        throw new Error(message);
     }
+    // Sandbox default: only deliverable to the Resend account's own verified
+    // email until a real sending domain is added and verified in Resend.
+    const from = process.env.RESEND_FROM || "IVYhuts <onboarding@resend.dev>";
 
-    console.log("[mailer] Sending via FormSubmit...");
-    let response;
-    try {
-        response = await fetch(`${FORMSUBMIT_ENDPOINT}${encodeURIComponent(primary)}`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-                Referer: SITE_URL,
-                Origin: SITE_URL.replace(/\/$/, ""),
+    console.log(`[mailer] Recipients: ${recipients.join(", ")}`);
+
+    const email = {
+        body: {
+            name: "IVYhuts Team",
+            intro: "A new enquiry has just come in from the website.",
+            table: {
+                data: fields
+                    .filter(([, value]) => value !== undefined)
+                    .map(([label, value]) => ({ Field: label, Details: value ?? "N/A" })),
             },
-            body: JSON.stringify(payload),
-        });
+            outro: "This is an automated notification — reply directly to the enquirer using the email above.",
+        },
+    };
+    const html = mailGenerator.generate(email);
+    const text = mailGenerator.generatePlaintext(email);
+
+    const resend = new Resend(apiKey);
+
+    console.log("[mailer] Sending via Resend...");
+    let data, error;
+    try {
+        ({ data, error } = await resend.emails.send({
+            from,
+            to: recipients,
+            subject: "New IVYHUTS Property Enquiry",
+            html,
+            text,
+        }));
     } catch (err) {
-        console.error("[mailer] FormSubmit request FAILED:", err.message);
+        console.error("[mailer] Resend request FAILED:", err.message);
         console.error(err.stack);
         throw err;
     }
 
-    let result = null;
-    try {
-        result = await response.json();
-    } catch {
-        // FormSubmit returns non-JSON on some error paths — fall through to
-        // the !response.ok check below with result left null.
-    }
-
-    if (!response.ok || (result && result.success === "false")) {
-        const message = (result && (result.message || result.error)) || `FormSubmit returned HTTP ${response.status}`;
-        console.error("[mailer] FormSubmit send FAILED:", message);
+    if (error) {
+        const message = error.message || JSON.stringify(error);
+        console.error("[mailer] Resend send FAILED:", message);
         throw new Error(message);
     }
 
-    console.log(`[mailer] Email sent successfully — response=${JSON.stringify(result)}`);
+    console.log(`[mailer] Email sent successfully via Resend — id=${data && data.id}`);
     return { sent: true };
 }
 

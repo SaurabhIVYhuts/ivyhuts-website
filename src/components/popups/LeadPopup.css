@@ -33,9 +33,45 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+.lead-popup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-full);
+  color: #7B5B70;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), transform var(--transition);
+}
+.lead-popup-close:hover {
+  background: rgba(94, 58, 107, 0.08);
+  color: #3A2442;
+  transform: rotate(90deg);
+}
+.lead-popup-close:active {
+  transform: rotate(90deg) scale(0.88);
+}
+.lead-popup-close:focus-visible {
+  outline: 2px solid #B07898;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lead-popup-close:hover,
+  .lead-popup-close:active {
+    transform: none;
+  }
+}
+
 .lead-popup-title {
   font-size: 1.25rem;
   font-weight: 800;
+  padding-right: 26px;
   color: #3A2442;
   margin: 0 0 6px;
 }
