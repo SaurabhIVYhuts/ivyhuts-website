@@ -7,6 +7,8 @@ import SiteNavbar from "../components/layout/SiteNavbar";
 import SiteFooter from "../components/layout/SiteFooter";
 import PropertyGallery from "../components/listing/PropertyGallery";
 import RoomTypeCard from "../components/listing/RoomTypeCard";
+import WishlistHeart from "../components/listing/WishlistHeart";
+import { trackEvent } from "../lib/eventsApi";
 import "./PropertyDetailPage.css";
 
 const PAYMENT_FACT_LABELS = ["Guarantor", "Lease Duration", "Non-Students Allowed"];
@@ -49,6 +51,14 @@ export default function PropertyDetailPage() {
         setProperty(mapped);
         const summary = buildRecentPropertySummary(mapped);
         if (summary) addRecentProperty(summary);
+        if (mapped && mapped.id != null) {
+          trackEvent("PROPERTY_VIEWED", {
+            propertyId: String(mapped.id),
+            propertySlug: mapped.slug || undefined,
+            city: mapped.address?.locality || undefined,
+            source: "property-detail",
+          });
+        }
       } catch (err) {
         if (!cancelled) {
           console.error("PropertyDetailPage error:", err);
@@ -321,7 +331,20 @@ export default function PropertyDetailPage() {
 
           <aside className="pdp-sidebar">
             <div className="pdp-sidebar-card">
-              <div className="pdp-sidebar-name">{name}</div>
+              <div className="pdp-sidebar-name-row">
+                <div className="pdp-sidebar-name">{name}</div>
+                <WishlistHeart
+                  className="wishlist-heart-btn--on-light"
+                  property={{
+                    propertyId: String(property.id),
+                    slug: property.slug || null,
+                    propertyName: name || null,
+                    city: address?.locality || null,
+                    image: property.image || null,
+                    price: price?.from != null ? { amount: price.from, currency: price.currency || null } : null,
+                  }}
+                />
+              </div>
               {price.from !== null ? (
                 <div className="pdp-sidebar-price">
                   <span className="pdp-sidebar-price-label">From</span>

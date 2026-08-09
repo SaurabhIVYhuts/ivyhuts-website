@@ -96,7 +96,7 @@ async function redisCommandPost(commandArray) {
 
 // ── In-memory fallback state (single instance / local dev only) ──
 const memValues = new Map(); // key -> { value, expiresAt }
-const memRequestLog = []; // timestamps for the rolling budget
+const memRequestLogs = new Map(); // key -> timestamps[], one rolling window per reserveSlot key
 const memLocks = new Map(); // key -> expiresAt
 
 function pruneMemValues() {
@@ -117,11 +117,43 @@ async function sharedGet(key) {
 
 async function sharedSet(key, value, ttlSeconds) {
     if (REDIS_AVAILABLE) {
-        await redisCommand("SET", key, JSON.stringify(value), "EX", String(Math.max(1, Math.ceil(ttlSeconds))));
+        if (ttlSeconds) {
+            await redisCommand("SET", key, JSON.stringify(value), "EX", String(Math.max(1, Math.ceil(ttlSeconds))));
+        } else {
+            // No TTL: used by callers that need a permanent record (e.g. the
+            // auth user store) rather than a cache entry.
+            await redisCommand("SET", key, JSON.stringify(value));
+        }
         return;
     }
     warnFallbackOnce();
-    memValues.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
+    memValues.set(key, { value, expiresAt: ttlSeconds ? Date.now() + ttlSeconds * 1000 : null });
+}
+
+// Atomic "set only if absent" — the building block for uniqueness
+// constraints (e.g. reserving an email address at signup) where a plain
+// GET-then-SET from application code would race under concurrent requests.
+// Returns true if this call created the key, false if it already existed
+// (in which case nothing was written). No TTL: permanent until explicitly
+// deleted via sharedDelete.
+async function sharedSetNX(key, value) {
+    if (REDIS_AVAILABLE) {
+        const result = await redisCommand("SET", key, JSON.stringify(value), "NX");
+        return result === "OK";
+    }
+    warnFallbackOnce();
+    pruneMemValues();
+    if (memValues.has(key)) return false;
+    memValues.set(key, { value, expiresAt: null });
+    return true;
+}
+
+async function sharedDelete(key) {
+    if (REDIS_AVAILABLE) {
+        await redisCommand("DEL", key);
+        return;
+    }
+    memValues.delete(key);
 }
 
 // Rolling-window request budget, reserved ATOMICALLY (check-and-record as one
@@ -156,19 +188,35 @@ redis.call('EXPIRE', key, 120)
 return 1
 `;
 
-async function tryReserveSlot(windowMs, maxCount) {
+// Generalized form of the same atomic reserve-a-slot-in-a-rolling-window
+// primitive, parameterized by key — lets unrelated features (e.g. auth rate
+// limiting) get the same TOCTOU-safe guarantee under their own Redis key
+// without sharing Amber's "amber:requests" counter or its budget.
+async function reserveSlot(key, windowMs, maxCount) {
     const now = Date.now();
     if (REDIS_AVAILABLE) {
         const member = `${now}-${Math.random().toString(36).slice(2, 8)}`;
-        const result = await redisCommandPost(["EVAL", RESERVE_SLOT_SCRIPT, "1", "amber:requests", String(now), String(windowMs), String(maxCount), member]);
+        const result = await redisCommandPost(["EVAL", RESERVE_SLOT_SCRIPT, "1", key, String(now), String(windowMs), String(maxCount), member]);
         return result === 1;
     }
     warnFallbackOnce();
     const cutoff = now - windowMs;
-    while (memRequestLog.length && memRequestLog[0] < cutoff) memRequestLog.shift();
-    if (memRequestLog.length >= maxCount) return false;
-    memRequestLog.push(now);
+    let log = memRequestLogs.get(key);
+    if (!log) {
+        log = [];
+        memRequestLogs.set(key, log);
+    }
+    while (log.length && log[0] < cutoff) log.shift();
+    if (log.length >= maxCount) return false;
+    log.push(now);
     return true;
+}
+
+// Amber's own budget check — unchanged behavior/signature, now implemented
+// as a thin call into reserveSlot with Amber's fixed key so this file's one
+// existing caller (amberGateway.js) needs no changes at all.
+async function tryReserveSlot(windowMs, maxCount) {
+    return reserveSlot("amber:requests", windowMs, maxCount);
 }
 
 // Read-only view of current usage, for logging only — never used to decide
@@ -179,7 +227,8 @@ async function peekRecentRequestCount(windowMs) {
         const count = await redisCommand("ZCOUNT", "amber:requests", String(cutoff), "+inf");
         return Number(count) || 0;
     }
-    return memRequestLog.filter((t) => t >= cutoff).length;
+    const log = memRequestLogs.get("amber:requests") || [];
+    return log.filter((t) => t >= cutoff).length;
 }
 
 // Distributed lock (cache-stampede protection): only the caller that
@@ -246,7 +295,10 @@ module.exports = {
     RedisUnavailableError,
     sharedGet,
     sharedSet,
+    sharedSetNX,
+    sharedDelete,
     tryReserveSlot,
+    reserveSlot,
     peekRecentRequestCount,
     acquireLock,
     releaseLock,

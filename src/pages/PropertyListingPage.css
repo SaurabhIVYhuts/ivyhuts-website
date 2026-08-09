@@ -701,6 +701,11 @@
   font-size: 0.85rem;
 }
 
+.listing-card-wishlist-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .listing-card-meta-row {
   font-size: 0.78rem;
   color: #5E3A6B;

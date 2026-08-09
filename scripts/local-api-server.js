@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Runs the EXACT SAME api/amber.js handler used in production, as a plain
-// Node HTTP server on its own port. This is not a reimplementation or a
-// weaker fallback — it's the real gateway (cache, rolling rate budget,
-// cooldown, stampede lock), just adapted from Vercel's (req, res) interface
-// to plain Node http so local development doesn't require a Vercel account.
+// Runs the EXACT SAME api/*.js handlers used in production (Amber gateway,
+// enquiry mailer, auth), as a plain Node HTTP server on its own port. This
+// is not a reimplementation or a weaker fallback — it's the real handlers,
+// just adapted from Vercel's (req, res) interface to plain Node http so
+// local development doesn't require a Vercel account.
 //
 // CRA's dev server proxies /api requests here automatically — see
 // src/setupProxy.js. Started together with `react-scripts start` by
@@ -21,6 +21,49 @@ const http = require("http");
 const { URL } = require("url");
 const amberHandler = require("../api/amber.js");
 const enquireHandler = require("../api/enquire.js");
+const authRoutes = {
+    "/api/auth/signup": require("../api/auth/signup.js"),
+    "/api/auth/login": require("../api/auth/login.js"),
+    "/api/auth/logout": require("../api/auth/logout.js"),
+    "/api/auth/me": require("../api/auth/me.js"),
+};
+
+// Milestone 2 business API — mirrors Vercel's filesystem-based dynamic
+// routing (api/leads/[id].js -> /api/leads/:id) since this plain Node
+// server has no framework to do that automatically. Order matters: more
+// specific/static patterns (e.g. /api/customers/me) must be listed before
+// the more general dynamic one (/api/customers/:id) they'd otherwise be
+// shadowed by — same precedence rule Vercel itself applies.
+const businessRoutes = [
+    { pattern: "/api/customers", handler: require("../api/customers/index.js") },
+    { pattern: "/api/customers/me", handler: require("../api/customers/me.js") },
+    { pattern: "/api/customers/:id/lifecycle", handler: require("../api/customers/[id]/lifecycle.js") },
+    { pattern: "/api/customers/:id", handler: require("../api/customers/[id].js") },
+    { pattern: "/api/leads", handler: require("../api/leads/index.js") },
+    { pattern: "/api/leads/:id/assignment", handler: require("../api/leads/[id]/assignment.js") },
+    { pattern: "/api/leads/:id", handler: require("../api/leads/[id].js") },
+    { pattern: "/api/enquiries", handler: require("../api/enquiries/index.js") },
+    { pattern: "/api/enquiries/:id", handler: require("../api/enquiries/[id].js") },
+    { pattern: "/api/wishlist", handler: require("../api/wishlist/index.js") },
+    { pattern: "/api/wishlist/:propertyId", handler: require("../api/wishlist/[propertyId].js") },
+    { pattern: "/api/events", handler: require("../api/events/index.js") },
+].map((route) => ({
+    ...route,
+    paramNames: (route.pattern.match(/:([^/]+)/g) || []).map((p) => p.slice(1)),
+    regex: new RegExp("^" + route.pattern.replace(/:[^/]+/g, "([^/]+)") + "$"),
+}));
+
+function matchBusinessRoute(pathname) {
+    for (const route of businessRoutes) {
+        const match = route.regex.exec(pathname);
+        if (match) {
+            const params = {};
+            route.paramNames.forEach((name, i) => { params[name] = decodeURIComponent(match[i + 1]); });
+            return { handler: route.handler, params };
+        }
+    }
+    return null;
+}
 
 const PORT = process.env.LOCAL_API_PORT || 3001;
 
@@ -51,6 +94,18 @@ const server = http.createServer(async (req, res) => {
         if (url.pathname === "/api/enquire") {
             req.body = await readJsonBody(req);
             await enquireHandler(req, res);
+            return;
+        }
+        if (Object.prototype.hasOwnProperty.call(authRoutes, url.pathname)) {
+            if (req.method === "POST") req.body = await readJsonBody(req);
+            await authRoutes[url.pathname](req, res);
+            return;
+        }
+        const businessMatch = matchBusinessRoute(url.pathname);
+        if (businessMatch) {
+            Object.assign(req.query, businessMatch.params);
+            if (["POST", "PATCH", "PUT", "DELETE"].includes(req.method)) req.body = await readJsonBody(req);
+            await businessMatch.handler(req, res);
             return;
         }
         await amberHandler(req, res);

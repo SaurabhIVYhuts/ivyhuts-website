@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { getProperties } from "../services/amberApi";
 import { safeListingList } from "../services/amberMapper";
 import { addRecentSearch } from "../services/recentActivity";
+import { trackEvent } from "../lib/eventsApi";
 import { DESTINATIONS, findDestination, countryFullName } from "../data/destinations";
 import { USPS } from "../data/usps";
 import SiteNavbar from "../components/layout/SiteNavbar";
@@ -106,6 +107,7 @@ export default function PropertyListingPage() {
       setLoading(true);
       setError(null);
       addRecentSearch(city);
+      trackEvent("CITY_SEARCHED", { city, source: "listings-page" });
       try {
         const data = await getProperties(city);
         if (!cancelled) setRawProperties(Array.isArray(data) ? data : []);

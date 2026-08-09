@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import "./AccommodationFinderPage.css";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
+import { submitEnquiryToMongo } from "../lib/enquiryApi";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 
@@ -246,6 +247,27 @@ export default function AccommodationFinderPage() {
         })
         .catch((err) => console.error("[Enquiry] /api/enquire request failed:", err));
     } catch (_) {}
+
+    // MongoDB capture (Milestone 3) — additional, non-blocking destination
+    // alongside Sheets/email above; never affects the success screen below.
+    const mongoMessage = [
+      `Countries: ${countriesLabel}`,
+      `Room Type: ${data.roomType}`,
+      `Budget: ${data.budget}`,
+      `Intake: ${data.intake}`,
+      `Duration: ${data.duration.trim()}`,
+      data.billsIncluded ? `Bills Included: ${data.billsIncluded}` : null,
+      data.otherQuery.trim() ? `Notes: ${data.otherQuery.trim()}` : null,
+    ].filter(Boolean).join("\n");
+    submitEnquiryToMongo({
+      contact: {
+        name: data.fullName.trim(),
+        email: data.email.trim(),
+        phone: data.phone.trim(),
+      },
+      message: mongoMessage,
+      source: "find-rooms",
+    }, "Enquiry");
 
     setStatus("success");
   };
