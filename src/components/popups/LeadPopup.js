@@ -1,11 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { getPageViewCount } from "../../lib/pageViewCounter";
 
-// Shows at most once per browser tab session — set the instant the popup is
-// triggered (not just on close/submit) so a fast scroll-past-and-back never
-// re-triggers it.
-const SESSION_KEY = "ivyhuts_lead_popup_shown";
+// Re-arms after the visitor has explored a few more pages, rather than
+// suppressing the popup forever after one dismissal or gating it on a
+// fixed time delay. LAST_SHOWN_AT_VIEWS_KEY records the global page-view
+// count (see lib/pageViewCounter.js, bumped on every route change site-
+// wide) at the moment the popup was last shown; once the visitor has
+// navigated PAGES_BEFORE_RESHOW pages further, it's allowed to trigger
+// again on this component's next mount (LeadPopup only renders on the
+// homepage, so that's the next time they're back here). localStorage (not
+// sessionStorage) so this survives across tabs too. A successful submit
+// is the one case that suppresses it permanently — no point re-asking
+// someone who already gave their details.
+const LAST_SHOWN_AT_VIEWS_KEY = "ivyhuts_lead_popup_last_shown_at_views";
+const CONVERTED_KEY = "ivyhuts_lead_popup_converted";
 const SCROLL_TRIGGER_PX = 400;
+const PAGES_BEFORE_RESHOW = 3;
 
 function validate(data) {
   const errors = {};
@@ -31,11 +42,14 @@ export default function LeadPopup() {
   const dialogRef = useRef(null);
 
   useEffect(() => {
-    if (sessionStorage.getItem(SESSION_KEY)) return;
+    if (localStorage.getItem(CONVERTED_KEY)) return;
+    const lastShownAtViews = Number(localStorage.getItem(LAST_SHOWN_AT_VIEWS_KEY) || 0);
+    const viewsSinceShown = getPageViewCount() - lastShownAtViews;
+    if (lastShownAtViews > 0 && viewsSinceShown < PAGES_BEFORE_RESHOW) return;
 
     const onScroll = () => {
       if (window.scrollY < SCROLL_TRIGGER_PX) return;
-      sessionStorage.setItem(SESSION_KEY, "1");
+      localStorage.setItem(LAST_SHOWN_AT_VIEWS_KEY, String(getPageViewCount()));
       setOpen(true);
       window.removeEventListener("scroll", onScroll);
     };
@@ -81,6 +95,7 @@ export default function LeadPopup() {
       const resBody = await res.json().catch(() => ({}));
       if (res.ok && resBody.emailSent) {
         setStatus("success");
+        localStorage.setItem(CONVERTED_KEY, "1");
       } else {
         setStatus("error");
       }

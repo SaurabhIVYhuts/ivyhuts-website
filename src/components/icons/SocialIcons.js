@@ -22,8 +22,12 @@ export const LinkedinIcon = ({ size = 17 }) => (
 );
 export const FacebookIcon = ({ size = 17 }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8">
-    <path d="M15 8.5h-2c-.8 0-1.5.7-1.5 1.5v2h3.3l-.5 3H11.5v7" strokeLinecap="round" strokeLinejoin="round" />
     <circle cx="12" cy="12" r="9" />
+    <path
+      d="M13 19v-8h2l.5-2.5H13V7c0-.7.3-1 1.1-1H15.5V3.3C15.1 3.2 14.3 3 13.3 3 11.2 3 9.8 4.3 9.8 6.7V8.5H8V11h1.8v8H13z"
+      fill="currentColor"
+      stroke="none"
+    />
   </svg>
 );
 export const YoutubeIcon = ({ size = 17 }) => (

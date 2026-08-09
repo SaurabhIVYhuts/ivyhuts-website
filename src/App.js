@@ -4,6 +4,7 @@ import "./styles/global.css";
 import HomePage from "./pages/HomePage";
 import PropertyListingPage from "./pages/PropertyListingPage";
 import { initMetaPixel, trackPageView } from "./lib/metaPixel";
+import { bumpPageViewCount } from "./lib/pageViewCounter";
 
 const AccommodationFinderPage = lazy(() => import("./pages/AccommodationFinderPage"));
 const PropertyDetailPage       = lazy(() => import("./pages/PropertyDetailPage"));
@@ -29,12 +30,22 @@ function MetaPixelTracker() {
   return null;
 }
 
+/* ── PAGE VIEW COUNTER — bumps a persisted count on every route change, so
+   the homepage lead popup can re-arm itself after the visitor has explored
+   a few more pages instead of relying on a fixed time cooldown. ── */
+function PageViewCounter() {
+  const { pathname } = useLocation();
+  useEffect(() => { bumpPageViewCount(); }, [pathname]);
+  return null;
+}
+
 /* ── MAIN APP ── */
 function App() {
   return (
     <Router>
       <ScrollToTop />
       <MetaPixelTracker />
+      <PageViewCounter />
       <Suspense fallback={<div style={{ minHeight: "100vh", background: "#FBF4F8" }} />}>
         <Routes>
           <Route path="/"               element={<HomePage />} />

@@ -5,7 +5,7 @@
 
    Fully static: no hover, no tooltip, no click, no scroll-driven motion. */
 .hero-journey-flow {
-  margin: 26px 0 24px;
+  margin: 10px 0 0;
   animation: hero-journey-flow-in 0.6s ease-out both;
   animation-delay: 0.15s;
 }
@@ -32,16 +32,16 @@
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
-  gap: 6px;
-  flex: 1 1 180px;
-  min-width: 150px;
+  gap: 4px;
+  flex: 1 1 150px;
+  min-width: 140px;
 }
 
 .hero-journey-stage-icon {
   position: relative;
   flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -49,12 +49,12 @@
   background: linear-gradient(135deg, #5E3A6B 0%, #8B6088 100%);
   border: 1.5px solid rgba(245, 217, 120, 0.4);
   color: #F5D978;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .hero-journey-stage-icon svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .hero-journey-stage-number {
@@ -75,20 +75,12 @@
 }
 
 .hero-journey-stage-title {
-  font-size: 0.86rem;
+  font-size: 1.3rem;
   font-weight: 800;
   color: #fff;
-  line-height: 1.28;
-  letter-spacing: -0.1px;
-}
-
-/* Muted description line under the main title. */
-.hero-journey-stage-desc {
-  font-size: 0.74rem;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.65);
-  line-height: 1.45;
-  margin-top: 2px;
+  line-height: 1.24;
+  letter-spacing: -0.2px;
+  overflow-wrap: break-word;
 }
 
 .hero-journey-connector {
@@ -96,18 +88,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  padding-top: 8px;
-  color: rgba(245, 217, 120, 0.6);
+  width: 34px;
+  padding-top: 6px;
+  color: rgba(245, 217, 120, 0.8);
 }
 
 .hero-journey-connector svg {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.5;
 }
 
 /* ── MOBILE — stack vertically, no horizontal overflow ── */
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .hero-journey-flow { max-width: 340px; margin: 22px auto 20px; text-align: left; }
 
   .hero-journey-main {

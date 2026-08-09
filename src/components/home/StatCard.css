@@ -16,10 +16,12 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  aspect-ratio: 1 / 1;
+  /* Rectangle (not square) — same width, shorter height — with a softer,
+     more rounded corner than the rest of the site's cards. */
+  aspect-ratio: 4 / 3;
   background: var(--stat-bg, var(--surface-white));
   border: 1px solid var(--stat-accent-soft, var(--border-soft));
-  border-radius: var(--radius-md);
+  border-radius: 22px;
   box-shadow: 0 6px 16px rgba(58, 36, 66, 0.18);
   padding: 12px;
   width: 100%;

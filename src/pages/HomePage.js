@@ -80,44 +80,9 @@ function HomePage() {
       <section className="hero">
       <div className="hero-row">
 
-        {/* Left building illustrations — on light bg sides */}
-        <div className="hero-huts-left">
-          <svg viewBox="0 0 220 280" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Cottage */}
-            <rect x="6" y="168" width="84" height="96" rx="2" stroke="currentColor" strokeWidth="1.5" fill="rgba(94,58,107,0.05)"/>
-            <path d="M0 168 L48 118 L96 168" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-            <rect x="64" y="124" width="9" height="28" rx="1" stroke="currentColor" strokeWidth="1.2" fill="rgba(94,58,107,0.05)"/>
-            <rect x="61" y="122" width="15" height="4" rx="1" stroke="currentColor" strokeWidth="1.2"/>
-            <rect x="11" y="180" width="22" height="18" rx="1" stroke="currentColor" strokeWidth="1.1"/>
-            <line x1="22" y1="180" x2="22" y2="198" stroke="currentColor" strokeWidth="0.8"/>
-            <line x1="11" y1="189" x2="33" y2="189" stroke="currentColor" strokeWidth="0.8"/>
-            <rect x="59" y="180" width="22" height="18" rx="1" stroke="currentColor" strokeWidth="1.1"/>
-            <line x1="70" y1="180" x2="70" y2="198" stroke="currentColor" strokeWidth="0.8"/>
-            <line x1="59" y1="189" x2="81" y2="189" stroke="currentColor" strokeWidth="0.8"/>
-            <rect x="37" y="218" width="22" height="46" rx="2" stroke="currentColor" strokeWidth="1.2"/>
-            <circle cx="56" cy="242" r="1.5" stroke="currentColor" strokeWidth="1"/>
-            {/* Tree */}
-            <line x1="97" y1="152" x2="97" y2="168" stroke="currentColor" strokeWidth="1.2"/>
-            <circle cx="97" cy="143" r="9" stroke="currentColor" strokeWidth="1.1"/>
-            {/* Apartment */}
-            <rect x="103" y="74" width="112" height="190" rx="2" stroke="currentColor" strokeWidth="1.5" fill="rgba(94,58,107,0.05)"/>
-            <rect x="98" y="68" width="122" height="7" rx="1" stroke="currentColor" strokeWidth="1.2" fill="rgba(94,58,107,0.08)"/>
-            <rect x="111" y="84" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="157" y="84" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="111" y="110" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="157" y="110" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="111" y="136" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="157" y="136" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="111" y="162" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="157" y="162" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="145" y="218" width="28" height="46" rx="2" stroke="currentColor" strokeWidth="1.2"/>
-            <path d="M145 218 Q159 206 173 218" stroke="currentColor" strokeWidth="1" fill="none"/>
-            <line x1="0" y1="264" x2="220" y2="264" stroke="currentColor" strokeWidth="1" strokeDasharray="4 3"/>
-          </svg>
-        </div>
-
-        {/* Card group — the purple hero card and the inventory lane share one
-            continuous purple panel/rounded shape (see .hero-card-group). */}
+        {/* Card group — wraps the purple hero card and supplies its
+            background/rounded shape (see .hero-card-group), including a
+            house photo behind the purple gradient. */}
         <div className="hero-card-group">
         {/* Purple content box — centered */}
         <div className="hero-purple-box">
@@ -128,135 +93,82 @@ function HomePage() {
             <circle cx="640" cy="40" r="18" stroke="#C47A8A" strokeWidth="1" />
           </svg>
         <div className="hero-content">
-          <div className="hero-top-row">
-            <div className="hero-text">
-              <p className="hero-tagline">A Venture By IIM Alums</p>
-              <h1>
-                <span className="hero-h1-line1">From housing to hiring —</span>
-                <br />
-                <span className="hero-h1-line2">we've got you covered, globally</span>
-              </h1>
-              <p className="hero-sub-tagline">Verified student homes, matched to your university and budget.</p>
+          <div className="hero-text">
+            <p className="hero-tagline">A Venture By IIM Alums</p>
+
+            {/* Headline + subtitle beside the live inventory cards, where
+                the accommodation photo used to sit. */}
+            <div className="hero-header-row">
+              <div className="hero-header-text">
+                <h1>
+                  <span className="hero-h1-line1">From housing to hiring —</span>
+                  <br />
+                  <span className="hero-h1-line2">we've got you covered, globally</span>
+                </h1>
+                <p className="hero-sub-tagline">Verified student homes, matched to your university and budget.</p>
+              </div>
+              <div className="hero-inventory-stack">
+                <HeroInventoryCards />
+              </div>
             </div>
 
-            {/* Accommodation image — the same photo previously used in the hero */}
-            <div className="hero-room-image">
-              <img
-                src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=80&auto=format&fit=crop"
-                alt="Modern student accommodation interior"
-                className="hero-img"
-                width="600"
-                height="400"
-                fetchPriority="high"
-                decoding="async"
-              />
-            </div>
+            {/* LIVE ACCOMMODATION SEARCH */}
+            <form
+              className="hero-search-form"
+              role="search"
+              onSubmit={(e) => { e.preventDefault(); runSearch(searchValue); }}
+            >
+              <div className="hero-search-input-wrap">
+                <svg className="hero-search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  type="text"
+                  className="hero-search-input"
+                  placeholder="Search by city, university or property"
+                  value={searchValue}
+                  onChange={(e) => { setSearchValue(e.target.value); setSuggestionsOpen(true); }}
+                  onFocus={() => setSuggestionsOpen(true)}
+                  onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
+                  aria-label="Search by city, university or property"
+                  autoComplete="off"
+                />
+                {searchValue && (
+                  <button
+                    type="button"
+                    className="hero-search-clear"
+                    aria-label="Clear search"
+                    onMouseDown={() => setSearchValue("")}
+                  >
+                    ×
+                  </button>
+                )}
+                {suggestionsOpen && suggestions.length > 0 && (
+                  <ul className="hero-search-suggestions" role="listbox">
+                    {suggestions.map((d) => (
+                      <li key={d.name}>
+                        <button type="button" onMouseDown={() => runSearch(d.name)}>
+                          <span className="hero-suggestion-flag">{d.flag}</span> {d.name}
+                          <span className="hero-suggestion-country">{d.country}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <button type="submit" className="hero-search-btn">Find Rooms →</button>
+            </form>
           </div>
 
-          {/* LIVE ACCOMMODATION SEARCH — sits above the journey */}
-          <form
-            className="hero-search-form"
-            role="search"
-            onSubmit={(e) => { e.preventDefault(); runSearch(searchValue); }}
-          >
-            <div className="hero-search-input-wrap">
-              <svg className="hero-search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="text"
-                className="hero-search-input"
-                placeholder="Search by city, university or property"
-                value={searchValue}
-                onChange={(e) => { setSearchValue(e.target.value); setSuggestionsOpen(true); }}
-                onFocus={() => setSuggestionsOpen(true)}
-                onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
-                aria-label="Search by city, university or property"
-                autoComplete="off"
-              />
-              {searchValue && (
-                <button
-                  type="button"
-                  className="hero-search-clear"
-                  aria-label="Clear search"
-                  onMouseDown={() => setSearchValue("")}
-                >
-                  ×
-                </button>
-              )}
-              {suggestionsOpen && suggestions.length > 0 && (
-                <ul className="hero-search-suggestions" role="listbox">
-                  {suggestions.map((d) => (
-                    <li key={d.name}>
-                      <button type="button" onMouseDown={() => runSearch(d.name)}>
-                        <span className="hero-suggestion-flag">{d.flag}</span> {d.name}
-                        <span className="hero-suggestion-country">{d.country}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <button type="submit" className="hero-search-btn">Find Rooms →</button>
-          </form>
-
-          {/* HOUSING → CAREER JOURNEY — static visual storytelling, no interaction */}
+          {/* HOUSING → CAREER JOURNEY — full-width row below the text
+              column. Purely visual storytelling, no interaction. */}
           <HeroJourneyStrip />
         </div>
         </div>{/* end hero-purple-box */}
-
-        {/* Live inventory — sits between the hero card and the right house,
-            outside the purple card, not stacked below the room image. Wrapped
-            with the hero card in .hero-card-group so the two read as one
-            continuous purple card rather than two separate boxes. */}
-        <div className="hero-inventory-lane">
-          <HeroInventoryCards />
-        </div>
         </div>{/* end hero-card-group */}
-
-        {/* Right building illustration — the same illustration as the left
-            side, mirrored, so the hero reads as house-hero-inventory-house.
-            Purely decorative, so it's hidden from assistive tech. */}
-        <div className="hero-huts-right" aria-hidden="true">
-          <svg viewBox="0 0 220 280" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Cottage */}
-            <rect x="6" y="168" width="84" height="96" rx="2" stroke="currentColor" strokeWidth="1.5" fill="rgba(94,58,107,0.05)"/>
-            <path d="M0 168 L48 118 L96 168" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-            <rect x="64" y="124" width="9" height="28" rx="1" stroke="currentColor" strokeWidth="1.2" fill="rgba(94,58,107,0.05)"/>
-            <rect x="61" y="122" width="15" height="4" rx="1" stroke="currentColor" strokeWidth="1.2"/>
-            <rect x="11" y="180" width="22" height="18" rx="1" stroke="currentColor" strokeWidth="1.1"/>
-            <line x1="22" y1="180" x2="22" y2="198" stroke="currentColor" strokeWidth="0.8"/>
-            <line x1="11" y1="189" x2="33" y2="189" stroke="currentColor" strokeWidth="0.8"/>
-            <rect x="59" y="180" width="22" height="18" rx="1" stroke="currentColor" strokeWidth="1.1"/>
-            <line x1="70" y1="180" x2="70" y2="198" stroke="currentColor" strokeWidth="0.8"/>
-            <line x1="59" y1="189" x2="81" y2="189" stroke="currentColor" strokeWidth="0.8"/>
-            <rect x="37" y="218" width="22" height="46" rx="2" stroke="currentColor" strokeWidth="1.2"/>
-            <circle cx="56" cy="242" r="1.5" stroke="currentColor" strokeWidth="1"/>
-            {/* Tree */}
-            <line x1="97" y1="152" x2="97" y2="168" stroke="currentColor" strokeWidth="1.2"/>
-            <circle cx="97" cy="143" r="9" stroke="currentColor" strokeWidth="1.1"/>
-            {/* Apartment */}
-            <rect x="103" y="74" width="112" height="190" rx="2" stroke="currentColor" strokeWidth="1.5" fill="rgba(94,58,107,0.05)"/>
-            <rect x="98" y="68" width="122" height="7" rx="1" stroke="currentColor" strokeWidth="1.2" fill="rgba(94,58,107,0.08)"/>
-            <rect x="111" y="84" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="157" y="84" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="111" y="110" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="157" y="110" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="111" y="136" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="157" y="136" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="111" y="162" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="157" y="162" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="145" y="218" width="28" height="46" rx="2" stroke="currentColor" strokeWidth="1.2"/>
-            <path d="M145 218 Q159 206 173 218" stroke="currentColor" strokeWidth="1" fill="none"/>
-            <line x1="0" y1="264" x2="220" y2="264" stroke="currentColor" strokeWidth="1" strokeDasharray="4 3"/>
-          </svg>
-        </div>
       </div>
       </section>
-
-      {/* TRUST BADGES */}
-      <TrustStrip />
 
       {/* POPULAR CITIES */}
       <section className="section discovery-section">
@@ -289,6 +201,9 @@ function HomePage() {
           ))}
         </ul>
       </section>
+
+      {/* TRUST BADGES */}
+      <TrustStrip />
 
       {/* FAQ */}
       <section className="section faq-section">

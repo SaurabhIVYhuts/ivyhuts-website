@@ -177,6 +177,7 @@ a.cp-info-value:hover { color: #5E3A6B; }
 }
 
 .cp-req { color: #C0392B; }
+.cp-opt { color: #A68E9B; font-weight: 500; text-transform: none; letter-spacing: 0; }
 .cp-field-err { font-size: 0.73rem; color: #C0392B; font-weight: 600; }
 
 .cp-submit-err {

@@ -8,13 +8,14 @@
 .hero-search-form {
   display: flex;
   gap: 10px;
-  margin: 38px 0 0;
+  margin: 38px 0 16px;
+  max-width: 680px;
 }
 
 .hero-search-input-wrap {
   position: relative;
   flex: 1;
-  border-radius: 12px;
+  border-radius: var(--radius-full);
   box-shadow: 0 10px 26px rgba(0,0,0,0.22);
   border: 1px solid rgba(255,255,255,0.16);
   transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
@@ -41,12 +42,12 @@
 
 .hero-search-input {
   width: 100%;
-  padding: 16px 34px 16px 38px;
-  border-radius: 12px;
+  padding: 18px 34px 18px 40px;
+  border-radius: var(--radius-full);
   border: none;
   outline: none;
   font-family: inherit;
-  font-size: 0.92rem;
+  font-size: 0.96rem;
   color: #3A2442;
   background: rgba(255, 255, 255, 0.96);
 }
@@ -76,8 +77,8 @@
 }
 
 .hero-search-btn {
-  padding: 16px 18px;
-  border-radius: 12px;
+  padding: 18px 26px;
+  border-radius: var(--radius-full);
   border: none;
   background: linear-gradient(135deg, #C47A8A 0%, #B05E72 100%);
   color: #fff;
@@ -215,14 +216,14 @@
   pointer-events: none;
 }
 
-/* ── RESPONSIVE ── */
-@media (max-width: 960px) {
-  .hero-content { flex-direction: column; }
-}
-
-@media (max-width: 639px) {
+/* ── RESPONSIVE ──
+   Hero's own column stacking + item reordering below 1020px lives in
+   global.css (single source of truth for the hero breakpoint) — only the
+   search form's internal input/button layout is scoped here. */
+@media (max-width: 640px) {
   .hero-search-form {
     flex-direction: column;
+    max-width: 100%;
   }
 
   .hero-search-btn { width: 100%; }

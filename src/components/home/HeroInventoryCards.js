@@ -6,8 +6,8 @@ import { AnimatedStatValue } from "./AnimatedStatValue";
 
 // The same three live Amber-backed cards that used to live in a standalone
 // "Our Inventory at a Glance" section below the hero — same
-// useInventoryStats data, stacked as compact rows in the lane between the
-// purple hero card and the right-hand decorative house.
+// useInventoryStats data, now a horizontal row above the search bar where
+// the accommodation photo used to sit.
 const CARD_DEFS = [
   { key: "total", label: "Total Inventories", Icon: Building2, accent: "#5E3A6B", accentSoft: "rgba(94, 58, 107, 0.12)", bg: "#F1EAF4" },
   { key: "soldOut", label: "Sold Out", Icon: Ban, accent: "#C0392B", accentSoft: "rgba(192, 57, 43, 0.12)", bg: "#FCEBEE" },

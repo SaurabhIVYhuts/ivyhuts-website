@@ -31,9 +31,7 @@ export default function ContactPage() {
 
   const [form, setForm] = useState({
     name: "",
-    email: "",
     phone: "",
-    subject: subjectDefault,
     message: "",
   });
   const [errors, setErrors] = useState({});
@@ -48,10 +46,7 @@ export default function ContactPage() {
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = "Please enter your name.";
-    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())) e.email = "Please enter a valid email.";
     if (!form.phone.trim()) e.phone = "Please enter your phone or WhatsApp number.";
-    if (!form.subject.trim()) e.subject = "Please enter a subject.";
-    if (!form.message.trim() || form.message.trim().length < 10) e.message = "Please write a message (at least 10 characters).";
     return e;
   };
 
@@ -71,10 +66,9 @@ export default function ContactPage() {
         body: JSON.stringify({
           _page:       "Contact Us",
           "Full Name": form.name.trim(),
-          "Email":     form.email.trim(),
           "Phone":     form.phone.trim(),
-          "Subject":   form.subject.trim(),
-          "Message":   form.message.trim(),
+          "Subject":   subjectDefault || "General Enquiry",
+          "Message":   form.message.trim() || "N/A",
           ...(inventoryId ? { "Property Inventory ID": inventoryId } : {}),
           ...(propertyName ? { "Property Name": propertyName } : {}),
           ...(roomId ? { "Room ID": roomId } : {}),
@@ -95,10 +89,9 @@ export default function ContactPage() {
         propertyName: propertyName || undefined,
         propertyId: inventoryId || undefined,
         studentName: form.name.trim(),
-        studentEmail: form.email.trim(),
         phoneNumber: form.phone.trim(),
         preferredCity: roomName || undefined,
-        message: `Subject: ${form.subject.trim()}\n\n${form.message.trim()}`,
+        message: `Subject: ${subjectDefault || "General Enquiry"}\n\n${form.message.trim() || "N/A"}`,
         websiteSource: "ivyhuts.com/contact",
       };
       fetch("/api/enquire", {
@@ -197,8 +190,8 @@ export default function ContactPage() {
                 <defs><linearGradient id="cp-grad" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse"><stop stopColor="#5E3A6B"/><stop offset="1" stopColor="#B07898"/></linearGradient></defs>
               </svg>
               <h2>Message Sent!</h2>
-              <p>Thanks for reaching out. We will get back to you at <strong>{form.email}</strong> within 24 hours.</p>
-              <button className="btn btn-secondary" onClick={() => { setStatus("idle"); setForm({ name: "", email: "", phone: "", subject: "", message: "" }); }}>
+              <p>Thanks for reaching out. We will get back to you at <strong>{form.phone}</strong> within 24 hours.</p>
+              <button className="btn btn-secondary" onClick={() => { setStatus("idle"); setForm({ name: "", phone: "", message: "" }); }}>
                 Send Another Message
               </button>
             </div>
@@ -214,29 +207,15 @@ export default function ContactPage() {
                   {errors.name && <span className="cp-field-err">{errors.name}</span>}
                 </div>
                 <div className="cp-field">
-                  <label>Email Address <span className="cp-req">*</span></label>
-                  <input type="email" placeholder="your@email.com" value={form.email} onChange={(e) => set("email", e.target.value)} maxLength={100} />
-                  {errors.email && <span className="cp-field-err">{errors.email}</span>}
-                </div>
-              </div>
-
-              <div className="cp-form-row">
-                <div className="cp-field">
                   <label>Phone / WhatsApp <span className="cp-req">*</span></label>
                   <input placeholder="+91 XXXXX XXXXX" value={form.phone} onChange={(e) => set("phone", e.target.value)} maxLength={30} />
                   {errors.phone && <span className="cp-field-err">{errors.phone}</span>}
                 </div>
-                <div className="cp-field">
-                  <label>Subject <span className="cp-req">*</span></label>
-                  <input placeholder="What is your query about?" value={form.subject} onChange={(e) => set("subject", e.target.value)} maxLength={120} />
-                  {errors.subject && <span className="cp-field-err">{errors.subject}</span>}
-                </div>
               </div>
 
               <div className="cp-field">
-                <label>Message <span className="cp-req">*</span></label>
+                <label>Message <span className="cp-opt">(optional)</span></label>
                 <textarea rows={5} placeholder="Tell us how we can help. The more detail you share, the better we can assist you." value={form.message} onChange={(e) => set("message", e.target.value)} maxLength={1000} />
-                {errors.message && <span className="cp-field-err">{errors.message}</span>}
               </div>
 
               {errors.submit && <div className="cp-submit-err">{errors.submit}</div>}
