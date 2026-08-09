@@ -7,7 +7,6 @@ export const USPS = [
   {
     key: "verified",
     label: "100% Verified",
-    sub: "Every listing checked",
     icon: (
       <svg viewBox="0 0 32 32" fill="none">
         <circle cx="16" cy="16" r="15" stroke="#5E3A6B" strokeWidth="2" />
@@ -18,7 +17,6 @@ export const USPS = [
   {
     key: "no-visa-no-pay",
     label: "No Visa No Pay",
-    sub: "Full refund if visa refused",
     icon: (
       <svg viewBox="0 0 32 32" fill="none">
         <path d="M16 3l11 4v8c0 6-4.5 10.5-11 13C9.5 25.5 5 21 5 15V7l11-4z" stroke="#2E7D32" strokeWidth="2" strokeLinejoin="round" />
@@ -29,7 +27,6 @@ export const USPS = [
   {
     key: "no-hidden-fees",
     label: "No Hidden Fees",
-    sub: "Price shown is price paid",
     icon: (
       <svg viewBox="0 0 32 32" fill="none">
         <rect x="4" y="9" width="24" height="16" rx="3" stroke="#C8960C" strokeWidth="2" />
@@ -41,7 +38,6 @@ export const USPS = [
   {
     key: "support",
     label: "24/7 Support",
-    sub: "Always here for you",
     icon: (
       <svg viewBox="0 0 32 32" fill="none">
         <circle cx="16" cy="16" r="13" stroke="#4A90D9" strokeWidth="2" />

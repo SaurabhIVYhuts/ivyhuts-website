@@ -1,0 +1,131 @@
+/* ── HOUSING → CAREER JOURNEY ──
+   One horizontal row inside the purple hero card:
+
+     [01]───→[02]───→[03]
+
+   Fully static: no hover, no tooltip, no click, no scroll-driven motion. */
+.hero-journey-flow {
+  margin: 26px 0 24px;
+  animation: hero-journey-flow-in 0.6s ease-out both;
+  animation-delay: 0.15s;
+}
+
+@keyframes hero-journey-flow-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-journey-flow { animation: none; }
+}
+
+/* ── MAIN JOURNEY — exactly 3 stages, ONE horizontal row ── */
+.hero-journey-main {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.hero-journey-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 6px;
+  flex: 1 1 180px;
+  min-width: 150px;
+}
+
+.hero-journey-stage-icon {
+  position: relative;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #5E3A6B 0%, #8B6088 100%);
+  border: 1.5px solid rgba(245, 217, 120, 0.4);
+  color: #F5D978;
+  margin-bottom: 2px;
+}
+
+.hero-journey-stage-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.hero-journey-stage-number {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #F5D978;
+  color: #3A2442;
+  font-size: 0.5rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 1.5px #5E3A6B;
+}
+
+.hero-journey-stage-title {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.28;
+  letter-spacing: -0.1px;
+}
+
+/* Muted description line under the main title. */
+.hero-journey-stage-desc {
+  font-size: 0.74rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
+.hero-journey-connector {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  padding-top: 8px;
+  color: rgba(245, 217, 120, 0.6);
+}
+
+.hero-journey-connector svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── MOBILE — stack vertically, no horizontal overflow ── */
+@media (max-width: 639px) {
+  .hero-journey-flow { max-width: 340px; margin: 22px auto 20px; text-align: left; }
+
+  .hero-journey-main {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .hero-journey-stage {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .hero-journey-connector {
+    width: auto;
+    padding-top: 0;
+    transform: rotate(90deg);
+    align-self: flex-start;
+    margin-left: 17px;
+  }
+}

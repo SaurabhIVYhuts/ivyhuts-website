@@ -1,0 +1,119 @@
+/* Homepage inventory stats — matches the site's existing card language
+   (.service-card / .chp-card): white surface, var(--radius-xl), soft brand
+   border + shadow tokens. Used by the hero's side-lane cards
+   (.hero-stat-cards) — static supporting statistics, not an interactive
+   dashboard, so there is deliberately no hover state. */
+.hero-stat-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Width is fluid, not a flat bump: it grows with the actual room the hero's
+   side lane has (mirrors .hero-inventory-lane's own
+   calc((100% - 860px)/2) - padding formula in global.css) so cards get
+   noticeably bigger wherever there's space, but can never outgrow their
+   lane and spill past the viewport edge on narrower desktop widths. The
+   196px floor matches the previous fixed size, so nothing gets smaller. */
+.stat-card {
+  background: var(--surface-white);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 22px 20px;
+  width: clamp(196px, calc((100vw - 860px) / 2 - 15px), 256px);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Constant (not hover-triggered) accent bar — a static touch of color per
+   stat rather than an interactive reveal. */
+.stat-card::after {
+  content: "";
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--stat-accent, var(--brand-purple));
+}
+
+.stat-card-icon-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  background: var(--stat-accent-soft, rgba(94, 58, 107, 0.12));
+}
+
+.stat-card-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--stat-accent, var(--brand-purple));
+}
+
+.stat-card-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.15;
+  letter-spacing: -0.4px;
+}
+
+.stat-card-label {
+  margin-top: 5px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-softer);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* Loading state — same shimmer treatment already used on PropertyDetailPage. */
+.stat-skel {
+  height: 1.4rem;
+  width: 64px;
+  margin: 0 auto;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f3ecf1 25%, #ece0e8 37%, #f3ecf1 63%);
+  background-size: 400% 100%;
+  animation: stats-shimmer 1.4s ease infinite;
+}
+
+@keyframes stats-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.stats-error {
+  text-align: center;
+  color: var(--ink-softer);
+  font-size: 0.85rem;
+  max-width: 168px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-skel { animation: none; }
+}
+
+/* Between 640-1280px the hero's side lane drops out of its narrow reserved
+   column and becomes a full-width block below the card (see
+   .hero-inventory-lane in global.css), so there's ample room again — the
+   vw-based clamp above doesn't know that, so give cards a flat, generous
+   width here instead of leaving them floored at 196px. */
+@media (min-width: 640px) and (max-width: 1280px) {
+  .stat-card { width: 240px; }
+}
+
+/* Small horizontal row of compact cards on mobile, rather than a tall
+   vertical stack competing with the rest of the page. */
+@media (max-width: 639px) {
+  .hero-stat-cards { flex-direction: row; gap: 10px; width: 100%; max-width: 400px; }
+  .stat-card { width: 1px; flex: 1 1 0; padding: 16px 10px; }
+  .stat-card-icon-badge { width: 38px; height: 38px; margin-bottom: 8px; }
+  .stat-card-icon { width: 18px; height: 18px; }
+  .stat-card-value { font-size: 1.25rem; }
+  .stat-card-label { font-size: 0.6rem; letter-spacing: 0.3px; }
+}

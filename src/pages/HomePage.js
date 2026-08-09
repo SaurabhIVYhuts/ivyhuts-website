@@ -1,11 +1,12 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import TrustStrip from "../components/layout/TrustStrip";
 import "./HomePage.css";
 import CityCard from "../components/cards/CityCard";
-import InventoryStatsSection from "../components/home/InventoryStatsSection";
+import HeroInventoryCards from "../components/home/HeroInventoryCards";
+import HeroJourneyStrip from "../components/home/HeroJourneyStrip";
 import LeadPopup from "../components/popups/LeadPopup";
 import "../components/popups/LeadPopup.css";
 import { getCachedCityStats } from "../services/amberApi";
@@ -13,15 +14,6 @@ import { DESTINATIONS, COUNTRIES, countryFullName } from "../data/destinations";
 
 function HomePage() {
   const navigate = useNavigate();
-  const [whyActive, setWhyActive] = useState(0);
-  const [hutsVisible, setHutsVisible] = useState(true);
-  const [hutsBottom, setHutsBottom] = useState(0);
-  const whyRef = useRef(null);
-  const heroRef = useRef(null);
-  const purpleBoxRef = useRef(null);
-  const hutsStopRef = useRef(null);
-
-  const whyBoxRef = useRef(null);
 
   /* ── SEARCH ── */
   const [searchValue, setSearchValue] = useState("");
@@ -75,44 +67,6 @@ function HomePage() {
     () => (popularCountry === "All" ? DESTINATIONS : DESTINATIONS.filter((d) => d.country === popularCountry)),
     [popularCountry]
   );
-  const handleWhyScroll = (e) => {
-    const el = e.currentTarget;
-    const total = el.scrollHeight - el.clientHeight;
-    const progress = total > 0 ? Math.max(0, Math.min(1, el.scrollTop / total)) : 0;
-    setWhyActive(Math.min(5, Math.floor(progress * 6)));
-  };
-
-  useEffect(() => {
-    const onScroll = () => {
-      if (purpleBoxRef.current) {
-        const rect = purpleBoxRef.current.getBoundingClientRect();
-        setHutsVisible(rect.bottom > 72);
-        setHutsBottom(Math.max(0, window.innerHeight - rect.bottom));
-      }
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  useEffect(() => {
-    const section = whyRef.current;
-    if (!section) return;
-    const handleWheel = (e) => {
-      const box = whyBoxRef.current;
-      if (!box) return;
-      const atTop = box.scrollTop <= 0 && e.deltaY < 0;
-      const atBottom = box.scrollTop >= box.scrollHeight - box.clientHeight - 1 && e.deltaY > 0;
-      if (!atTop && !atBottom) {
-        e.preventDefault();
-        box.scrollTop += e.deltaY;
-      }
-    };
-    section.addEventListener('wheel', handleWheel, { passive: false });
-    return () => section.removeEventListener('wheel', handleWheel);
-  }, []);
-
-
   return (
     <div>
 
@@ -123,46 +77,10 @@ function HomePage() {
       <main>
 
       {/* HERO */}
-      <section className="hero" ref={heroRef}>
+      <section className="hero">
 
         {/* Left building illustrations — on light bg sides */}
-        <div className={`hero-huts-left${hutsVisible ? "" : " hero-huts-hidden"}`} style={{ bottom: hutsBottom }}>
-          <svg viewBox="0 0 220 280" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Cottage */}
-            <rect x="6" y="168" width="84" height="96" rx="2" stroke="currentColor" strokeWidth="1.5" fill="rgba(94,58,107,0.05)"/>
-            <path d="M0 168 L48 118 L96 168" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-            <rect x="64" y="124" width="9" height="28" rx="1" stroke="currentColor" strokeWidth="1.2" fill="rgba(94,58,107,0.05)"/>
-            <rect x="61" y="122" width="15" height="4" rx="1" stroke="currentColor" strokeWidth="1.2"/>
-            <rect x="11" y="180" width="22" height="18" rx="1" stroke="currentColor" strokeWidth="1.1"/>
-            <line x1="22" y1="180" x2="22" y2="198" stroke="currentColor" strokeWidth="0.8"/>
-            <line x1="11" y1="189" x2="33" y2="189" stroke="currentColor" strokeWidth="0.8"/>
-            <rect x="59" y="180" width="22" height="18" rx="1" stroke="currentColor" strokeWidth="1.1"/>
-            <line x1="70" y1="180" x2="70" y2="198" stroke="currentColor" strokeWidth="0.8"/>
-            <line x1="59" y1="189" x2="81" y2="189" stroke="currentColor" strokeWidth="0.8"/>
-            <rect x="37" y="218" width="22" height="46" rx="2" stroke="currentColor" strokeWidth="1.2"/>
-            <circle cx="56" cy="242" r="1.5" stroke="currentColor" strokeWidth="1"/>
-            {/* Tree */}
-            <line x1="97" y1="152" x2="97" y2="168" stroke="currentColor" strokeWidth="1.2"/>
-            <circle cx="97" cy="143" r="9" stroke="currentColor" strokeWidth="1.1"/>
-            {/* Apartment */}
-            <rect x="103" y="74" width="112" height="190" rx="2" stroke="currentColor" strokeWidth="1.5" fill="rgba(94,58,107,0.05)"/>
-            <rect x="98" y="68" width="122" height="7" rx="1" stroke="currentColor" strokeWidth="1.2" fill="rgba(94,58,107,0.08)"/>
-            <rect x="111" y="84" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="157" y="84" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="111" y="110" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="157" y="110" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="111" y="136" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="157" y="136" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="111" y="162" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="157" y="162" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
-            <rect x="145" y="218" width="28" height="46" rx="2" stroke="currentColor" strokeWidth="1.2"/>
-            <path d="M145 218 Q159 206 173 218" stroke="currentColor" strokeWidth="1" fill="none"/>
-            <line x1="0" y1="264" x2="220" y2="264" stroke="currentColor" strokeWidth="1" strokeDasharray="4 3"/>
-          </svg>
-        </div>
-
-        {/* Right building illustrations — same SVG, mirrored by CSS scaleX(-1) */}
-        <div className={`hero-huts-right${hutsVisible ? "" : " hero-huts-hidden"}`} style={{ bottom: hutsBottom }}>
+        <div className="hero-huts-left">
           <svg viewBox="0 0 220 280" fill="none" xmlns="http://www.w3.org/2000/svg">
             {/* Cottage */}
             <rect x="6" y="168" width="84" height="96" rx="2" stroke="currentColor" strokeWidth="1.5" fill="rgba(94,58,107,0.05)"/>
@@ -198,114 +116,102 @@ function HomePage() {
         </div>
 
         {/* Purple content box — centered */}
-        <div className="hero-purple-box" ref={purpleBoxRef}>
+        <div className="hero-purple-box">
           <div className="hero-bg-ring" />
           <div className="hero-bg-lines" />
+          <svg className="hero-pin-pattern" viewBox="0 0 860 500" fill="none" aria-hidden="true">
+            <circle cx="60" cy="400" r="26" stroke="#C47A8A" strokeWidth="1" />
+            <circle cx="640" cy="40" r="18" stroke="#C47A8A" strokeWidth="1" />
+          </svg>
         <div className="hero-content">
-          <div className="hero-text">
-            <p className="hero-tagline">A Venture By IIM Alums</p>
-            <h1>From housing to hiring - we've got you covered, globally</h1>
-            <ul className="hero-pointers">
-              <li>Data driven: best rooms for your budget</li>
-              <li>IIM community events</li>
-              <li>IVYhuts placement cell keeps floating internships and full time roles</li>
-            </ul>
-
-            {/* LIVE ACCOMMODATION SEARCH */}
-            <form
-              className="hero-search-form"
-              role="search"
-              onSubmit={(e) => { e.preventDefault(); runSearch(searchValue); }}
-            >
-              <div className="hero-search-input-wrap">
-                <input
-                  type="text"
-                  className="hero-search-input"
-                  placeholder="Search by city or university"
-                  value={searchValue}
-                  onChange={(e) => { setSearchValue(e.target.value); setSuggestionsOpen(true); }}
-                  onFocus={() => setSuggestionsOpen(true)}
-                  onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
-                  aria-label="Search by city or university"
-                  autoComplete="off"
-                />
-                {suggestionsOpen && suggestions.length > 0 && (
-                  <ul className="hero-search-suggestions" role="listbox">
-                    {suggestions.map((d) => (
-                      <li key={d.name}>
-                        <button type="button" onMouseDown={() => runSearch(d.name)}>
-                          <span className="hero-suggestion-flag">{d.flag}</span> {d.name}
-                          <span className="hero-suggestion-country">{d.country}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <button type="submit" className="hero-search-btn">Search →</button>
-            </form>
-
-            <div className="hero-actions">
-              <Link to="/enquire" className="hero-secondary-btn">Prefer we search for you? Fill our form →</Link>
+          <div className="hero-top-row">
+            <div className="hero-text">
+              <p className="hero-tagline">A Venture By IIM Alums</p>
+              <h1>
+                <span className="hero-h1-line1">From housing to hiring —</span>
+                <br />
+                <span className="hero-h1-line2">we've got you covered, globally</span>
+              </h1>
+              <p className="hero-sub-tagline">Verified student homes, matched to your university and budget.</p>
             </div>
-            <div className="hero-stats" ref={hutsStopRef}>
-              <div className="hero-stat">
-                <span className="hero-stat-num">15+</span>
-                <span className="hero-stat-label">Countries</span>
-              </div>
-              <div className="hero-stat-divider" />
-              <div className="hero-stat">
-                <span className="hero-stat-num">50+</span>
-                <span className="hero-stat-label">Cities</span>
-              </div>
-              <div className="hero-stat-divider" />
-              <div className="hero-stat">
-                <span className="hero-stat-num">100%</span>
-                <span className="hero-stat-label">Verified</span>
-              </div>
-              <div className="hero-stat-divider" />
-              <div className="hero-stat">
-                <span className="hero-stat-num">Free</span>
-                <span className="hero-stat-label">To Enquire</span>
-              </div>
+
+            {/* Accommodation image — the same photo previously used in the hero */}
+            <div className="hero-room-image">
+              <img
+                src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=80&auto=format&fit=crop"
+                alt="Modern student accommodation interior"
+                className="hero-img"
+                width="600"
+                height="400"
+                fetchPriority="high"
+                decoding="async"
+              />
             </div>
           </div>
-          <div className="hero-img-wrap">
-            <img
-              src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=80&auto=format&fit=crop"
-              alt="Modern student accommodation interior"
-              className="hero-img"
-              width="600"
-              height="400"
-              fetchPriority="high"
-              decoding="async"
-            />
-          </div>
+
+          {/* HOUSING → CAREER JOURNEY — static visual storytelling, no interaction */}
+          <HeroJourneyStrip />
+
+          {/* LIVE ACCOMMODATION SEARCH */}
+          <form
+            className="hero-search-form"
+            role="search"
+            onSubmit={(e) => { e.preventDefault(); runSearch(searchValue); }}
+          >
+            <div className="hero-search-input-wrap">
+              <svg className="hero-search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                className="hero-search-input"
+                placeholder="Search by city, university or property"
+                value={searchValue}
+                onChange={(e) => { setSearchValue(e.target.value); setSuggestionsOpen(true); }}
+                onFocus={() => setSuggestionsOpen(true)}
+                onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
+                aria-label="Search by city, university or property"
+                autoComplete="off"
+              />
+              {searchValue && (
+                <button
+                  type="button"
+                  className="hero-search-clear"
+                  aria-label="Clear search"
+                  onMouseDown={() => setSearchValue("")}
+                >
+                  ×
+                </button>
+              )}
+              {suggestionsOpen && suggestions.length > 0 && (
+                <ul className="hero-search-suggestions" role="listbox">
+                  {suggestions.map((d) => (
+                    <li key={d.name}>
+                      <button type="button" onMouseDown={() => runSearch(d.name)}>
+                        <span className="hero-suggestion-flag">{d.flag}</span> {d.name}
+                        <span className="hero-suggestion-country">{d.country}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <button type="submit" className="hero-search-btn">Find Rooms →</button>
+          </form>
         </div>
-          {/* VIRTUAL TOUR BANNER — inside hero, visible on load */}
-          <div className="rooms-promise-banner rooms-promise-in-hero">
-            <div className="rooms-promise-inner">
-              <div className="rooms-promise-icon">
-                <svg viewBox="0 0 40 40" fill="none">
-                  <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="2"/>
-                  <path d="M16 14l10 6-10 6V14z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <div className="rooms-promise-text">
-                <strong>Book a free virtual tour</strong>
-                <span>Start with a free virtual tour, then visit in person, compare rooms and finalize your booking</span>
-              </div>
-              <Link to="/contact" className="rooms-promise-cta">Get Started →</Link>
-            </div>
-          </div>
         </div>{/* end hero-purple-box */}
+
+        {/* Live inventory — the same three stat cards used elsewhere on the
+            site, stacked outside the card in the lane the mirrored building
+            illustration used to occupy (no duplicate section below). */}
+        <div className="hero-inventory-lane">
+          <HeroInventoryCards />
+        </div>
       </section>
 
       {/* TRUST BADGES */}
       <TrustStrip />
-
-      {/* INVENTORY STATS */}
-      <InventoryStatsSection />
 
       {/* POPULAR CITIES */}
       <section className="section discovery-section">
@@ -338,98 +244,6 @@ function HomePage() {
           ))}
         </ul>
       </section>
-
-      {/* WHY IVYHUTS — internal scroll stacking cards */}
-      <section className="why-section" ref={whyRef}>
-        <p className="section-eyebrow">Why Choose Us</p>
-        <h2 className="section-title">Built for Students Like You</h2>
-        <div className="section-underline" />
-        <div className="why-scroll-box" ref={whyBoxRef} onScroll={handleWhyScroll}>
-          <div className="why-sticky-win">
-            <div className="why-deck">
-              <div className={`why-stack-card${whyActive >= 0 ? ' wc-on' : ''}`} style={{zIndex:1,'--depth':Math.max(0,whyActive-0)}}>
-                <svg className="why-icon" viewBox="0 0 44 44" fill="none"><rect x="8" y="12" width="28" height="22" rx="4" stroke="#5E3A6B" strokeWidth="2"/><path d="M15 12V9a7 7 0 0 1 14 0v3" stroke="#5E3A6B" strokeWidth="2" strokeLinecap="round"/><circle cx="22" cy="22" r="3" fill="#5E3A6B"/><path d="M22 25v3" stroke="#5E3A6B" strokeWidth="2" strokeLinecap="round"/></svg>
-                <div className="why-card-text"><h3>Verified Listings Only</h3><p>Every property on IvyHuts is verified by our team. No scams, no fake listings. Just real, safe homes for students.</p></div>
-              </div>
-              <div className={`why-stack-card${whyActive >= 1 ? ' wc-on' : ''}`} style={{zIndex:2,'--depth':Math.max(0,whyActive-1)}}>
-                <svg className="why-icon" viewBox="0 0 44 44" fill="none"><rect x="6" y="11" width="32" height="22" rx="4" stroke="#C8960C" strokeWidth="2"/><path d="M6 18h32" stroke="#C8960C" strokeWidth="2"/><circle cx="13" cy="27" r="2.5" fill="#C8960C"/><rect x="19" y="25" width="10" height="4" rx="2" fill="#C8960C" opacity=".35"/></svg>
-                <div className="why-card-text"><h3>No Hidden Costs</h3><p>What you see is what you pay. Many of our listings include all bills, so you know exactly what you are committing to.</p></div>
-              </div>
-              <div className={`why-stack-card${whyActive >= 2 ? ' wc-on' : ''}`} style={{zIndex:3,'--depth':Math.max(0,whyActive-2)}}>
-                <svg className="why-icon" viewBox="0 0 44 44" fill="none"><path d="M22 5l14 5v10c0 8-5.5 13.5-14 16C13.5 33.5 8 28 8 20V10l14-5z" stroke="#2E7D32" strokeWidth="2" strokeLinejoin="round"/><path d="M15 21l4.5 4.5 9-9" stroke="#2E7D32" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                <div className="why-card-text"><h3>No Visa No Pay</h3><p>Book with confidence. If your student visa is refused, you get a full refund. We carry the risk so you do not have to.</p></div>
-              </div>
-              <div className={`why-stack-card${whyActive >= 3 ? ' wc-on' : ''}`} style={{zIndex:4,'--depth':Math.max(0,whyActive-3)}}>
-                <svg className="why-icon" viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="15" stroke="#4A90D9" strokeWidth="2"/><path d="M13 22a9 9 0 0 0 18 0" stroke="#4A90D9" strokeWidth="1.5" strokeDasharray="3 2"/><path d="M22 7v3M22 34v3M7 22h3M34 22h3" stroke="#4A90D9" strokeWidth="1.8" strokeLinecap="round"/><circle cx="22" cy="22" r="3.5" fill="#4A90D9"/></svg>
-                <div className="why-card-text"><h3>International Student First</h3><p>Our team are international students and alumni. We understand exactly what you need when moving abroad for the first time.</p></div>
-              </div>
-              <div className={`why-stack-card${whyActive >= 4 ? ' wc-on' : ''}`} style={{zIndex:5,'--depth':Math.max(0,whyActive-4)}}>
-                <svg className="why-icon" viewBox="0 0 44 44" fill="none"><circle cx="22" cy="14" r="6" stroke="#B07898" strokeWidth="2"/><path d="M10 36c0-6.6 5.4-12 12-12s12 5.4 12 12" stroke="#B07898" strokeWidth="2" strokeLinecap="round"/><path d="M30 20l4 2-4 2" stroke="#B07898" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M34 22h-6" stroke="#B07898" strokeWidth="1.8" strokeLinecap="round"/></svg>
-                <div className="why-card-text"><h3>Personal Advisor</h3><p>You get a dedicated advisor who handles your search end-to-end, negotiates on your behalf, and guides you through the process.</p></div>
-              </div>
-              <div className={`why-stack-card${whyActive >= 5 ? ' wc-on' : ''}`} style={{zIndex:6,'--depth':0}}>
-                <svg className="why-icon" viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="15" stroke="#2E7D32" strokeWidth="2"/><path d="M16 22l4 4 8-8" stroke="#2E7D32" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M22 12v2M22 30v2M12 22h2M30 22h2" stroke="#2E7D32" strokeWidth="1.5" strokeLinecap="round" opacity=".5"/></svg>
-                <div className="why-card-text"><h3>Free to Use</h3><p>Our entire service is free for students. No subscription, no booking fees, no strings attached. We are paid by the property, not you.</p></div>
-              </div>
-            </div>
-            <div className="why-dots">
-              {[0,1,2,3,4,5].map(i => (
-                <div key={i} className={`why-dot${i <= whyActive ? ' active' : ''}`} />
-              ))}
-            </div>
-          </div>
-          <div className="why-scroll-driver" />
-        </div>
-      </section>
-
-      {/* BEYOND ACCOMMODATION — kept minimal by design */}
-      <section className="section services-section">
-        
-        <p className="section-eyebrow">Beyond Accommodation</p>
-        <p className="services-simple-line">
-          We also help you settle in abroad — completely free.
-        </p>
-        <div className="services-icon-row">
-          <div className="services-icon-item">
-            <span className="services-icon-badge services-icon-badge--purple">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 3L3 10.5l7.5 3L13.5 21 21 3z"/>
-              </svg>
-            </span>
-            <span>Airport Pickup</span>
-          </div>
-          <div className="services-icon-item">
-            <span className="services-icon-badge services-icon-badge--green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 10l9-6 9 6"/>
-                <path d="M5 10v9M9 10v9M15 10v9M19 10v9"/>
-                <path d="M3 19h18"/>
-              </svg>
-            </span>
-            <span>Bank Account</span>
-          </div>
-          <div className="services-icon-item">
-            <span className="services-icon-badge services-icon-badge--blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M7 3h8l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>
-                <path d="M15 3v4h4"/>
-                <rect x="9" y="10.5" width="6" height="6" rx="1"/>
-              </svg>
-            </span>
-            <span>SIM Card</span>
-          </div>
-          <div className="services-icon-item">
-            <span className="services-icon-badge services-icon-badge--gold">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/>
-                <path d="M9 12l2 2 4-4"/>
-              </svg>
-            </span>
-            <span>Guarantor Service</span>
-          </div>
-        </div>
-      </section>
-
 
       {/* FAQ */}
       <section className="section faq-section">

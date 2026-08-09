@@ -8,47 +8,91 @@
 .hero-search-form {
   display: flex;
   gap: 10px;
-  margin: 22px 0 18px;
-  max-width: 520px;
+  margin: 38px 0 0;
 }
 
 .hero-search-input-wrap {
   position: relative;
   flex: 1;
+  border-radius: 12px;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.22);
+  border: 1px solid rgba(255,255,255,0.16);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.hero-search-input-wrap:hover {
+  border-color: rgba(255,255,255,0.3);
+}
+
+.hero-search-input-wrap:focus-within {
+  box-shadow: 0 0 0 3px rgba(245, 217, 120, 0.45), 0 12px 28px rgba(0,0,0,0.26);
+  border-color: rgba(245,217,120,0.5);
+  transform: translateY(-1px);
+}
+
+.hero-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #A68E9B;
+  pointer-events: none;
 }
 
 .hero-search-input {
   width: 100%;
-  padding: 14px 18px;
+  padding: 16px 34px 16px 38px;
   border-radius: 12px;
   border: none;
   outline: none;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   color: #3A2442;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 6px 18px rgba(58, 36, 66, 0.12);
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .hero-search-input::placeholder { color: #A68E9B; }
 
+.hero-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(94, 58, 107, 0.1);
+  color: #6B4E5E;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hero-search-clear:hover {
+  background: rgba(94, 58, 107, 0.18);
+  color: #3A2442;
+}
+
 .hero-search-btn {
-  padding: 14px 22px;
+  padding: 16px 18px;
   border-radius: 12px;
   border: none;
-  background: #5E3A6B;
+  background: linear-gradient(135deg, #C47A8A 0%, #B05E72 100%);
   color: #fff;
   font-family: inherit;
-  font-size: 0.94rem;
+  font-size: 0.98rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.hero-search-btn:hover {
+.hero-search-btn:hover,
+.hero-search-btn:focus-visible {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(58, 36, 66, 0.28);
+  box-shadow: 0 10px 24px rgba(196, 122, 138, 0.4);
 }
 
 .hero-search-suggestions {
@@ -161,12 +205,27 @@
   color: #B00020;
 }
 
+/* ── SUBTLE BACKGROUND DETAIL — very low-opacity pin/circle motif ── */
+.hero-pin-pattern {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 /* ── RESPONSIVE ── */
+@media (max-width: 960px) {
+  .hero-content { flex-direction: column; }
+}
+
 @media (max-width: 639px) {
   .hero-search-form {
     flex-direction: column;
-    max-width: 100%;
   }
 
   .hero-search-btn { width: 100%; }
+
+  .hero-pin-pattern { display: none; }
 }

@@ -4,7 +4,6 @@ import "./styles/global.css";
 import HomePage from "./pages/HomePage";
 import PropertyListingPage from "./pages/PropertyListingPage";
 import { initMetaPixel, trackPageView } from "./lib/metaPixel";
-import FloatingWhatsAppButton from "./components/layout/FloatingWhatsAppButton";
 
 const AccommodationFinderPage = lazy(() => import("./pages/AccommodationFinderPage"));
 const PropertyDetailPage       = lazy(() => import("./pages/PropertyDetailPage"));
@@ -51,7 +50,6 @@ function App() {
           <Route path="/properties" element={<PropertyListingPage />} />
         </Routes>
       </Suspense>
-      <FloatingWhatsAppButton />
     </Router>
   );
 }

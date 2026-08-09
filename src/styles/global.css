@@ -278,16 +278,7 @@ a { text-decoration: none; }
   text-transform: uppercase;
   letter-spacing: 1.5px;
   color: rgba(255,255,255,0.85);
-  margin: 0 0 12px;
-}
-
-/* Hero image wrapper */
-.hero-img-wrap {
-  flex-shrink: 0;
-  width: clamp(260px, 36vw, 460px);
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+  margin: 0 0 14px;
 }
 
 /* Footer logo */
@@ -409,6 +400,25 @@ a { text-decoration: none; }
 .nav-links a:hover { color: #5E3A6B; }
 .nav-links a:hover::after { transform: scaleX(1); }
 
+.nav-wa-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: #25D366;
+  color: white;
+  border-radius: 50%;
+  margin-left: 10px;
+  flex-shrink: 0;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(37,211,102,0.35);
+}
+.nav-wa-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37,211,102,0.45);
+}
+
 /* ── MOBILE NAV ── */
 .nav-mobile-right {
   display: none;
@@ -469,6 +479,7 @@ a { text-decoration: none; }
 .mobile-nav-link:last-child { border-bottom: none; }
 .mobile-nav-link:active { background: #F8EEF4; }
 .mobile-nav-active { color: #5E3A6B; }
+.mobile-nav-wa { border-bottom: none !important; padding-top: 16px; }
 
 /* ── HERO ── */
 .hero {
@@ -807,13 +818,13 @@ a { text-decoration: none; }
 
 /* ── PURPLE CONTENT BOX (centered) ── */
 .hero-purple-box {
-  max-width: 860px;
+  max-width: 800px;
   margin: 0 auto;
   background:
     radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px) 0 0 / 28px 28px,
     linear-gradient(135deg, #3A2442 0%, #5E3A6B 45%, #8B6088 100%);
   border-radius: 24px 24px 0 0;
-  padding: 36px 44px 32px;
+  padding: 48px 44px 52px;
   position: relative;
   z-index: 1;
   overflow: hidden;
@@ -863,22 +874,25 @@ a { text-decoration: none; }
 }
 
 .hero-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
   position: relative;
   z-index: 2;
 }
 
-/* ── BUILDING ILLUSTRATIONS (side lanes only, never overlap the box) ── */
-.hero-huts-left,
-.hero-huts-right {
-  position: fixed;
-  top: 72px;
+/* ── LEFT BUILDING ILLUSTRATION (side lane only, never overlaps the box) ──
+   Absolutely positioned within .hero (not the viewport), so it sits in
+   normal document flow at the page level and scrolls with everything else
+   — no fixed positioning, no scroll listener, no JS-driven offset. Its
+   height matches .hero's own height (top:0/bottom:0 against the nearest
+   positioned ancestor), which in turn is set by the purple card, the only
+   in-flow child — so it naturally spans exactly the card's height. */
+.hero-huts-left {
+  position: absolute;
+  top: 0;
   bottom: 0;
-  width: calc((100vw - 860px) / 2);
-  max-width: 360px;
+  left: 0;
+  width: calc((100% - 860px) / 2);
+  max-width: 460px;
+  padding-right: 10px;
   pointer-events: none;
   z-index: 0;
   line-height: 0;
@@ -886,78 +900,128 @@ a { text-decoration: none; }
   opacity: 0.55;
   display: flex;
   align-items: flex-end;
-  transition: opacity 0.2s;
 }
-.hero-huts-left  { left: 0; }
-.hero-huts-right { right: 0; transform: scaleX(-1); }
-.hero-huts-hidden { opacity: 0; }
-.hero-huts-left svg,
-.hero-huts-right svg {
+.hero-huts-left svg {
   width: 100%;
   height: auto;
   display: block;
 }
 
-.hero-text {
-  flex: 1;
-  min-width: 280px;
-  max-width: 540px;
+/* ── LIVE INVENTORY LANE (right side, outside the card) ──
+   Same reserved lane the mirrored building illustration used to occupy —
+   same absolute positioning against .hero, just centered rather than
+   bottom-aligned, since it carries real content (the same three stat cards
+   used elsewhere on the site) rather than line art. */
+.hero-inventory-lane {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: calc((100% - 860px) / 2);
+  max-width: 460px;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  /* Hug the card's edge rather than centering in the whole reserved lane —
+     on wide viewports that lane is much bigger than the cards themselves.
+     padding-left matches .hero-huts-left's padding-right so both lanes sit
+     an equal distance from the purple card. */
+  justify-content: flex-start;
+  padding-left: 10px;
 }
 
+/* Headline/description column + accommodation image, side by side at the
+   top of the card. */
+.hero-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.hero-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 460px;
+}
+
+.hero-room-image {
+  flex: 0 0 270px;
+  width: 270px;
+}
+
+.hero-img {
+  width: 100%;
+  height: 230px;
+  object-fit: cover;
+  display: block;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 16px 36px rgba(0,0,0,0.28);
+  animation: hero-fade-in 0.7s ease-out both;
+  animation-delay: 0.2s;
+}
+
+@keyframes hero-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-img { animation: none; }
+}
+
+/* Fixed (non-vw) sizing: the card is capped at 860px and doesn't grow with
+   the viewport, so sizing is tuned to the column width directly rather
+   than fluid vw units. Deliberately restrained — a confident, premium
+   heading rather than an oversized one. */
 .hero h1 {
-  font-size: clamp(1.4rem, 2.8vw, 2rem);
+  font-size: 1.85rem;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.28;
   margin: 0 0 16px;
   letter-spacing: -0.2px;
+  animation: hero-rise 0.5s ease-out both;
 }
+
+/* "From housing to hiring —" must read as one unbroken line on desktop and
+   tablet, where the hero column is wide enough for it; on narrow phones it's
+   allowed to wrap naturally like any other text, so it never overflows. */
+.hero-h1-line1 { white-space: normal; }
+@media (min-width: 650px) {
+  .hero-h1-line1 { white-space: nowrap; }
+}
+
+/* Line 2 always wraps naturally (never forced nowrap): at in-between widths
+   where the side-by-side room image leaves less room than expected, letting
+   "globally" drop to its own line is far better than it clipping/overlapping
+   the image. Forcing single-line here isn't safe across real font metrics. */
+.hero-h1-line2 { white-space: normal; }
 
 .hero-purple-box .hero-text > p {
   font-size: 0.96rem;
   color: rgba(255, 255, 255, 0.75);
   line-height: 1.65;
   margin: 0 0 24px;
-  max-width: 420px;
+  max-width: 400px;
 }
 .hero-sub-tagline {
-  font-size: 1rem !important;
+  font-size: 1.125rem !important;
   color: rgba(255,255,255,0.82) !important;
   line-height: 1.6 !important;
-  margin: 0 0 24px !important;
-  max-width: 460px;
+  margin: 0 0 20px !important;
+  max-width: 40px;
+  animation: hero-rise 0.5s ease-out both;
+  animation-delay: 0.08s;
 }
 
-.hero-pointers {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-width: 460px;
-}
-.hero-pointers li {
-  font-size: 0.95rem;
-  color: rgba(255,255,255,0.9);
-  line-height: 1.5;
-  padding-left: 22px;
-  position: relative;
-}
-.hero-pointers li::before {
-  content: "✓";
-  position: absolute;
-  left: 0;
-  color: #F5D978;
-  font-weight: 700;
-  font-size: 0.9rem;
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.hero-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 28px;
+@media (prefers-reduced-motion: reduce) {
+  .hero h1, .hero-sub-tagline, .hero-visual { animation: none; }
 }
 
 .primary-btn {
@@ -996,96 +1060,6 @@ a { text-decoration: none; }
   box-shadow: 0 12px 30px rgba(196,122,138,0.52);
 }
 
-.hero-secondary-btn {
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.92rem;
-  font-weight: 600;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
-  padding-bottom: 2px;
-  transition: color 0.2s, border-color 0.2s;
-}
-.hero-secondary-btn:hover {
-  color: #F5C2CC;
-  border-color: #F5C2CC;
-}
-
-.hero-stats {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  background: rgba(255,255,255,0.13);
-  border: 1px solid rgba(255,255,255,0.22);
-  border-radius: 16px;
-  padding: 14px 8px;
-  width: fit-content;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.15);
-}
-.hero-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0 22px;
-  gap: 3px;
-}
-.hero-stat-num {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #fff;
-  line-height: 1;
-  letter-spacing: -0.5px;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-.hero-stat-label {
-  font-size: 0.64rem;
-  color: rgba(255,255,255,0.88);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  font-weight: 600;
-}
-.hero-stat-divider {
-  width: 1px;
-  align-self: stretch;
-  background: rgba(255,255,255,0.18);
-  flex-shrink: 0;
-}
-
-/* Hero image */
-.hero-img-wrap {
-  flex: 0 0 320px;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.12),
-    0 8px 0 rgba(0,0,0,0.15),
-    0 20px 60px rgba(0,0,0,0.35);
-  position: relative;
-  animation: float 5s ease-in-out infinite;
-}
-.hero-img-wrap::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 20px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
-  pointer-events: none;
-}
-.hero-img {
-  width: 100%;
-  height: 260px;
-  object-fit: cover;
-  display: block;
-  transition: transform 0.5s ease;
-}
-.hero-img-wrap:hover .hero-img {
-  transform: scale(1.04);
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-8px); }
-}
-
 /* ── SHARED SECTION BASE ── */
 .section {
   padding: 56px 48px;
@@ -1106,8 +1080,7 @@ a { text-decoration: none; }
   margin: 0 0 14px;
 }
 /* Center the pill when used in centered sections */
-.section > .section-eyebrow,
-.why-sticky-win .section-eyebrow {
+.section > .section-eyebrow {
   display: block;
   width: fit-content;
   margin-left: auto;
@@ -1230,284 +1203,6 @@ a { text-decoration: none; }
   height: 36px;
   background: #EDD5E3;
   flex-shrink: 0;
-}
-
-/* ── 14 ROOMS PROMISE BANNER ── */
-.rooms-promise-banner {
-  background: linear-gradient(135deg, #3A2442 0%, #5E3A6B 60%, #8B6088 100%);
-  padding: 20px 48px;
-}
-
-/* Inside hero purple box — bleed edge-to-edge as a bottom strip */
-.rooms-promise-in-hero {
-  background: rgba(0,0,0,0.22) !important;
-  border-top: 1px solid rgba(255,255,255,0.13);
-  padding: 16px 44px !important;
-  margin: 20px -44px -32px;
-  border-radius: 0;
-}
-.rooms-promise-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-.rooms-promise-icon {
-  width: 44px;
-  height: 44px;
-  background: rgba(255,255,255,0.12);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: white;
-}
-.rooms-promise-icon svg { width: 24px; height: 24px; }
-.rooms-promise-text {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.rooms-promise-text strong {
-  font-size: 0.96rem;
-  font-weight: 700;
-  color: white;
-  line-height: 1.3;
-}
-.rooms-promise-text span {
-  font-size: 0.82rem;
-  color: rgba(255,255,255,0.72);
-  line-height: 1.5;
-}
-.rooms-promise-cta {
-  background: white;
-  color: #5E3A6B;
-  font-size: 0.85rem;
-  font-weight: 700;
-  padding: 10px 22px;
-  border-radius: 50px;
-  white-space: nowrap;
-  transition: opacity 0.2s, transform 0.15s;
-  flex-shrink: 0;
-}
-.rooms-promise-cta:hover { opacity: 0.9; transform: translateY(-1px); }
-@media (max-width: 600px) {
-  .rooms-promise-banner { padding: 18px 20px; }
-  .rooms-promise-cta { width: 100%; text-align: center; }
-}
-
-/* ── BEYOND ACCOMMODATION — deliberately minimal, one line ── */
-.services-section {
-  background:
-    radial-gradient(ellipse at 0% 50%, rgba(126,184,201,0.09) 0%, transparent 50%),
-    radial-gradient(ellipse at 100% 50%, rgba(196,122,138,0.08) 0%, transparent 50%),
-    #FBF4F8;
-  position: relative;
-  overflow: hidden;
-  text-align: center;
-  padding-top: 40px;
-  padding-bottom: 40px;
-}
-.services-visual {
-  width: 84px;
-  height: 84px;
-  margin: 0 auto 18px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(94,58,107,0.08) 0%, rgba(94,58,107,0.02) 70%, transparent 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.services-simple-line {
-  max-width: 640px;
-  margin: 0 auto;
-  font-size: 1rem;
-  color: #6B4E5E;
-  line-height: 1.7;
-}
-.services-simple-line strong {
-  color: #5E3A6B;
-  font-weight: 700;
-}
-.services-icon-row {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 32px;
-  max-width: 640px;
-  margin: 30px auto 0;
-}
-.services-icon-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  width: 100px;
-  transition: transform var(--transition);
-}
-.services-icon-item:hover {
-  transform: translateY(-3px);
-}
-.services-icon-badge {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.services-icon-badge svg { width: 20px; height: 20px; }
-.services-icon-badge--purple { background: rgba(94, 58, 107, 0.1); color: #5E3A6B; }
-.services-icon-badge--green  { background: rgba(46, 125, 50, 0.1); color: #2E7D32; }
-.services-icon-badge--blue   { background: rgba(74, 144, 217, 0.1); color: #4A90D9; }
-.services-icon-badge--gold   { background: rgba(200, 150, 12, 0.12); color: #C8960C; }
-.services-icon-item span:last-child {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #3A2442;
-  line-height: 1.3;
-  text-align: center;
-}
-
-/* ── WHY IVYHUTS — SCROLL-DRIVEN STACKING CARDS ── */
-.why-section {
-  background:
-    radial-gradient(ellipse at 90% 10%, rgba(176,120,152,0.10) 0%, transparent 55%),
-    radial-gradient(ellipse at 10% 90%, rgba(94,58,107,0.08) 0%, transparent 55%),
-    radial-gradient(circle, rgba(94,58,107,0.045) 1px, transparent 1px) 0 0 / 22px 22px,
-    #fefcfe;
-  position: relative;
-  padding: 36px 48px 8px;
-  text-align: center;
-}
-.why-section .section-underline { margin-bottom: 0; }
-.why-scroll-box {
-  position: relative;
-  height: 260px;
-  overflow-y: scroll;
-  overflow-x: hidden;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  max-width: 760px;
-  margin: 0 auto;
-}
-.why-scroll-box::-webkit-scrollbar { display: none; }
-.why-scroll-driver {
-  height: calc(6 * 120px + 260px);
-  pointer-events: none;
-}
-.why-sticky-win {
-  position: sticky;
-  top: 0;
-  height: 260px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 12px 32px 0;
-}
-.why-fixed {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  background:
-    radial-gradient(ellipse at 90% 10%, rgba(176,120,152,0.10) 0%, transparent 55%),
-    radial-gradient(ellipse at 10% 90%, rgba(94,58,107,0.08) 0%, transparent 55%),
-    radial-gradient(circle, rgba(94,58,107,0.045) 1px, transparent 1px) 0 0 / 22px 22px,
-    #fefcfe;
-}
-.why-sticky-win .section-eyebrow { margin-bottom: 8px; }
-.why-sticky-win .section-title   { margin-bottom: 0; }
-.why-sticky-win .section-underline { margin-bottom: 28px; }
-
-/* All cards overlap in the same grid cell — container height = tallest card */
-.why-deck {
-  display: grid;
-  grid-template-areas: "card";
-  width: min(700px, calc(100vw - 48px));
-}
-
-/* Each card occupies the shared grid area */
-.why-stack-card {
-  grid-area: card;
-  display: flex;
-  align-items: flex-start;
-  gap: 24px;
-  padding: 32px 36px;
-  border-radius: 24px;
-  border: 1.5px solid #EDD5E3;
-  box-shadow: 0 2px 0 #EDD5E3, 0 12px 40px rgba(94,58,107,0.12), 0 2px 8px rgba(94,58,107,0.06);
-  /* Hidden: sits below, waiting */
-  transform: translateY(80px) scale(0.94);
-  opacity: 0;
-  pointer-events: none;
-  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-              opacity 0.4s ease,
-              scale 0.4s ease;
-}
-/* Revealed card — depth=0 is current top; depth>0 are buried beneath it */
-.why-stack-card.wc-on {
-  opacity: calc(1 - var(--depth, 0) * 0.12);
-  pointer-events: auto;
-  transform:
-    translateY(calc(var(--depth, 0) * 7px))
-    scale(calc(1 - var(--depth, 0) * 0.025));
-}
-/* Only the topmost card (depth 0) is interactive */
-.why-stack-card.wc-on { pointer-events: auto; }
-.why-stack-card.wc-on:not(:last-child) { pointer-events: none; }
-
-/* Card backgrounds — tints deepen with each card */
-.why-stack-card:nth-child(1) { background: #FFFFFF; }
-.why-stack-card:nth-child(2) { background: #FDF8FB; }
-.why-stack-card:nth-child(3) { background: #FAF2F7; }
-.why-stack-card:nth-child(4) { background: #F6EBF3; }
-.why-stack-card:nth-child(5) { background: #F2E4EF; }
-.why-stack-card:nth-child(6) { background: #EEDDED; }
-
-/* Progress dots */
-.why-dots {
-  display: flex;
-  gap: 8px;
-  margin-top: 20px;
-}
-.why-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #EDD5E3;
-  transition: background 0.3s, transform 0.3s;
-}
-.why-dot.active {
-  background: #5E3A6B;
-  transform: scale(1.3);
-}
-
-.why-icon {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.why-card-text { flex: 1; }
-.why-card-text h3 {
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #3A2442;
-  margin: 0 0 8px;
-}
-.why-card-text p {
-  font-size: 0.88rem;
-  color: #7B5B70;
-  line-height: 1.7;
-  margin: 0;
 }
 
 /* ── FAQ ── */
@@ -1764,21 +1459,31 @@ a.footer-social-icon:hover {
   .country-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 1100px) {
-  .hero-huts-left,
-  .hero-huts-right { display: none; }
+@media (max-width: 1280px) {
+  .hero-huts-left { display: none; }
+
+  /* Not enough room for the reserved side lane at the cards' new larger
+     minimum width (196px) — the inventory widget drops into normal flow
+     below the card instead of the cards clipping/overflowing past the
+     viewport edge. */
+  .hero-inventory-lane {
+    position: static;
+    width: 100%;
+    max-width: none;
+    margin-top: 24px;
+  }
 }
 
 @media (max-width: 960px) {
   .navbar { padding: 0 24px; }
   .hero { padding: 20px 0 0; }
-  .hero-purple-box { padding: 32px 24px 28px; border-radius: 16px 16px 0 0; }
-  .hero-content { flex-direction: column; text-align: center; }
-  .hero-text { text-align: center; }
+  .hero-purple-box { padding: 34px 28px 30px; border-radius: 20px 20px 0 0; }
+  .hero-content { text-align: center; }
+  .hero-top-row { flex-direction: column; align-items: center; gap: 20px; }
+  .hero-text { text-align: center; margin: 0 auto; max-width: 520px; }
   .hero-purple-box .hero-text > p { max-width: 100%; margin-left: auto; margin-right: auto; }
-  .hero-actions { justify-content: center; }
-  .hero-stats { margin: 0 auto; }
-  .hero-img-wrap { width: clamp(220px, 70vw, 400px); margin: 0 auto; }
+  .hero-room-image { flex: none; width: 100%; max-width: 320px; }
+  .hero h1 { font-size: 1.7rem; }
   .section { padding: 44px 24px; }
   .section-title.left-aligned { text-align: center; }
   .section-underline.left-aligned { margin-left: auto; }
@@ -1797,16 +1502,9 @@ a.footer-social-icon:hover {
   .navbar-search-mobile-wrap { display: block; }
 
   /* Hero */
-  .hero-purple-box { padding: 28px 20px 24px; }
-  .rooms-promise-in-hero { margin: 16px -20px -24px; padding: 14px 20px !important; }
-  .rooms-promise-inner { flex-direction: column; gap: 12px; text-align: center; }
-  .rooms-promise-cta { width: 100%; text-align: center; }
-  .hero-pointers { max-width: 100%; }
-  .hero h1 { font-size: 2.2rem; }
-
-  /* Stats */
-  .hero-stats { flex-wrap: wrap; padding: 12px 16px; gap: 0; justify-content: center; }
-  .hero-stat { padding: 6px 12px; }
+  .hero-purple-box { padding: 30px 22px 26px; }
+  .hero h1 { font-size: 1.5rem; }
+  .hero-sub-tagline { font-size: 1rem !important; }
 
   /* Sections */
   .section { padding: 36px 20px; }
@@ -1819,15 +1517,12 @@ a.footer-social-icon:hover {
   .footer { padding: 36px 20px 0; }
   .footer-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 28px 20px; }
   .footer-brand { grid-column: 1 / -1; }
-
-  /* Why section */
-  .why-sticky-win { padding: 0 20px; }
 }
 
 @media (max-width: 600px) {
-  .hero h1 { font-size: 1.9rem; }
+  .hero-purple-box { padding: 28px 18px 26px; }
+  .hero h1 { font-size: 1.3rem; }
   .hero-tagline { font-size: 0.72rem; }
-  .hero-img-wrap { width: 100%; border-radius: 14px; }
 
   /* Services — 1 per row on small phones */
   .service-card { width: 100%; min-width: unset; }
@@ -1843,16 +1538,6 @@ a.footer-social-icon:hover {
 
   /* Footer — single column */
   .footer-inner { grid-template-columns: 1fr; gap: 24px; }
-
-  /* Why cards */
-  .why-stack-card { padding: 22px 18px; gap: 14px; }
-  .why-sticky-win { padding: 0 16px; }
-  .why-scroll-driver { height: calc(6 * 60vh); }
-
-  /* Rooms promise banner */
-  .rooms-promise-banner { padding: 16px 20px; }
-  .rooms-promise-inner { flex-direction: column; gap: 12px; text-align: center; }
-  .rooms-promise-cta { width: 100%; text-align: center; }
 
   /* Country chips */
   .country-chip { font-size: 0.82rem; padding: 7px 14px; }
