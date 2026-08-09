@@ -816,14 +816,33 @@ a { text-decoration: none; }
   }
 }
 
-/* ── PURPLE CONTENT BOX (centered) ── */
-.hero-purple-box {
-  max-width: 800px;
-  margin: 0 auto;
+/* ── CARD GROUP — the purple hero card and the inventory lane share this
+   one continuous background + rounded shape, so they read as a single card
+   with two zones rather than two separate boxes with a gap between them. */
+.hero-card-group {
+  display: flex;
+  align-items: stretch;
+  flex: 0 1 auto;
+  max-width: 1000px;
+  /* Same gradient language as before, but stopped at a deeper mauve (not
+     the original #8B6088) — stretched across the wider combined shape, the
+     lighter endpoint was landing right in the inventory zone and reading
+     as a mismatched pink corner instead of one consistent purple card. */
   background:
     radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px) 0 0 / 28px 28px,
-    linear-gradient(135deg, #3A2442 0%, #5E3A6B 45%, #8B6088 100%);
+    linear-gradient(135deg, #3A2442 0%, #5E3A6B 55%, #6E4A73 100%);
   border-radius: 24px 24px 0 0;
+  overflow: hidden;
+}
+
+/* ── PURPLE CONTENT BOX ── */
+.hero-purple-box {
+  /* Fixed preferred width, grows up to 800px when there's room, shrinks
+     under pressure — the decorative houses give up their own width first,
+     so this stays intact as long as possible. */
+  flex: 1 1 620px;
+  max-width: 800px;
+  min-width: 620px;
   padding: 48px 44px 52px;
   position: relative;
   z-index: 1;
@@ -878,56 +897,69 @@ a { text-decoration: none; }
   z-index: 2;
 }
 
-/* ── LEFT BUILDING ILLUSTRATION (side lane only, never overlaps the box) ──
-   Absolutely positioned within .hero (not the viewport), so it sits in
-   normal document flow at the page level and scrolls with everything else
-   — no fixed positioning, no scroll listener, no JS-driven offset. Its
-   height matches .hero's own height (top:0/bottom:0 against the nearest
-   positioned ancestor), which in turn is set by the purple card, the only
-   in-flow child — so it naturally spans exactly the card's height. */
-.hero-huts-left {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: calc((100% - 860px) / 2);
-  max-width: 460px;
-  padding-right: 10px;
+/* ── HERO ROW — house | hero card | inventory stack | house ──
+   A real flex layout (not absolute positioning), so all four sit in normal
+   document flow and scroll naturally with the page — no fixed/sticky
+   positioning, no scroll listeners, no JS-driven offsets. align-items is
+   left at its default (stretch), so the two decorative lanes and the
+   inventory lane all stretch to match the purple card's own height —
+   .hero-huts-left/.hero-huts-right then bottom-align their illustration
+   within that height, and .hero-inventory-lane centers its card stack.
+   justify-content: space-between (not center) — combined with the houses
+   no longer flex-growing below, this sends the leftover row width to the
+   two gaps flanking the card instead of the houses eating it, so the
+   houses land flush against the row's own left/right edges (its corners)
+   and the card stays centered between them. */
+.hero-row {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 20px;
+  max-width: 1720px;
+  margin: 0 auto;
+}
+
+/* ── DECORATIVE HOUSE ILLUSTRATIONS — same markup on both sides, the right
+   one flipped horizontally so the composition reads house → hero → house.
+   flex-grow is 0 (not 1) so they no longer expand to fill space next to
+   the card — that space instead pushes them out to the row's corners via
+   .hero-row's justify-content: space-between above. Still shrink first
+   (and hardest) of everything in the row on tablet widths, so the hero
+   card itself stays intact as long as possible. */
+.hero-huts-left,
+.hero-huts-right {
+  flex: 0 1 320px;
+  max-width: 440px;
+  min-width: 70px;
+  display: flex;
+  align-items: flex-end;
   pointer-events: none;
-  z-index: 0;
   line-height: 0;
   color: #5E3A6B;
   opacity: 0.55;
-  display: flex;
-  align-items: flex-end;
 }
-.hero-huts-left svg {
+.hero-huts-left svg,
+.hero-huts-right svg {
   width: 100%;
   height: auto;
   display: block;
 }
+.hero-huts-right svg {
+  transform: scaleX(-1);
+}
 
-/* ── LIVE INVENTORY LANE (right side, outside the card) ──
-   Same reserved lane the mirrored building illustration used to occupy —
-   same absolute positioning against .hero, just centered rather than
-   bottom-aligned, since it carries real content (the same three stat cards
-   used elsewhere on the site) rather than line art. */
+/* ── LIVE INVENTORY STACK — a second zone inside .hero-card-group, sharing
+   its background/rounded shape with the purple hero card so the two read
+   as one continuous card, not two boxes with a seam between them. Compact
+   and static: no floating, no parallax, no hover movement. */
 .hero-inventory-lane {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  width: calc((100% - 860px) / 2);
-  max-width: 460px;
-  z-index: 0;
+  flex: 0 1 170px;
+  max-width: 195px;
+  min-width: 140px;
   display: flex;
   align-items: center;
-  /* Hug the card's edge rather than centering in the whole reserved lane —
-     on wide viewports that lane is much bigger than the cards themselves.
-     padding-left matches .hero-huts-left's padding-right so both lanes sit
-     an equal distance from the purple card. */
-  justify-content: flex-start;
-  padding-left: 10px;
+  justify-content: center;
+  padding: 16px 20px 16px 12px;
 }
 
 /* Headline/description column + accommodation image, side by side at the
@@ -948,6 +980,8 @@ a { text-decoration: none; }
 .hero-room-image {
   flex: 0 0 270px;
   width: 270px;
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .hero-img {
@@ -960,6 +994,11 @@ a { text-decoration: none; }
   box-shadow: 0 16px 36px rgba(0,0,0,0.28);
   animation: hero-fade-in 0.7s ease-out both;
   animation-delay: 0.2s;
+  transition: transform 350ms ease;
+}
+
+.hero-room-image:hover .hero-img {
+  transform: scale(1.06);
 }
 
 @keyframes hero-fade-in {
@@ -968,7 +1007,7 @@ a { text-decoration: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-img { animation: none; }
+  .hero-img { animation: none; transition: none; }
 }
 
 /* Fixed (non-vw) sizing: the card is capped at 860px and doesn't grow with
@@ -1459,30 +1498,32 @@ a.footer-social-icon:hover {
   .country-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 1280px) {
-  .hero-huts-left { display: none; }
+/* 1020px down to roughly 1550px (where the row fits at full comfortable
+   size) is the "tablet" zone: the flex-shrink values on .hero-huts-left/
+   right and .hero-inventory-lane let the row proportionally shrink the
+   decorative houses and the inventory stack first, keeping the purple hero
+   itself intact for as long as there's room. No extra rules needed here —
+   it's handled by the flex properties on .hero-row's own children. 1020px
+   (not 960px) is where the row switches to a stacked mobile layout — below
+   that, the four items' combined min-widths no longer fit a row without
+   squeezing the hero card's own 3-column journey into wrapping. */
 
-  /* Not enough room for the reserved side lane at the cards' new larger
-     minimum width (196px) — the inventory widget drops into normal flow
-     below the card instead of the cards clipping/overflowing past the
-     viewport edge. */
-  .hero-inventory-lane {
-    position: static;
-    width: 100%;
-    max-width: none;
-    margin-top: 24px;
-  }
-}
-
-@media (max-width: 960px) {
+@media (max-width: 1020px) {
   .navbar { padding: 0 24px; }
   .hero { padding: 20px 0 0; }
-  .hero-purple-box { padding: 34px 28px 30px; border-radius: 20px 20px 0 0; }
+  .hero-row { flex-direction: column; align-items: center; gap: 0; }
+  /* Not enough room for the reserved side lanes at any useful size — both
+     house illustrations step aside rather than cramping the purple card. */
+  .hero-huts-left, .hero-huts-right { display: none; }
+  .hero-purple-box { flex: none; width: 100%; max-width: 800px; padding: 34px 28px 30px; border-radius: 20px 20px 0 0; }
+  .hero-inventory-lane { flex: none; width: auto; max-width: none; margin-top: 20px; padding: 16px 20px; }
+  .hero-stat-cards { flex-direction: row; gap: 12px; }
+  .stat-card { width: 96px; }
   .hero-content { text-align: center; }
   .hero-top-row { flex-direction: column; align-items: center; gap: 20px; }
   .hero-text { text-align: center; margin: 0 auto; max-width: 520px; }
   .hero-purple-box .hero-text > p { max-width: 100%; margin-left: auto; margin-right: auto; }
-  .hero-room-image { flex: none; width: 100%; max-width: 320px; }
+  .hero-room-image { flex: none; width: 100%; max-width: 360px; }
   .hero h1 { font-size: 1.7rem; }
   .section { padding: 44px 24px; }
   .section-title.left-aligned { text-align: center; }

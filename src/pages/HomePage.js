@@ -78,6 +78,7 @@ function HomePage() {
 
       {/* HERO */}
       <section className="hero">
+      <div className="hero-row">
 
         {/* Left building illustrations — on light bg sides */}
         <div className="hero-huts-left">
@@ -115,6 +116,9 @@ function HomePage() {
           </svg>
         </div>
 
+        {/* Card group — the purple hero card and the inventory lane share one
+            continuous purple panel/rounded shape (see .hero-card-group). */}
+        <div className="hero-card-group">
         {/* Purple content box — centered */}
         <div className="hero-purple-box">
           <div className="hero-bg-ring" />
@@ -149,10 +153,7 @@ function HomePage() {
             </div>
           </div>
 
-          {/* HOUSING → CAREER JOURNEY — static visual storytelling, no interaction */}
-          <HeroJourneyStrip />
-
-          {/* LIVE ACCOMMODATION SEARCH */}
+          {/* LIVE ACCOMMODATION SEARCH — sits above the journey */}
           <form
             className="hero-search-form"
             role="search"
@@ -199,15 +200,59 @@ function HomePage() {
             </div>
             <button type="submit" className="hero-search-btn">Find Rooms →</button>
           </form>
+
+          {/* HOUSING → CAREER JOURNEY — static visual storytelling, no interaction */}
+          <HeroJourneyStrip />
         </div>
         </div>{/* end hero-purple-box */}
 
-        {/* Live inventory — the same three stat cards used elsewhere on the
-            site, stacked outside the card in the lane the mirrored building
-            illustration used to occupy (no duplicate section below). */}
+        {/* Live inventory — sits between the hero card and the right house,
+            outside the purple card, not stacked below the room image. Wrapped
+            with the hero card in .hero-card-group so the two read as one
+            continuous purple card rather than two separate boxes. */}
         <div className="hero-inventory-lane">
           <HeroInventoryCards />
         </div>
+        </div>{/* end hero-card-group */}
+
+        {/* Right building illustration — the same illustration as the left
+            side, mirrored, so the hero reads as house-hero-inventory-house.
+            Purely decorative, so it's hidden from assistive tech. */}
+        <div className="hero-huts-right" aria-hidden="true">
+          <svg viewBox="0 0 220 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Cottage */}
+            <rect x="6" y="168" width="84" height="96" rx="2" stroke="currentColor" strokeWidth="1.5" fill="rgba(94,58,107,0.05)"/>
+            <path d="M0 168 L48 118 L96 168" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+            <rect x="64" y="124" width="9" height="28" rx="1" stroke="currentColor" strokeWidth="1.2" fill="rgba(94,58,107,0.05)"/>
+            <rect x="61" y="122" width="15" height="4" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+            <rect x="11" y="180" width="22" height="18" rx="1" stroke="currentColor" strokeWidth="1.1"/>
+            <line x1="22" y1="180" x2="22" y2="198" stroke="currentColor" strokeWidth="0.8"/>
+            <line x1="11" y1="189" x2="33" y2="189" stroke="currentColor" strokeWidth="0.8"/>
+            <rect x="59" y="180" width="22" height="18" rx="1" stroke="currentColor" strokeWidth="1.1"/>
+            <line x1="70" y1="180" x2="70" y2="198" stroke="currentColor" strokeWidth="0.8"/>
+            <line x1="59" y1="189" x2="81" y2="189" stroke="currentColor" strokeWidth="0.8"/>
+            <rect x="37" y="218" width="22" height="46" rx="2" stroke="currentColor" strokeWidth="1.2"/>
+            <circle cx="56" cy="242" r="1.5" stroke="currentColor" strokeWidth="1"/>
+            {/* Tree */}
+            <line x1="97" y1="152" x2="97" y2="168" stroke="currentColor" strokeWidth="1.2"/>
+            <circle cx="97" cy="143" r="9" stroke="currentColor" strokeWidth="1.1"/>
+            {/* Apartment */}
+            <rect x="103" y="74" width="112" height="190" rx="2" stroke="currentColor" strokeWidth="1.5" fill="rgba(94,58,107,0.05)"/>
+            <rect x="98" y="68" width="122" height="7" rx="1" stroke="currentColor" strokeWidth="1.2" fill="rgba(94,58,107,0.08)"/>
+            <rect x="111" y="84" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
+            <rect x="157" y="84" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
+            <rect x="111" y="110" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
+            <rect x="157" y="110" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
+            <rect x="111" y="136" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
+            <rect x="157" y="136" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
+            <rect x="111" y="162" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
+            <rect x="157" y="162" width="22" height="16" rx="1" stroke="currentColor" strokeWidth="1"/>
+            <rect x="145" y="218" width="28" height="46" rx="2" stroke="currentColor" strokeWidth="1.2"/>
+            <path d="M145 218 Q159 206 173 218" stroke="currentColor" strokeWidth="1" fill="none"/>
+            <line x1="0" y1="264" x2="220" y2="264" stroke="currentColor" strokeWidth="1" strokeDasharray="4 3"/>
+          </svg>
+        </div>
+      </div>
       </section>
 
       {/* TRUST BADGES */}

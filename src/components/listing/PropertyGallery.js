@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 const THUMB_LIMIT = 6;
 
-export default function PropertyGallery({ images, videos, alt }) {
+export default function PropertyGallery({ images, alt }) {
   const [index, setIndex] = useState(0);
 
   if (!images || images.length === 0) {
@@ -44,30 +44,6 @@ export default function PropertyGallery({ images, videos, alt }) {
               )}
             </button>
           ))}
-        </div>
-      )}
-
-      {videos && videos.length > 0 && (
-        <div className="pg-videos">
-          <span className="pg-videos-label">Videos</span>
-          <div className="pg-videos-row">
-            {videos.map((v) => (
-              <a
-                key={v.path}
-                href={v.path}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="pg-video-link"
-              >
-                {v.thumbnail_url ? (
-                  <img src={v.thumbnail_url} alt={v.caption || "Property video"} loading="lazy" />
-                ) : (
-                  <span className="pg-video-fallback">▶</span>
-                )}
-                <span className="pg-video-play">▶</span>
-              </a>
-            ))}
-          </div>
         </div>
       )}
     </div>

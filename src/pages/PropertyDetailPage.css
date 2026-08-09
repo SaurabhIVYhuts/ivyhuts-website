@@ -185,56 +185,6 @@
   justify-content: center;
 }
 
-.pg-videos {
-  margin-top: 14px;
-}
-
-.pg-videos-label {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #5E3A6B;
-  display: block;
-  margin-bottom: 6px;
-}
-
-.pg-videos-row {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-}
-
-.pg-video-link {
-  position: relative;
-  flex: 0 0 auto;
-  width: 110px;
-  height: 66px;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #3A2442;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pg-video-link img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.pg-video-fallback { color: #fff; font-size: 1.2rem; }
-
-.pg-video-play {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 1.1rem;
-  background: rgba(58, 36, 66, 0.28);
-}
-
 /* ── BODY LAYOUT ── */
 .pdp-body {
   display: grid;

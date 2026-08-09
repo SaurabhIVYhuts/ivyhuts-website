@@ -137,7 +137,7 @@ export default function PropertyDetailPage() {
   }
 
   const {
-    name, address, images, videos, price, distances, amenityGroups, badges, offerText,
+    name, address, images, price, distances, amenityGroups, badges, offerText,
     quickFacts, policyLinks, paymentInfo, roomTypes, rating, reviewSummary, social,
     coordinates, available,
   } = property;
@@ -173,7 +173,7 @@ export default function PropertyDetailPage() {
       </div>
 
       <main className="pdp-main">
-        <PropertyGallery images={images} videos={videos} alt={name} />
+        <PropertyGallery images={images} alt={name} />
 
         <div className="pdp-body">
           <div className="pdp-content">

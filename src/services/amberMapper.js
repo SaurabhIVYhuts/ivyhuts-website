@@ -323,8 +323,6 @@ export function mapAmberPropertyDetails(raw) {
     ? { lat: raw.location_coordinates.lat, lng: raw.location_coordinates.lng }
     : null;
 
-  const videos = Array.isArray(raw.videos) ? raw.videos.filter((v) => v && v.path) : [];
-
   return {
     id: raw.id ?? null,
     slug: raw.canonical_name || null,
@@ -333,7 +331,6 @@ export function mapAmberPropertyDetails(raw) {
     coordinates,
     image: getPrimaryImage(raw),
     images: getGalleryImages(raw, 24),
-    videos,
     price: getPrice(raw),
     distances: getDistances(raw, 8),
     amenityGroups: getAmenityGroups(raw),
