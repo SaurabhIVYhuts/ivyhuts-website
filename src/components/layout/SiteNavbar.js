@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Heart } from "lucide-react";
 
 const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHuts! I'm looking for student accommodation abroad. Can you help?")}`;
 
@@ -83,13 +84,19 @@ export default function SiteNavbar() {
               {label}
             </Link>
           ))}
+          <Link to="/wishlist" className="nav-wishlist-btn" aria-label="My Wishlist">
+            <Heart size={16} />
+          </Link>
           <a href={WA_HREF} target="_blank" rel="noopener noreferrer" className="nav-wa-btn" aria-label="Chat on WhatsApp">
             {WA_SVG}
           </a>
         </div>
 
-        {/* Mobile right side — WA icon + hamburger */}
+        {/* Mobile right side — wishlist + WA icons + hamburger */}
         <div className="nav-mobile-right">
+          <Link to="/wishlist" className="nav-wishlist-btn" aria-label="My Wishlist">
+            <Heart size={16} />
+          </Link>
           <a href={WA_HREF} target="_blank" rel="noopener noreferrer" className="nav-wa-btn" aria-label="Chat on WhatsApp">
             {WA_SVG}
           </a>
@@ -115,6 +122,9 @@ export default function SiteNavbar() {
               {label}
             </Link>
           ))}
+          <Link to="/wishlist" className={pathname === "/wishlist" ? "mobile-nav-link mobile-nav-active" : "mobile-nav-link"} onClick={close}>
+            My Wishlist
+          </Link>
           <a href={WA_HREF} target="_blank" rel="noopener noreferrer" className="mobile-nav-link mobile-nav-wa" onClick={close}>
             <span style={{ color: "#25D366", fontWeight: 700 }}>WhatsApp Us</span>
           </a>

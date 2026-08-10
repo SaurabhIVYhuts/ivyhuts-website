@@ -1,13 +1,23 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import PropertyImageGallery from "./PropertyImageGallery";
+import WishlistHeart from "./WishlistHeart";
 
 export default function CompactPropertyCard({ listing }) {
-  const { name, address, images, price, rating, badges, slug } = listing;
+  const { id, name, address, images, price, rating, badges, slug } = listing;
   const safeAddress = address || {};
   const safePrice = price || { from: null };
   const safeBadges = badges || [];
   const navigate = useNavigate();
+
+  const wishlistSnapshot = id != null ? {
+    propertyId: String(id),
+    slug: slug || null,
+    propertyName: name || null,
+    city: safeAddress.locality || null,
+    image: images?.[0]?.url || null,
+    price: safePrice.from != null ? { amount: safePrice.from, currency: safePrice.currency || null } : null,
+  } : null;
 
   const goToDetails = () => {
     if (slug) navigate(`/property/${encodeURIComponent(slug)}`);
@@ -30,7 +40,11 @@ export default function CompactPropertyCard({ listing }) {
       onKeyDown={handleKeyDown}
     >
       <PropertyImageGallery images={images} alt={name} badge={safeBadges[0]} />
-      <PropertyImageGallery images={images} alt={name} badges={badges.slice(0, 2)} />
+      <PropertyImageGallery
+        images={images}
+        alt={name}
+        badges={badges.slice(0, 2)}
+      />
       <div className="chp-body">
         <h3 className="chp-title">{name}</h3>
         <p className="chp-location">{[safeAddress.locality, safeAddress.country].filter(Boolean).join(", ")}</p>
@@ -42,6 +56,11 @@ export default function CompactPropertyCard({ listing }) {
           )}
           {rating && <span className="chp-rating">★ {rating.overall}</span>}
         </div>
+        {wishlistSnapshot && (
+          <div className="chp-wishlist-row">
+            <WishlistHeart property={wishlistSnapshot} className="wishlist-heart-btn--on-light" />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -5,7 +5,10 @@ import HomePage from "./pages/HomePage";
 import PropertyListingPage from "./pages/PropertyListingPage";
 import { initMetaPixel, trackPageView } from "./lib/metaPixel";
 import { bumpPageViewCount } from "./lib/pageViewCounter";
+import { WishlistProvider } from "./context/WishlistContext";
 
+const LoginPage                = lazy(() => import("./pages/LoginPage"));
+const WishlistPage             = lazy(() => import("./pages/WishlistPage"));
 const PropertyDetailPage       = lazy(() => import("./pages/PropertyDetailPage"));
 const LifeAbroadPage           = lazy(() => import("./pages/LifeAbroadPage"));
 const ListYourStayPage         = lazy(() => import("./pages/ListYourStayPage"));
@@ -42,23 +45,27 @@ function PageViewCounter() {
 function App() {
   return (
     <Router>
-      <ScrollToTop />
-      <MetaPixelTracker />
-      <PageViewCounter />
-      <Suspense fallback={<div style={{ minHeight: "100vh", background: "#FBF4F8" }} />}>
-        <Routes>
-          <Route path="/"               element={<HomePage />} />
-          <Route path="/find-rooms"     element={<PropertyListingPage />} />
-          <Route path="/property/:slug" element={<PropertyDetailPage />} />
-          <Route path="/life-abroad"    element={<LifeAbroadPage />} />
-          <Route path="/list-your-stay" element={<ListYourStayPage />} />
-          <Route path="/contact"        element={<ContactPage />} />
-          <Route path="/partner"        element={<PartnerPage />} />
-          <Route path="/terms"          element={<TermsPage />} />
-          <Route path="/privacy"        element={<PrivacyPage />} />
-          <Route path="/properties" element={<PropertyListingPage />} />
-        </Routes>
-      </Suspense>
+      <WishlistProvider>
+        <ScrollToTop />
+        <MetaPixelTracker />
+        <PageViewCounter />
+        <Suspense fallback={<div style={{ minHeight: "100vh", background: "#FBF4F8" }} />}>
+          <Routes>
+            <Route path="/"               element={<HomePage />} />
+            <Route path="/find-rooms"     element={<PropertyListingPage />} />
+            <Route path="/property/:slug" element={<PropertyDetailPage />} />
+            <Route path="/life-abroad"    element={<LifeAbroadPage />} />
+            <Route path="/list-your-stay" element={<ListYourStayPage />} />
+            <Route path="/contact"        element={<ContactPage />} />
+            <Route path="/partner"        element={<PartnerPage />} />
+            <Route path="/terms"          element={<TermsPage />} />
+            <Route path="/privacy"        element={<PrivacyPage />} />
+            <Route path="/login"          element={<LoginPage />} />
+            <Route path="/wishlist"       element={<WishlistPage />} />
+            <Route path="/properties" element={<PropertyListingPage />} />
+          </Routes>
+        </Suspense>
+      </WishlistProvider>
     </Router>
   );
 }

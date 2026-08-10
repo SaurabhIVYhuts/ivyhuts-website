@@ -419,6 +419,27 @@ a { text-decoration: none; }
   box-shadow: 0 6px 16px rgba(37,211,102,0.45);
 }
 
+/* Same size/shape as .nav-wa-btn, matching the wishlist heart's own
+   on-light colors (see .wishlist-heart-btn--on-light) rather than
+   WhatsApp's green — this is a icon link to /wishlist, not a chat button. */
+.nav-wishlist-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: #F3ECF1;
+  color: var(--brand-purple);
+  border-radius: 50%;
+  margin-left: 10px;
+  flex-shrink: 0;
+  transition: transform 0.2s, background-color 0.2s;
+}
+.nav-wishlist-btn:hover {
+  transform: translateY(-2px);
+  background: #EDD5E3;
+}
+
 /* ── MOBILE NAV ── */
 .nav-mobile-right {
   display: none;
@@ -691,16 +712,63 @@ a { text-decoration: none; }
   backdrop-filter: blur(4px);
 }
 
-.listing-card-badge-verified {
+/* Top-right overlay for the Verified badge (the wishlist heart used to
+   share this column too — see PropertyImageGallery.js — but now lives in
+   the card body instead). */
+.listing-card-right-overlay {
   position: absolute;
   top: var(--space-3);
   right: var(--space-3);
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.listing-card-badge-verified {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   background: rgba(255, 255, 255, 0.92);
   color: var(--brand-purple);
+}
+
+.wishlist-heart-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--brand-purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  backdrop-filter: blur(4px);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.wishlist-heart-btn:hover {
+  background: rgba(255, 255, 255, 0.98);
+  transform: scale(1.06);
+}
+
+.wishlist-heart-btn.active {
+  color: #E23E57;
+}
+
+/* Variant for placement on a solid white card (e.g. the property detail
+   sidebar) instead of overlaid on an image — the translucent-white overlay
+   background above would be invisible there. */
+.wishlist-heart-btn--on-light {
+  background: #F3ECF1;
+  flex-shrink: 0;
+}
+
+.wishlist-heart-btn--on-light:hover {
+  background: #EDD5E3;
 }
 
 .listing-gallery-nav {
@@ -818,6 +886,12 @@ a { text-decoration: none; }
   background: rgba(200, 150, 12, 0.12);
   padding: 3px 8px;
   border-radius: 999px;
+}
+
+.chp-wishlist-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
 }
 
 @media (min-width: 1024px) {

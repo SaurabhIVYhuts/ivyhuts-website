@@ -5,6 +5,7 @@ import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import { socialLinks } from "../config/socialLinks";
 import { SOCIAL_ICONS } from "../components/icons/SocialIcons";
+import { submitEnquiryToMongo } from "../lib/enquiryApi";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 
@@ -109,6 +110,34 @@ export default function ContactPage() {
         })
         .catch((err) => console.error("[Contact] /api/enquire request failed:", err));
     } catch (_) {}
+
+    // MongoDB capture (Milestone 3) — additional, non-blocking destination
+    // alongside Sheets/email above; never affects the success screen below.
+    // This form no longer collects an email address (removed in the latest
+    // homepage/UI pass) — that's fine: Enquiry.contact.email is intentionally
+    // optional (see api/_lib/models/Enquiry.js), so omitting it here still
+    // captures the enquiry successfully with just name + phone.
+    const mongoMessage = [
+      `Subject: ${subjectDefault || "General Enquiry"}`,
+      form.message.trim(),
+      roomName ? `Room: ${roomName}` : null,
+      tenancyDuration ? `Duration: ${tenancyDuration}` : null,
+      tenancyMoveIn ? `Move In: ${tenancyMoveIn}` : null,
+      tenancyMoveOut ? `Move Out: ${tenancyMoveOut}` : null,
+      tenancyPrice ? `Price: ${tenancyCurrency || ""}${tenancyPrice}/week` : null,
+    ].filter(Boolean).join("\n");
+    const mongoProperty = (inventoryId || propertyName)
+      ? { id: inventoryId || null, name: propertyName || null }
+      : undefined;
+    submitEnquiryToMongo({
+      contact: {
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+      },
+      ...(mongoProperty ? { property: mongoProperty } : {}),
+      message: mongoMessage,
+      source: "contact",
+    }, "Contact");
 
     setStatus("success");
   };

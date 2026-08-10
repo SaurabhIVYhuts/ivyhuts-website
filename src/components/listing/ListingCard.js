@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import PropertyImageGallery from "./PropertyImageGallery";
+import WishlistHeart from "./WishlistHeart";
 
 const AMENITY_LIMIT = 6;
 
@@ -9,8 +10,17 @@ const CheckBadgeIcon = () => (
 );
 
 export default function ListingCard({ listing, onEnquire }) {
-  const { name, address, images, price, distances, amenities, badges, rooms, rating, social, slug } = listing;
+  const { id, name, address, images, price, distances, amenities, badges, rooms, rating, social, slug } = listing;
   const navigate = useNavigate();
+
+  const wishlistSnapshot = id != null ? {
+    propertyId: String(id),
+    slug: slug || null,
+    propertyName: name || null,
+    city: address?.locality || null,
+    image: images?.[0]?.url || null,
+    price: price?.from != null ? { amount: price.from, currency: price.currency || null } : null,
+  } : null;
 
   const goToDetails = () => {
     if (slug) navigate(`/property/${encodeURIComponent(slug)}`);
@@ -43,7 +53,11 @@ export default function ListingCard({ listing, onEnquire }) {
       onClick={goToDetails}
       onKeyDown={handleKeyDown}
     >
-      <PropertyImageGallery images={images} alt={name} badges={badges.slice(0, 2)} />
+      <PropertyImageGallery
+        images={images}
+        alt={name}
+        badges={badges.slice(0, 2)}
+      />
 
       <div className="listing-card-body">
         <div className="listing-card-top">
@@ -58,6 +72,12 @@ export default function ListingCard({ listing, onEnquire }) {
             </div>
           )}
         </div>
+
+        {wishlistSnapshot && (
+          <div className="listing-card-wishlist-row">
+            <WishlistHeart property={wishlistSnapshot} className="wishlist-heart-btn--on-light" />
+          </div>
+        )}
 
         {distanceLine && (
           <div className="listing-card-distances">

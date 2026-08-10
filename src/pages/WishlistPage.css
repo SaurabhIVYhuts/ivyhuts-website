@@ -1,0 +1,66 @@
+/* ═══════════════════════════════════════════════════════
+   IVYHUTS — WISHLIST PAGE
+   Reuses the global palette/typography and the same ListingCard used on
+   /find-rooms's default List view (see PropertyListingPage.css's
+   .listing-card) — no new design language, no separate card design.
+   ═══════════════════════════════════════════════════════ */
+
+.wishlist-page {
+  min-height: 100vh;
+  background: #FBF4F8;
+}
+
+.wishlist-main {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: var(--space-4) 20px 72px;
+}
+
+.wishlist-title {
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  color: var(--ink);
+  margin: 0 0 var(--space-4);
+}
+
+.wishlist-loading {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.wishlist-empty {
+  padding: 48px 20px;
+  text-align: center;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(94, 58, 107, 0.1);
+  color: #6B4E5E;
+}
+
+.wishlist-empty-title {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.wishlist-empty-sub {
+  margin: 0 0 20px;
+  color: var(--ink-soft);
+}
+
+/* ListingCard is a self-contained, full-width block (its own
+   margin-bottom handles spacing between cards — see .listing-card in
+   PropertyListingPage.css) — this is just its stacking container, same
+   shape as PropertyListingPage.js's .listings-main list view. */
+.wishlist-list {
+  display: flex;
+  flex-direction: column;
+  max-width: 780px;
+}
+
+@media (min-width: 1024px) {
+  .wishlist-main {
+    padding: var(--space-5) 32px 80px;
+  }
+}

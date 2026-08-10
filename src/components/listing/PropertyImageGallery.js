@@ -6,6 +6,9 @@ const VerifiedIcon = () => (
 
 // `badge` (single string) is kept for back-compat; `badges` (array, up to 2)
 // is the preferred prop and takes priority when both are passed.
+// The wishlist heart used to render here as a top-right image overlay; it
+// now lives in the card body instead (ListingCard/CompactPropertyCard,
+// below the rating), so this component no longer takes a wishlist prop.
 export default function PropertyImageGallery({ images, alt, badge, badges, showVerified = true }) {
   const [index, setIndex] = useState(0);
   const shownBadges = (badges && badges.length ? badges : badge ? [badge] : []).slice(0, 2);
@@ -18,12 +21,17 @@ export default function PropertyImageGallery({ images, alt, badge, badges, showV
   const verifiedBadge = showVerified && (
     <span className="listing-card-badge listing-card-badge-verified"><VerifiedIcon /> Verified</span>
   );
+  const rightOverlay = verifiedBadge && (
+    <div className="listing-card-right-overlay">
+      {verifiedBadge}
+    </div>
+  );
 
   if (!images || images.length === 0) {
     return (
       <div className="listing-card-image listing-card-image-empty">
         {badgeRow}
-        {verifiedBadge}
+        {rightOverlay}
       </div>
     );
   }
@@ -40,7 +48,7 @@ export default function PropertyImageGallery({ images, alt, badge, badges, showV
   return (
     <div className="listing-card-image">
       {badgeRow}
-      {verifiedBadge}
+      {rightOverlay}
       <img src={current.url} alt={alt} loading="lazy" />
       {showControls && (
         <>
