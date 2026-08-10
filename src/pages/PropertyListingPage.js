@@ -257,7 +257,7 @@ export default function PropertyListingPage() {
               <strong>Not sure where to start?</strong>
               <span>Tell us your budget and course, and a real advisor will shortlist rooms for you — free.</span>
             </div>
-            <Link to="/enquire" className="btn btn-secondary" style={{ background: "rgba(255,255,255,0.14)", borderColor: "rgba(255,255,255,0.4)", color: "#fff" }}>
+            <Link to="/contact" className="btn btn-secondary" style={{ background: "rgba(255,255,255,0.14)", borderColor: "rgba(255,255,255,0.4)", color: "#fff" }}>
               Talk to an Advisor
             </Link>
           </div>

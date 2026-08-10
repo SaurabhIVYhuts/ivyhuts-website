@@ -7,7 +7,6 @@ import { initMetaPixel, trackPageView } from "./lib/metaPixel";
 import { bumpPageViewCount } from "./lib/pageViewCounter";
 import { WishlistProvider } from "./context/WishlistContext";
 
-const AccommodationFinderPage = lazy(() => import("./pages/AccommodationFinderPage"));
 const LoginPage                = lazy(() => import("./pages/LoginPage"));
 const WishlistPage             = lazy(() => import("./pages/WishlistPage"));
 const PropertyDetailPage       = lazy(() => import("./pages/PropertyDetailPage"));
@@ -54,7 +53,6 @@ function App() {
           <Routes>
             <Route path="/"               element={<HomePage />} />
             <Route path="/find-rooms"     element={<PropertyListingPage />} />
-            <Route path="/enquire"        element={<AccommodationFinderPage />} />
             <Route path="/property/:slug" element={<PropertyDetailPage />} />
             <Route path="/life-abroad"    element={<LifeAbroadPage />} />
             <Route path="/list-your-stay" element={<ListYourStayPage />} />
