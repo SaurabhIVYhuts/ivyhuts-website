@@ -570,14 +570,65 @@ a { text-decoration: none; }
 }
 
 @media (max-width: 639px) {
+  /* Mobile trades the capped 2-row grid for a horizontal-scrolling row —
+     every city stays reachable by swiping instead of the rest being
+     hidden, matching the Amber-style mobile city carousel. The scroll-hint
+     wrapper (below) shows a fading edge + arrow while there's more to
+     scroll to. */
   .city-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    grid-template-columns: none;
     gap: 14px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 4px 4px 8px;
+  }
+
+  .city-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .city-grid > .city-card-item {
+    flex: 0 0 auto;
+    width: 44vw;
+    max-width: 190px;
+    scroll-snap-align: start;
   }
 
   .city-grid > .city-card-item:nth-child(n + 5) {
-    display: none;
+    display: block;
   }
+}
+
+/* ── SCROLL HINT — fading edge + nudging arrow badge (reuses the same
+   .city-tab-scroll-arrow badge from HomePage.css), shown only while the
+   mobile card row has more cities off-screen to the right. Desktop/tablet
+   never overflow, so cityGridOverflow stays false there and this stays
+   invisible. ── */
+.city-grid-scroll-wrap {
+  position: relative;
+}
+
+.city-grid-scroll-hint {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 8px;
+  width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background: linear-gradient(to right, rgba(251, 244, 248, 0), #FBF4F8 70%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.city-grid-scroll-hint.visible {
+  opacity: 1;
 }
 
 .city-card-item {

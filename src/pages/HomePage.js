@@ -86,6 +86,22 @@ function HomePage() {
     return () => window.removeEventListener("resize", checkCityTabsOverflow);
   }, [checkCityTabsOverflow, popularCountryTabs]);
 
+  /* ── CITY CARDS — same scroll hint, for the mobile horizontal-scroll
+     card row (desktop/tablet stay a static grid, so overflow is 0 there
+     and the hint never shows). ── */
+  const cityGridRef = useRef(null);
+  const [cityGridOverflow, setCityGridOverflow] = useState(false);
+  const checkCityGridOverflow = useCallback(() => {
+    const el = cityGridRef.current;
+    if (!el) return;
+    setCityGridOverflow(el.scrollWidth - el.scrollLeft - el.clientWidth > 8);
+  }, []);
+  useEffect(() => {
+    checkCityGridOverflow();
+    window.addEventListener("resize", checkCityGridOverflow);
+    return () => window.removeEventListener("resize", checkCityGridOverflow);
+  }, [checkCityGridOverflow, visibleDestinations]);
+
   return (
     <div>
 
@@ -237,11 +253,18 @@ function HomePage() {
             </span>
           </div>
         </div>
-        <ul className="city-grid">
-          {visibleDestinations.map((city) => (
-            <CityCard key={`${city.name}-${city.country}`} city={city} compact />
-          ))}
-        </ul>
+        <div className="city-grid-scroll-wrap">
+          <ul className="city-grid" ref={cityGridRef} onScroll={checkCityGridOverflow}>
+            {visibleDestinations.map((city) => (
+              <CityCard key={`${city.name}-${city.country}`} city={city} compact />
+            ))}
+          </ul>
+          <div className={`city-grid-scroll-hint${cityGridOverflow ? " visible" : ""}`} aria-hidden="true">
+            <span className="city-tab-scroll-arrow">
+              <ChevronRight />
+            </span>
+          </div>
+        </div>
       </section>
 
       {/* TRUST BADGES */}
