@@ -92,9 +92,19 @@ function HomePage() {
             <circle cx="60" cy="400" r="26" stroke="#C47A8A" strokeWidth="1" />
             <circle cx="640" cy="40" r="18" stroke="#C47A8A" strokeWidth="1" />
           </svg>
+
         <div className="hero-content">
           <div className="hero-text">
-            <p className="hero-tagline">A Venture By IIM Alums</p>
+            {/* Tagline + advisor button share one row, so the button sits
+                in the card's top-right corner exactly in line with "A
+                Venture By IIM Alums" instead of further down. */}
+            <div className="hero-top-line">
+              <p className="hero-tagline">A Venture By IIM Alums</p>
+              <Link to="/contact" className="hero-advisor-btn">
+                Talk to an Advisor
+                <span className="hero-advisor-arrow">→</span>
+              </Link>
+            </div>
 
             {/* Headline + subtitle beside the live inventory cards, where
                 the accommodation photo used to sit. */}
@@ -249,7 +259,7 @@ function HomePage() {
           <h2>Your perfect student stay is one form away</h2>
           <p className="cta-sub">Tell us what you need and our team will do the rest. Free service, personalised results, within 24 hours.</p>
           <div className="cta-actions">
-            <Link to="/enquire" className="primary-btn" style={{ display: "inline-block" }}>Find My Stay →</Link>
+            <Link to="/contact" className="primary-btn" style={{ display: "inline-block" }}>Find My Stay →</Link>
           </div>
         </div>
       </section>

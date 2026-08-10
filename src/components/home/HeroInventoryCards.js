@@ -9,7 +9,7 @@ import { AnimatedStatValue } from "./AnimatedStatValue";
 // useInventoryStats data, now a horizontal row above the search bar where
 // the accommodation photo used to sit.
 const CARD_DEFS = [
-  { key: "total", label: "Total Inventories", Icon: Building2, accent: "#5E3A6B", accentSoft: "rgba(94, 58, 107, 0.12)", bg: "#F1EAF4" },
+  { key: "total", label: "Total Inventory", Icon: Building2, accent: "#5E3A6B", accentSoft: "rgba(94, 58, 107, 0.12)", bg: "#F1EAF4" },
   { key: "soldOut", label: "Sold Out", Icon: Ban, accent: "#C0392B", accentSoft: "rgba(192, 57, 43, 0.12)", bg: "#FCEBEE" },
   { key: "remaining", label: "Remaining", Icon: BadgeCheck, accent: "#2E7D32", accentSoft: "rgba(46, 125, 50, 0.12)", bg: "#E8F5E9" },
 ];

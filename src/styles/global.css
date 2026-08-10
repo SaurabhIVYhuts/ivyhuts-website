@@ -903,6 +903,66 @@ a { text-decoration: none; }
   z-index: 2;
 }
 
+/* Shares .hero-top-line with the tagline, so it sits in the card's
+   top-right corner exactly in line with "A Venture By IIM Alums". Purple/
+   rose theme (matching the card itself and the "Find Rooms" button) with
+   a gold glow, instead of a solid gold block that clashed against the
+   purple background. */
+.hero-top-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.hero-top-line .hero-tagline {
+  margin-bottom: 0;
+}
+
+.hero-advisor-btn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid rgba(245, 217, 120, 0.55);
+  background: linear-gradient(135deg, #6E4A73 0%, #B05E72 100%);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  animation: hero-advisor-pulse 2.4s ease-in-out infinite;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.hero-advisor-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+  border-color: rgba(245, 217, 120, 0.9);
+}
+
+.hero-advisor-arrow {
+  display: inline-flex;
+  color: #F5D978;
+  transition: transform 0.25s ease;
+}
+
+.hero-advisor-btn:hover .hero-advisor-arrow {
+  transform: translateX(5px);
+}
+
+@keyframes hero-advisor-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 217, 120, 0.45); }
+  50%      { box-shadow: 0 0 0 8px rgba(245, 217, 120, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-advisor-btn { animation: none; }
+  .hero-advisor-arrow { transition: none; }
+}
+
 /* ── HERO ROW — house | hero card | house ──
    A real flex layout (not absolute positioning), so the card sits in
    normal document flow and scrolls naturally with the page — no
@@ -940,6 +1000,8 @@ a { text-decoration: none; }
 .hero-inventory-stack {
   flex: 0 0 240px;
   width: 240px;
+  display: flex;
+  flex-direction: column;
 }
 
 .hero-inventory-stack .hero-stat-cards {
