@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Heart } from "lucide-react";
+import { useWishlist } from "../../context/WishlistContext";
 
 const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHuts! I'm looking for student accommodation abroad. Can you help?")}`;
 
@@ -14,6 +15,7 @@ const WA_SVG = (
 export default function SiteNavbar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useWishlist();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [scrolled, setScrolled] = useState(false);
@@ -84,6 +86,11 @@ export default function SiteNavbar() {
               {label}
             </Link>
           ))}
+          {!isAuthenticated && (
+            <Link to="/login" className={pathname === "/login" ? "nav-link nav-active" : "nav-link"}>
+              Login
+            </Link>
+          )}
           <Link to="/wishlist" className="nav-wishlist-btn" aria-label="My Wishlist">
             <Heart size={16} />
           </Link>
@@ -125,6 +132,11 @@ export default function SiteNavbar() {
           <Link to="/wishlist" className={pathname === "/wishlist" ? "mobile-nav-link mobile-nav-active" : "mobile-nav-link"} onClick={close}>
             My Wishlist
           </Link>
+          {!isAuthenticated && (
+            <Link to="/login" className={pathname === "/login" ? "mobile-nav-link mobile-nav-active" : "mobile-nav-link"} onClick={close}>
+              Login
+            </Link>
+          )}
           <a href={WA_HREF} target="_blank" rel="noopener noreferrer" className="mobile-nav-link mobile-nav-wa" onClick={close}>
             <span style={{ color: "#25D366", fontWeight: 700 }}>WhatsApp Us</span>
           </a>
