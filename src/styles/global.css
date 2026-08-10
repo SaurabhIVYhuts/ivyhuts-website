@@ -603,11 +603,10 @@ a { text-decoration: none; }
   }
 }
 
-/* ── SCROLL HINT — fading edge + nudging arrow badge (reuses the same
-   .city-tab-scroll-arrow badge from HomePage.css), shown only while the
-   mobile card row has more cities off-screen to the right. Desktop/tablet
-   never overflow, so cityGridOverflow stays false there and this stays
-   invisible. ── */
+/* ── SCROLL HINTS — fading edge + nudging arrow badge (reuses the same
+   .city-tab-scroll-arrow badge from HomePage.css) on whichever side still
+   has more cities off-screen. Desktop/tablet never overflow, so both stay
+   invisible there. ── */
 .city-grid-scroll-wrap {
   position: relative;
 }
@@ -615,13 +614,10 @@ a { text-decoration: none; }
 .city-grid-scroll-hint {
   position: absolute;
   top: 0;
-  right: 0;
   bottom: 8px;
   width: 60px;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  background: linear-gradient(to right, rgba(251, 244, 248, 0), #FBF4F8 70%);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
@@ -629,6 +625,35 @@ a { text-decoration: none; }
 
 .city-grid-scroll-hint.visible {
   opacity: 1;
+}
+
+.city-grid-scroll-hint.right {
+  right: 0;
+  justify-content: flex-end;
+  background: linear-gradient(to right, rgba(251, 244, 248, 0), #FBF4F8 70%);
+}
+
+.city-grid-scroll-hint.left {
+  left: 0;
+  justify-content: flex-start;
+  background: linear-gradient(to left, rgba(251, 244, 248, 0), #FBF4F8 70%);
+}
+
+/* Reuses the nudge keyframes defined alongside .city-tab-scroll-hint in
+   HomePage.css — both stylesheets load together on the homepage. */
+.city-grid-scroll-hint.right .city-tab-scroll-arrow {
+  animation: city-tab-scroll-nudge-right 1.4s ease-in-out infinite;
+}
+
+.city-grid-scroll-hint.left .city-tab-scroll-arrow {
+  animation: city-tab-scroll-nudge-left 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .city-grid-scroll-hint.right .city-tab-scroll-arrow,
+  .city-grid-scroll-hint.left .city-tab-scroll-arrow {
+    animation: none;
+  }
 }
 
 .city-card-item {

@@ -206,9 +206,10 @@
   color: #B00020;
 }
 
-/* ── SCROLL HINT — fading edge + nudging arrow badge, shown only while the
-   row has more pills off-screen to the right. Toggled via JS (scrollWidth
-   vs. scrollLeft) so it disappears once the user scrolls to the end. ── */
+/* ── SCROLL HINTS — fading edge + nudging arrow badge on whichever side
+   still has more content off-screen. Toggled via JS (scrollWidth/scrollLeft)
+   so the right hint shows first, and the left one joins in once the user
+   has scrolled away from the start. ── */
 .city-tab-scroll-wrap {
   position: relative;
 }
@@ -216,13 +217,10 @@
 .city-tab-scroll-hint {
   position: absolute;
   top: 0;
-  right: 0;
   bottom: 6px;
   width: 60px;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  background: linear-gradient(to right, rgba(251, 244, 248, 0), #FBF4F8 65%);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
@@ -230,6 +228,18 @@
 
 .city-tab-scroll-hint.visible {
   opacity: 1;
+}
+
+.city-tab-scroll-hint.right {
+  right: 0;
+  justify-content: flex-end;
+  background: linear-gradient(to right, rgba(251, 244, 248, 0), #FBF4F8 65%);
+}
+
+.city-tab-scroll-hint.left {
+  left: 0;
+  justify-content: flex-start;
+  background: linear-gradient(to left, rgba(251, 244, 248, 0), #FBF4F8 65%);
 }
 
 .city-tab-scroll-arrow {
@@ -243,7 +253,14 @@
   background: #5E3A6B;
   color: #fff;
   box-shadow: 0 2px 8px rgba(94, 58, 107, 0.35);
-  animation: city-tab-scroll-nudge 1.4s ease-in-out infinite;
+}
+
+.city-tab-scroll-hint.right .city-tab-scroll-arrow {
+  animation: city-tab-scroll-nudge-right 1.4s ease-in-out infinite;
+}
+
+.city-tab-scroll-hint.left .city-tab-scroll-arrow {
+  animation: city-tab-scroll-nudge-left 1.4s ease-in-out infinite;
 }
 
 .city-tab-scroll-arrow svg {
@@ -252,13 +269,21 @@
   stroke-width: 2.75;
 }
 
-@keyframes city-tab-scroll-nudge {
+@keyframes city-tab-scroll-nudge-right {
   0%, 100% { transform: translateX(0); }
   50% { transform: translateX(4px); }
 }
 
+@keyframes city-tab-scroll-nudge-left {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-4px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .city-tab-scroll-arrow { animation: none; }
+  .city-tab-scroll-hint.right .city-tab-scroll-arrow,
+  .city-tab-scroll-hint.left .city-tab-scroll-arrow {
+    animation: none;
+  }
 }
 
 /* ── SUBTLE BACKGROUND DETAIL — very low-opacity pin/circle motif ── */

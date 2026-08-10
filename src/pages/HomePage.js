@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import TrustStrip from "../components/layout/TrustStrip";
@@ -69,16 +69,18 @@ function HomePage() {
     [popularCountry]
   );
 
-  /* ── CITY TAB ROW — horizontal scroll hint ──
+  /* ── CITY TAB ROW — horizontal scroll hints ──
      The row scrolls sideways on narrow screens; this shows a fading edge +
-     arrow badge whenever there's more content off-screen, and hides it once
-     the user has scrolled to the end. */
+     arrow badge on whichever side still has more content off-screen — right
+     at first, left too once the user has scrolled in from the start. */
   const cityTabRowRef = useRef(null);
-  const [cityTabsOverflow, setCityTabsOverflow] = useState(false);
+  const [cityTabsCanRight, setCityTabsCanRight] = useState(false);
+  const [cityTabsCanLeft, setCityTabsCanLeft] = useState(false);
   const checkCityTabsOverflow = useCallback(() => {
     const el = cityTabRowRef.current;
     if (!el) return;
-    setCityTabsOverflow(el.scrollWidth - el.scrollLeft - el.clientWidth > 8);
+    setCityTabsCanRight(el.scrollWidth - el.scrollLeft - el.clientWidth > 8);
+    setCityTabsCanLeft(el.scrollLeft > 8);
   }, []);
   useEffect(() => {
     checkCityTabsOverflow();
@@ -86,15 +88,17 @@ function HomePage() {
     return () => window.removeEventListener("resize", checkCityTabsOverflow);
   }, [checkCityTabsOverflow, popularCountryTabs]);
 
-  /* ── CITY CARDS — same scroll hint, for the mobile horizontal-scroll
-     card row (desktop/tablet stay a static grid, so overflow is 0 there
-     and the hint never shows). ── */
+  /* ── CITY CARDS — same left/right scroll hints, for the mobile
+     horizontal-scroll card row (desktop/tablet stay a static grid, so
+     overflow is 0 there and neither hint ever shows). ── */
   const cityGridRef = useRef(null);
-  const [cityGridOverflow, setCityGridOverflow] = useState(false);
+  const [cityGridCanRight, setCityGridCanRight] = useState(false);
+  const [cityGridCanLeft, setCityGridCanLeft] = useState(false);
   const checkCityGridOverflow = useCallback(() => {
     const el = cityGridRef.current;
     if (!el) return;
-    setCityGridOverflow(el.scrollWidth - el.scrollLeft - el.clientWidth > 8);
+    setCityGridCanRight(el.scrollWidth - el.scrollLeft - el.clientWidth > 8);
+    setCityGridCanLeft(el.scrollLeft > 8);
   }, []);
   useEffect(() => {
     checkCityGridOverflow();
@@ -247,7 +251,12 @@ function HomePage() {
               </button>
             ))}
           </div>
-          <div className={`city-tab-scroll-hint${cityTabsOverflow ? " visible" : ""}`} aria-hidden="true">
+          <div className={`city-tab-scroll-hint left${cityTabsCanLeft ? " visible" : ""}`} aria-hidden="true">
+            <span className="city-tab-scroll-arrow">
+              <ChevronLeft />
+            </span>
+          </div>
+          <div className={`city-tab-scroll-hint right${cityTabsCanRight ? " visible" : ""}`} aria-hidden="true">
             <span className="city-tab-scroll-arrow">
               <ChevronRight />
             </span>
@@ -259,7 +268,12 @@ function HomePage() {
               <CityCard key={`${city.name}-${city.country}`} city={city} compact />
             ))}
           </ul>
-          <div className={`city-grid-scroll-hint${cityGridOverflow ? " visible" : ""}`} aria-hidden="true">
+          <div className={`city-grid-scroll-hint left${cityGridCanLeft ? " visible" : ""}`} aria-hidden="true">
+            <span className="city-tab-scroll-arrow">
+              <ChevronLeft />
+            </span>
+          </div>
+          <div className={`city-grid-scroll-hint right${cityGridCanRight ? " visible" : ""}`} aria-hidden="true">
             <span className="city-tab-scroll-arrow">
               <ChevronRight />
             </span>
