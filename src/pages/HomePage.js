@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import TrustStrip from "../components/layout/TrustStrip";
@@ -67,6 +68,24 @@ function HomePage() {
     () => (popularCountry === "All" ? DESTINATIONS : DESTINATIONS.filter((d) => d.country === popularCountry)),
     [popularCountry]
   );
+
+  /* ── CITY TAB ROW — horizontal scroll hint ──
+     The row scrolls sideways on narrow screens; this shows a fading edge +
+     arrow badge whenever there's more content off-screen, and hides it once
+     the user has scrolled to the end. */
+  const cityTabRowRef = useRef(null);
+  const [cityTabsOverflow, setCityTabsOverflow] = useState(false);
+  const checkCityTabsOverflow = useCallback(() => {
+    const el = cityTabRowRef.current;
+    if (!el) return;
+    setCityTabsOverflow(el.scrollWidth - el.scrollLeft - el.clientWidth > 8);
+  }, []);
+  useEffect(() => {
+    checkCityTabsOverflow();
+    window.addEventListener("resize", checkCityTabsOverflow);
+    return () => window.removeEventListener("resize", checkCityTabsOverflow);
+  }, [checkCityTabsOverflow, popularCountryTabs]);
+
   return (
     <div>
 
@@ -192,18 +211,31 @@ function HomePage() {
             )}
           </p>
         </div>
-        <div className="city-tab-row" role="group" aria-label="Filter popular cities by country">
-          {popularCountryTabs.map((tab) => (
-            <button
-              key={tab.code}
-              type="button"
-              className={`pill-btn${tab.code === popularCountry ? " active" : ""}`}
-              aria-pressed={tab.code === popularCountry}
-              onClick={() => setPopularCountry(tab.code)}
-            >
-              <span aria-hidden="true">{tab.flag}</span> {tab.label}
-            </button>
-          ))}
+        <div className="city-tab-scroll-wrap">
+          <div
+            className="city-tab-row"
+            role="group"
+            aria-label="Filter popular cities by country"
+            ref={cityTabRowRef}
+            onScroll={checkCityTabsOverflow}
+          >
+            {popularCountryTabs.map((tab) => (
+              <button
+                key={tab.code}
+                type="button"
+                className={`pill-btn${tab.code === popularCountry ? " active" : ""}`}
+                aria-pressed={tab.code === popularCountry}
+                onClick={() => setPopularCountry(tab.code)}
+              >
+                <span aria-hidden="true">{tab.flag}</span> {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className={`city-tab-scroll-hint${cityTabsOverflow ? " visible" : ""}`} aria-hidden="true">
+            <span className="city-tab-scroll-arrow">
+              <ChevronRight />
+            </span>
+          </div>
         </div>
         <ul className="city-grid">
           {visibleDestinations.map((city) => (

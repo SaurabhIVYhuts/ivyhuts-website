@@ -206,6 +206,61 @@
   color: #B00020;
 }
 
+/* ── SCROLL HINT — fading edge + nudging arrow badge, shown only while the
+   row has more pills off-screen to the right. Toggled via JS (scrollWidth
+   vs. scrollLeft) so it disappears once the user scrolls to the end. ── */
+.city-tab-scroll-wrap {
+  position: relative;
+}
+
+.city-tab-scroll-hint {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 6px;
+  width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background: linear-gradient(to right, rgba(251, 244, 248, 0), #FBF4F8 65%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.city-tab-scroll-hint.visible {
+  opacity: 1;
+}
+
+.city-tab-scroll-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #5E3A6B;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(94, 58, 107, 0.35);
+  animation: city-tab-scroll-nudge 1.4s ease-in-out infinite;
+}
+
+.city-tab-scroll-arrow svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.75;
+}
+
+@keyframes city-tab-scroll-nudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .city-tab-scroll-arrow { animation: none; }
+}
+
 /* ── SUBTLE BACKGROUND DETAIL — very low-opacity pin/circle motif ── */
 .hero-pin-pattern {
   position: absolute;
