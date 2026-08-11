@@ -1,0 +1,119 @@
+/* ═══════════════════════════════════════════════════════
+   MOBILE MENU SHEET — full-screen, triggered by the navbar hamburger.
+   Mobile-only (hard-guarded below); uses the existing brand tokens from
+   src/styles/global.css.
+   ═══════════════════════════════════════════════════════ */
+.mobile-menu-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: #ffffff;
+  animation: mobile-menu-sheet-in 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes mobile-menu-sheet-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu-sheet { animation: none; }
+}
+
+.mobile-menu-sheet-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid #EDD5E3;
+}
+
+.mobile-menu-sheet-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #3A2442;
+}
+
+.mobile-menu-sheet-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -11px;
+  border: none;
+  background: none;
+  color: #3A2442;
+  cursor: pointer;
+  border-radius: 50%;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-menu-sheet-close:hover { background: #F8EEF4; }
+
+.mobile-menu-sheet-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 24px;
+}
+
+.mobile-menu-sheet-group {
+  padding: 6px 20px 4px;
+  border-bottom: 1px solid #F5EAF0;
+}
+.mobile-menu-sheet-group:last-child { border-bottom: none; }
+
+.mobile-menu-sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 52px;
+  color: #3A2442;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-bottom: 1px solid #F5EAF0;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-menu-sheet-group .mobile-menu-sheet-row:last-child { border-bottom: none; }
+
+.mobile-menu-sheet-row:active { background: #FBF4F8; }
+
+.mobile-menu-sheet-row-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: #5E3A6B;
+}
+
+/* White/outline pill, matching amberstudent.com's own sticky "Login"
+   button shape — distinct from the brand's usual filled .primary-btn/.btn
+   treatment, since this mirrors a neutral account-entry action, not a
+   conversion CTA. */
+.mobile-menu-sheet-cta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  margin: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  padding: 13px 20px;
+  background: #ffffff;
+  border: 1.5px solid var(--brand-rose);
+  border-radius: var(--radius-md);
+  color: var(--brand-purple);
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-menu-sheet-cta:active { background: #F8EEF4; }
+
+@media (min-width: 768px) {
+  .mobile-menu-sheet { display: none; }
+}

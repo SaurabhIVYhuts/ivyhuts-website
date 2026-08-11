@@ -53,8 +53,17 @@ export default function LeadPopup() {
       setOpen(true);
       window.removeEventListener("scroll", onScroll);
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    
+    // Delay attaching the scroll listener to avoid triggering it instantly
+    // when the browser restores scroll position on reload.
+    const timer = setTimeout(() => {
+      window.addEventListener("scroll", onScroll, { passive: true });
+    }, 2500);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   useEffect(() => {

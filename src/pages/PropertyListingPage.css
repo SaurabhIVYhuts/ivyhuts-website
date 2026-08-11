@@ -246,8 +246,6 @@
   position: absolute;
   top: var(--space-3);
   left: var(--space-3);
-  font-size: 1.6rem;
-  line-height: 1;
   background: rgba(255, 255, 255, 0.92);
   border-radius: var(--radius-full);
   width: 40px;
@@ -256,6 +254,14 @@
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-sm);
+}
+
+.country-select-flag img {
+  width: 22px;
+  height: 16px;
+  object-fit: cover;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(94, 58, 107, 0.12);
 }
 
 .country-select-body {
@@ -867,12 +873,20 @@
   line-height: 1.5;
 }
 
-.listing-chip-highlight {
+.listing-chip-green {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: rgba(196, 122, 138, 0.14);
-  color: #B05E72;
+  background: rgba(46, 125, 50, 0.1);
+  color: #2E7D32;
+}
+
+.listing-chip-blue {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(74, 144, 217, 0.12);
+  color: #4A90D9;
 }
 
 .listing-chip-more {
@@ -1034,11 +1048,288 @@
   }
 
   .listing-card-footer {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .listing-card-footer .btn {
+    width: auto;
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #C47A8A 0%, #B05E72 100%);
+    color: #fff;
+    font-weight: 700;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE (max-width: 767.98px) — matches the amberstudent.com listings
+   layout: full-bleed stacked cards, a sticky horizontal filter chip row
+   whose Filters/Sort panels become bottom sheets, and the right-rail
+   trust panel + List/Grid toggle hidden (list view is the only mobile
+   view). Appended block — nothing above this point is touched.
+   ═══════════════════════════════════════════════════════ */
+@media (max-width: 767.98px) {
+  /* .listings-main is a CSS Grid item (.listings-layout's 1fr column) —
+     grid items default to min-width:auto, which refuses to shrink below
+     their content's min-content size. Without this, the listing cards'
+     image/text content can force the whole column (and every full-bleed
+     card in it) wider than the viewport. Same root cause as the earlier
+     hero overflow fix, different layout mode. */
+  .listings-main {
+    min-width: 0;
+  }
+
+  /* ── FULL-BLEED CARDS — bleed past .listings-page's own 20px gutter ── */
+  .listing-card {
+    position: relative;
+    margin-inline: -20px;
+    margin-bottom: 12px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  .listings-grid-view {
+    margin-inline: -20px;
+  }
+
+  /* Wishlist heart moves from the card body into a top-right image overlay
+     (matching Amber) purely via position — the JSX/DOM order is untouched,
+     .listing-card just becomes its positioning context. */
+  .listing-card-wishlist-row {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 5;
+  }
+  .listing-card-wishlist-row .wishlist-heart-btn {
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.92);
+  }
+
+  /* ── AMENITY / BADGE CHIPS — single row, horizontal scroll, no wrap ── */
+  .listing-chip-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .listing-chip-row::-webkit-scrollbar {
+    display: none;
+  }
+  .listing-chip {
+    flex-shrink: 0;
+  }
+
+  /* ── RIGHT RAIL / VIEW TOGGLE — hidden; list view (already full-bleed
+     stacked cards) is the only mobile view. ── */
+  .listings-sidebar,
+  .view-toggle {
+    display: none;
+  }
+
+  /* ── BREADCRUMB — single line, horizontal scroll ── */
+  .listings-breadcrumb {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+  .listings-breadcrumb::-webkit-scrollbar {
+    display: none;
+  }
+  .listings-breadcrumb a,
+  .listings-breadcrumb span {
+    flex-shrink: 0;
+  }
+
+  /* ── TOOLBAR — one sticky horizontal chip row (search included as a
+     fixed-width chip instead of claiming the full line), matching
+     Amber's Filters/Sort/Bills Included row. ── */
+  .listings-toolbar {
+    top: 130px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .listings-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+  .toolbar-search-input {
+    flex: 0 0 190px;
+  }
+
+  /* Filters/Sort panels become bottom sheets instead of dropdowns —
+     re-parented purely by position, not by touching the filter state/logic
+     that opens (<details open>) and populates them. */
+  .toolbar-dropdown[open]::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(58, 36, 66, 0.35);
+    z-index: 490;
+  }
+  .toolbar-dropdown[open] .toolbar-panel {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
     width: 100%;
+    min-width: 0;
+    max-height: 85dvh;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -10px 40px rgba(58, 36, 66, 0.25);
+    padding-top: 22px;
+    z-index: 500;
+  }
+  .toolbar-dropdown[open] .toolbar-panel::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border-soft);
+  }
+  .toolbar-panel-apply {
+    position: sticky;
+    bottom: 0;
+  }
+  .toolbar-panel-apply::after {
+    content: " (" attr(data-count) ")";
+  }
+
+  /* ── NEW MOBILE HEADER & FILTER PILLS ── */
+  .properties-page-wrap {
+    background: #F7F7F7;
+    min-height: 100vh;
+  }
+  .mobile-listings-header-wrap {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #fff;
+    padding: 12px 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  }
+  .mobile-listings-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .mobile-back-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    color: #333;
+    cursor: pointer;
+  }
+  .mobile-search-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: #F2F2F2;
+    border-radius: 999px;
+    padding: 10px 14px;
+    gap: 8px;
+  }
+  .mobile-search-box input {
+    background: none;
+    border: none;
+    flex: 1;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+    outline: none;
+    text-overflow: ellipsis;
+  }
+  .mobile-search-clear {
+    background: #ccc;
+    color: #fff;
+    border: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .mobile-filter-btn {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #333;
+    cursor: pointer;
+  }
+  
+  .mobile-filter-pills {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .mobile-filter-pills::-webkit-scrollbar { display: none; }
+  .mobile-filter-pills .pill-btn {
+    border: 1px solid #ddd;
+    background: #fff;
+    color: #333;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── INLINE FILTER BLOCK ── */
+  .mobile-inline-filter-block {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 16px 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  }
+  .inline-filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .inline-filter-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #5E3A6B;
+    font-weight: 700;
+  }
+  .inline-filter-clear {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  /* .btn.btn-primary (see global.css) already supplies the brand gradient/
+     color/padding/radius — this only adds the layout tweak it needs here. */
+  .inline-filter-apply {
+    width: 100%;
+    margin-top: 12px;
   }
 }

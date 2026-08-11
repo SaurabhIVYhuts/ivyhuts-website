@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Building2, Ban, BadgeCheck } from "lucide-react";
 import "./StatCard.css";
 import { useInventoryStats } from "../../hooks/useInventoryStats";
@@ -16,13 +16,50 @@ const CARD_DEFS = [
 
 export default function HeroInventoryCards() {
   const { stats, loading, error } = useInventoryStats();
+  const trackRef = useRef(null);
+
+  // Auto-advance the mobile standalone row (see .hero-stats-standalone in
+  // global.css) one card at a time — a no-op on the in-hero instance, which
+  // is a vertical/hidden layout there and never has anything to scroll.
+  // Pauses while the visitor is actually touching/hovering it, and is
+  // skipped entirely under prefers-reduced-motion.
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track || loading) return undefined;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
+
+    let paused = false;
+    const pause = () => { paused = true; };
+    const resume = () => { paused = false; };
+    track.addEventListener("touchstart", pause, { passive: true });
+    track.addEventListener("touchend", resume, { passive: true });
+    track.addEventListener("mouseenter", pause);
+    track.addEventListener("mouseleave", resume);
+
+    const timer = setInterval(() => {
+      if (paused || track.scrollWidth <= track.clientWidth || !track.children.length) return;
+      const style = window.getComputedStyle(track);
+      const gap = parseFloat(style.columnGap || style.gap) || 0;
+      const step = track.children[0].getBoundingClientRect().width + gap;
+      const atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+      track.scrollTo({ left: atEnd ? 0 : track.scrollLeft + step, behavior: "smooth" });
+    }, 2800);
+
+    return () => {
+      clearInterval(timer);
+      track.removeEventListener("touchstart", pause);
+      track.removeEventListener("touchend", resume);
+      track.removeEventListener("mouseenter", pause);
+      track.removeEventListener("mouseleave", resume);
+    };
+  }, [loading]);
 
   if (error) {
     return <p className="stats-error">Unable to load live inventory statistics.</p>;
   }
 
   return (
-    <div className="hero-stat-cards" aria-label="Live IvyHuts inventory">
+    <div className="hero-stat-cards" ref={trackRef} aria-label="Live IvyHuts inventory">
       {CARD_DEFS.map(({ key, label, Icon, accent, accentSoft, bg }) => (
         <div
           className="stat-card"

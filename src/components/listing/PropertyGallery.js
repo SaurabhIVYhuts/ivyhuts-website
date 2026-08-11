@@ -24,6 +24,17 @@ export default function PropertyGallery({ images, alt }) {
             <button type="button" className="pg-nav pg-nav-prev" aria-label="Previous photo" onClick={() => go(-1)}>‹</button>
             <button type="button" className="pg-nav pg-nav-next" aria-label="Next photo" onClick={() => go(1)}>›</button>
             <span className="pg-counter">{index + 1} / {images.length}</span>
+            <div className="pg-dots mobile-only">
+              {images.map((img, i) => (
+                <button
+                  key={img.url}
+                  type="button"
+                  aria-label={`View photo ${i + 1}`}
+                  className={`pg-dot${i === index ? " active" : ""}`}
+                  onClick={() => setIndex(i)}
+                />
+              ))}
+            </div>
           </>
         )}
       </div>

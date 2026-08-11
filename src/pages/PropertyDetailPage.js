@@ -260,7 +260,9 @@ export default function PropertyDetailPage() {
               <section id="rooms" className="pdp-section">
                 <h2>Room Types</h2>
                 <div className="pdp-room-list">
-                  {roomTypes.map((room) => <RoomTypeCard key={room.id} room={room} onEnquire={handleEnquire} />)}
+                  {roomTypes.map((room) => (
+                    <RoomTypeCard key={room.id} room={room} onEnquire={handleEnquire} fallbackImage={property.images?.[0]?.url} />
+                  ))}
                 </div>
               </section>
             )}
@@ -376,6 +378,28 @@ export default function PropertyDetailPage() {
           </aside>
         </div>
       </main>
+
+      {/* MOBILE-ONLY sticky bottom bar — duplicates just the price + Enquire
+          action from the sidebar card above (not the wishlist heart or
+          social-proof line), matching Amber's compact bottom bar. Desktop
+          keeps only the full sidebar card (.pdp-sidebar is hidden here via
+          .mobile-only — see PropertyDetailPage.css). */}
+      <div className="pdp-sticky-bar mobile-only">
+        <div className="pdp-sticky-bar-price">
+          {price.from !== null ? (
+            <>
+              <span className="pdp-sticky-bar-price-label">From</span>
+              <strong>
+                {price.currency}{price.from}
+                {price.duration ? <span className="pdp-sticky-bar-duration"> / {price.duration}</span> : null}
+              </strong>
+            </>
+          ) : (
+            <span className="pdp-sticky-bar-price-label">Price on request</span>
+          )}
+        </div>
+        <button type="button" className="btn btn-primary" onClick={() => handleEnquire()}>Enquire</button>
+      </div>
 
       <SiteFooter />
     </div>

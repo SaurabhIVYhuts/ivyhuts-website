@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { useWishlist } from "../../context/WishlistContext";
+import MobileMenuSheet from "./MobileMenuSheet";
 
 const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHuts! I'm looking for student accommodation abroad. Can you help?")}`;
 
@@ -142,6 +143,11 @@ export default function SiteNavbar() {
           </a>
         </div>
       )}
+
+      {/* Mobile-width full-screen replacement for .mobile-nav above (hidden
+          via CSS at mobile widths — see global.css) — same menuOpen/close
+          state, so the one hamburger drives both. */}
+      <MobileMenuSheet isOpen={menuOpen} onClose={close} />
     </>
   );
 }

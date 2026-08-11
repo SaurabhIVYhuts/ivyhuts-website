@@ -1,0 +1,58 @@
+/* ═══════════════════════════════════════════════════════
+   MOBILE BOTTOM TAB BAR — mobile-only, hidden ≥768px.
+   Uses the existing brand tokens from src/styles/global.css.
+   ═══════════════════════════════════════════════════════ */
+.mobile-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: stretch;
+  height: 56px;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: #ffffff;
+  border-top: 1px solid #EDD5E3;
+  box-shadow: 0 -6px 20px rgba(58, 36, 66, 0.08);
+}
+
+.mobile-bottom-nav-item {
+  flex: 1 1 0;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #7B5B70;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-bottom-nav-icon {
+  width: 22px;
+  height: 22px;
+  color: inherit;
+}
+
+.mobile-bottom-nav-label {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.mobile-bottom-nav-item.active {
+  color: #5E3A6B;
+}
+
+.mobile-bottom-nav-item.active .mobile-bottom-nav-label {
+  font-weight: 600;
+}
+
+@media (min-width: 768px) {
+  .mobile-bottom-nav {
+    display: none;
+  }
+}

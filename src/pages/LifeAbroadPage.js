@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import "./LifeAbroadPage.css";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
+import { countryIsoCode } from "../data/destinations";
 
 const COUNTRIES = [
   { name: "All", flag: "🌍" },
@@ -13,6 +14,15 @@ const COUNTRIES = [
   { name: "Germany", flag: "🇩🇪" },
   { name: "France", flag: "🇫🇷" },
 ];
+
+function FlagIcon({ country }) {
+  if (country === "All") return <span aria-hidden="true">🌍</span>;
+  return (
+    <span className="pill-flag" aria-hidden="true">
+      <img src={`https://flagcdn.com/${countryIsoCode(country).toLowerCase()}.svg`} alt="" loading="lazy" />
+    </span>
+  );
+}
 
 const VIDEO_PLACEHOLDERS = [
   {
@@ -137,7 +147,7 @@ function LifeAbroadPage() {
             className={`la-filter-btn ${activeCountry === c.name ? "la-filter-btn-active" : ""}`}
             onClick={() => setActiveCountry(c.name)}
           >
-            {c.flag} {c.name}
+            <FlagIcon country={c.name} /> {c.name}
           </button>
         ))}
       </div>
@@ -167,7 +177,7 @@ function LifeAbroadPage() {
               )}
               <div className="la-card-body">
                 <div className="la-card-meta">
-                  <span className="la-card-flag">{video.flag}</span>
+                  <span className="la-card-flag"><FlagIcon country={video.country} /></span>
                   <span className="la-card-topic">{video.topic}</span>
                 </div>
                 <h3 className="la-card-title">{video.title}</h3>
