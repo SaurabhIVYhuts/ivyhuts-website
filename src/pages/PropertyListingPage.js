@@ -490,15 +490,35 @@ export default function PropertyListingPage() {
                   <div className="listing-skeleton-card" key={i}>
                     <div className="listing-skeleton-image" />
                     <div className="listing-skeleton-body">
-                      <div className="listing-skeleton-line" style={{ width: "70%", height: 16 }} />
-                      <div className="listing-skeleton-line" style={{ width: "45%" }} />
+                      <div className="listing-skeleton-top">
+                        <div className="listing-skeleton-top-text">
+                          <div className="listing-skeleton-line" style={{ width: "72%", height: 16 }} />
+                          <div className="listing-skeleton-line" style={{ width: "48%" }} />
+                        </div>
+                        <div className="listing-skeleton-rating" />
+                      </div>
+
+                      <div className="listing-skeleton-line" style={{ width: "60%" }} />
+
+                      <div className="listing-skeleton-chips">
+                        <span className="listing-skeleton-chip" style={{ width: 78 }} />
+                        <span className="listing-skeleton-chip" style={{ width: 96 }} />
+                      </div>
+
+                      <div className="listing-skeleton-line" style={{ width: "40%" }} />
+
                       <div className="listing-skeleton-chips">
                         <span className="listing-skeleton-chip" />
                         <span className="listing-skeleton-chip" />
                         <span className="listing-skeleton-chip" />
+                        <span className="listing-skeleton-chip" style={{ width: 48 }} />
                       </div>
+
                       <div className="listing-skeleton-footer">
-                        <div className="listing-skeleton-line" style={{ width: "30%" }} />
+                        <div className="listing-skeleton-price">
+                          <div className="listing-skeleton-line" style={{ width: 36, height: 10 }} />
+                          <div className="listing-skeleton-line" style={{ width: 84, height: 18 }} />
+                        </div>
                         <div className="listing-skeleton-btn" />
                       </div>
                     </div>
