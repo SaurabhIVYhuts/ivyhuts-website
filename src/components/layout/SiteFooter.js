@@ -78,6 +78,74 @@ export default function SiteFooter() {
           </div>
         </div>
       </div>
+
+      {/* MOBILE-ONLY — same four groups as .footer-inner above, collapsed
+          into native <details> accordions (matching amberstudent.com's
+          mobile footer) instead of always-expanded columns. Desktop never
+          renders this (see .mobile-only in global.css); the copy/links
+          here are the exact same ones above, not re-authored. */}
+      <div className="footer-accordion mobile-only">
+        <details className="footer-accordion-item">
+          <summary>Destinations<span className="footer-accordion-chevron" aria-hidden="true" /></summary>
+          <div className="footer-accordion-body">
+            <Link to="/find-rooms">UK</Link>
+            <Link to="/find-rooms">Canada</Link>
+            <Link to="/find-rooms">Australia</Link>
+            <Link to="/find-rooms">USA</Link>
+            <Link to="/find-rooms">Germany</Link>
+            <Link to="/find-rooms">Ireland</Link>
+            <Link to="/find-rooms">Netherlands</Link>
+            <Link to="/find-rooms">More Countries</Link>
+          </div>
+        </details>
+        <details className="footer-accordion-item">
+          <summary>Services<span className="footer-accordion-chevron" aria-hidden="true" /></summary>
+          <div className="footer-accordion-body">
+            <span>Airport Pickup</span>
+            <span>Bank Account Setup</span>
+            <span>SIM Card Help</span>
+            <span>Guarantor Service</span>
+            <Link to="/life-abroad">Placement Podcast</Link>
+          </div>
+        </details>
+        <details className="footer-accordion-item">
+          <summary>Company<span className="footer-accordion-chevron" aria-hidden="true" /></summary>
+          <div className="footer-accordion-body">
+            <Link to="/contact">Contact Us</Link>
+            <Link to="/partner">Partner with Us</Link>
+            <Link to="/list-your-stay">List Your Stay</Link>
+            <Link to="/terms">Terms of Service</Link>
+            <Link to="/privacy">Privacy Policy</Link>
+          </div>
+        </details>
+        <details className="footer-accordion-item">
+          <summary>Get in Touch<span className="footer-accordion-chevron" aria-hidden="true" /></summary>
+          <div className="footer-accordion-body">
+            <a href="mailto:contact@ivyhuts.com" className="footer-contact-row"><MailIcon /> contact@ivyhuts.com</a>
+            <a href="https://wa.me/918847725089" target="_blank" rel="noopener noreferrer" className="footer-contact-row"><WhatsAppIcon /> +91 884 772 5089</a>
+            <Link to="/find-rooms">Find Accommodation</Link>
+            <div className="footer-social-row">
+              {SOCIAL_ICONS.map(({ key, label, Icon }) => {
+                const href = socialLinks[key];
+                const Tag = href ? "a" : "span";
+                return (
+                  <Tag
+                    key={key}
+                    href={href || undefined}
+                    target={href ? "_blank" : undefined}
+                    rel={href ? "noopener noreferrer" : undefined}
+                    className={`footer-social-icon${href ? "" : " footer-social-icon--pending"}`}
+                    aria-label={label}
+                  >
+                    <Icon size={20} />
+                  </Tag>
+                );
+              })}
+            </div>
+          </div>
+        </details>
+      </div>
+
       <div className="footer-bottom">
         <span>© 2026 IvyHuts. All rights reserved. Built by IIM grads.</span>
       </div>

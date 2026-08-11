@@ -4,7 +4,7 @@ import { getProperties } from "../services/amberApi";
 import { safeListingList } from "../services/amberMapper";
 import { addRecentSearch } from "../services/recentActivity";
 import { trackEvent } from "../lib/eventsApi";
-import { DESTINATIONS, findDestination, countryFullName } from "../data/destinations";
+import { DESTINATIONS, findDestination, countryFullName, countryIsoCode } from "../data/destinations";
 import { USPS } from "../data/usps";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import SiteFooter from "../components/layout/SiteFooter";
@@ -215,8 +215,10 @@ export default function PropertyListingPage() {
   const closeDetails = (e) => e.target.closest("details")?.removeAttribute("open");
 
   return (
-    <>
-      <SiteNavbar />
+    <div className="properties-page-wrap">
+      <div className="desktop-only">
+        <SiteNavbar />
+      </div>
 
       {!city && !countryParam && (
         <div className="destination-browser">
@@ -268,7 +270,10 @@ export default function PropertyListingPage() {
               <div className="popular-cities-chips">
                 {popularCities.map((c) => (
                   <Link key={c.name} to={`/properties?city=${encodeURIComponent(c.name)}`} className="popular-city-chip">
-                    <span aria-hidden="true">{c.flag}</span> {c.name}
+                    <span className="pill-flag" aria-hidden="true">
+                      <img src={`https://flagcdn.com/${countryIsoCode(c.country).toLowerCase()}.svg`} alt="" loading="lazy" />
+                    </span>
+                    {c.name}
                   </Link>
                 ))}
               </div>
@@ -285,7 +290,9 @@ export default function PropertyListingPage() {
                 >
                   <div className="country-select-image">
                     <img src={g.cities[0]?.image} alt={countryFullName(g.country)} loading="lazy" />
-                    <span className="country-select-flag" aria-hidden="true">{g.flag}</span>
+                    <span className="country-select-flag" aria-hidden="true">
+                      <img src={`https://flagcdn.com/${countryIsoCode(g.country).toLowerCase()}.svg`} alt="" loading="lazy" />
+                    </span>
                   </div>
                   <div className="country-select-body">
                     <span className="country-select-name">{countryFullName(g.country)}</span>
@@ -332,8 +339,32 @@ export default function PropertyListingPage() {
 
       {city && (
       <div className="listings-page">
-        {/* FILTER TOOLBAR */}
-        <div className="listings-toolbar">
+        
+        {/* MOBILE HEADER & FILTER PILLS */}
+        <div className="mobile-only mobile-listings-header-wrap">
+          <div className="mobile-listings-header">
+            <button type="button" className="mobile-back-btn" onClick={() => navigate("/")}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <div className="mobile-search-box">
+              <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><circle cx="9" cy="9" r="6.2" stroke="currentColor" strokeWidth="1.8" /><path d="M13.6 13.6L17.5 17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+              <input type="text" readOnly value={`${city}, ${destination ? countryFullName(destination.country) : ""}`} />
+              <button type="button" className="mobile-search-clear">×</button>
+            </div>
+            <button type="button" className="mobile-filter-btn" onClick={() => setDescExpanded(true)}>
+              <FilterIcon />
+            </button>
+          </div>
+          <div className="mobile-filter-pills">
+            <button type="button" className="pill-btn">Price</button>
+            <button type="button" className="pill-btn">Room Type</button>
+            <button type="button" className="pill-btn">Amenities</button>
+            <button type="button" className="pill-btn">More Filters</button>
+          </div>
+        </div>
+
+        {/* FILTER TOOLBAR (Desktop) */}
+        <div className="listings-toolbar desktop-only">
           <input
             aria-label="Filter by property, area or university"
             placeholder="Filter by property, area or university"
@@ -399,7 +430,7 @@ export default function PropertyListingPage() {
                 </div>
               )}
 
-              <button type="button" className="toolbar-panel-apply" onClick={closeDetails}>Apply</button>
+              <button type="button" className="toolbar-panel-apply" data-count={filteredListings.length} onClick={closeDetails}>Apply</button>
             </div>
           </details>
 
@@ -536,8 +567,45 @@ export default function PropertyListingPage() {
               </div>
             )}
 
-            {!loading && view === "list" && filteredListings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} onEnquire={handleEnquire} />
+            {!loading && view === "list" && filteredListings.map((listing, index) => (
+              <React.Fragment key={listing.id}>
+                <ListingCard listing={listing} onEnquire={handleEnquire} />
+                
+                {/* INLINE MOBILE FILTER BLOCK AFTER 3RD ITEM */}
+                {index === 2 && (
+                  <div className="mobile-only mobile-inline-filter-block">
+                    <div className="inline-filter-header">
+                      <h3>Price: Min - Max</h3>
+                      <button
+                        type="button"
+                        className="inline-filter-clear"
+                        onClick={() => { setFilter("minPrice")(""); setFilter("maxPrice")(""); }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <div className="inline-filter-body">
+                      <div className="toolbar-panel-row">
+                        <input
+                          aria-label="Minimum price"
+                          placeholder="Min £"
+                          inputMode="numeric"
+                          value={filters.minPrice}
+                          onChange={(e) => setFilter("minPrice")(e.target.value.replace(/[^0-9]/g, ""))}
+                        />
+                        <input
+                          aria-label="Maximum price"
+                          placeholder="Max £"
+                          inputMode="numeric"
+                          value={filters.maxPrice}
+                          onChange={(e) => setFilter("maxPrice")(e.target.value.replace(/[^0-9]/g, ""))}
+                        />
+                      </div>
+                      <button type="button" className="btn btn-primary inline-filter-apply">Apply Filter</button>
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
             ))}
 
             {!loading && view === "grid" && (
@@ -565,8 +633,11 @@ export default function PropertyListingPage() {
         </div>
       </div>
       )}
+      {/* FOOTER (Desktop only for properties page) */}
+      <div className="desktop-only">
+        <SiteFooter />
+      </div>
 
-      <SiteFooter />
-    </>
+    </div>
   );
 }

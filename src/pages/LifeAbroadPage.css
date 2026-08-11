@@ -76,6 +76,9 @@
 .la-filter-bar::-webkit-scrollbar { display: none; }
 
 .la-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: #FBF4F8;
   border: 1.5px solid var(--border-soft);
   color: #7B5B70;
@@ -180,7 +183,7 @@
   gap: 8px;
   margin-bottom: 8px;
 }
-.la-card-flag { font-size: 1.1rem; }
+.la-card-flag { display: inline-flex; align-items: center; }
 .la-card-topic {
   font-size: 0.72rem;
   font-weight: 700;

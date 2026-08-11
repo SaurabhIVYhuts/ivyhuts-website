@@ -88,9 +88,14 @@ export default function ListingCard({ listing, onEnquire }) {
 
         {badges.length > 2 && (
           <div className="listing-chip-row">
-            {badges.slice(2, 5).map((b) => (
-              <span key={b} className="listing-chip listing-chip-highlight"><CheckBadgeIcon /> {b}</span>
-            ))}
+            {badges.slice(2, 5).map((b) => {
+              const isCashback = b.toLowerCase().includes("cashback");
+              return (
+                <span key={b} className={`listing-chip ${isCashback ? "listing-chip-blue" : "listing-chip-green"}`}>
+                  <CheckBadgeIcon /> {b}
+                </span>
+              );
+            })}
           </div>
         )}
 
