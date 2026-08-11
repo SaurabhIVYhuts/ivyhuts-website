@@ -485,7 +485,26 @@ export default function PropertyListingPage() {
             )}
 
             {loading && (
-              <div className="listings-loading">Loading properties…</div>
+              <div className={`listings-skeleton listings-skeleton--${view}`} aria-live="polite" aria-busy="true">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div className="listing-skeleton-card" key={i}>
+                    <div className="listing-skeleton-image" />
+                    <div className="listing-skeleton-body">
+                      <div className="listing-skeleton-line" style={{ width: "70%", height: 16 }} />
+                      <div className="listing-skeleton-line" style={{ width: "45%" }} />
+                      <div className="listing-skeleton-chips">
+                        <span className="listing-skeleton-chip" />
+                        <span className="listing-skeleton-chip" />
+                        <span className="listing-skeleton-chip" />
+                      </div>
+                      <div className="listing-skeleton-footer">
+                        <div className="listing-skeleton-line" style={{ width: "30%" }} />
+                        <div className="listing-skeleton-btn" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
 
             {!loading && !error && filteredListings.length === 0 && (
