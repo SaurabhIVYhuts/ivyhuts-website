@@ -47,6 +47,8 @@ const businessRoutes = [
     { pattern: "/api/wishlist", handler: require("../api/wishlist/index.js") },
     { pattern: "/api/wishlist/:propertyId", handler: require("../api/wishlist/[propertyId].js") },
     { pattern: "/api/events", handler: require("../api/events/index.js") },
+    { pattern: "/api/insights/overview", handler: require("../api/insights/overview.js") },
+    { pattern: "/api/insights/market", handler: require("../api/insights/market.js") },
 ].map((route) => ({
     ...route,
     paramNames: (route.pattern.match(/:([^/]+)/g) || []).map((p) => p.slice(1)),

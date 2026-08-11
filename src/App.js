@@ -16,6 +16,7 @@ const ContactPage              = lazy(() => import("./pages/ContactPage"));
 const PartnerPage              = lazy(() => import("./pages/PartnerPage"));
 const TermsPage                = lazy(() => import("./pages/legal/TermsPage"));
 const PrivacyPage              = lazy(() => import("./pages/legal/PrivacyPage"));
+const InsightPage              = lazy(() => import("./pages/insight/InsightPage"));
 
 /* ── SCROLL TO TOP ON ROUTE CHANGE ── */
 function ScrollToTop() {
@@ -63,6 +64,7 @@ function App() {
             <Route path="/login"          element={<LoginPage />} />
             <Route path="/wishlist"       element={<WishlistPage />} />
             <Route path="/properties" element={<PropertyListingPage />} />
+            <Route path="/insight"    element={<InsightPage />} />
           </Routes>
         </Suspense>
       </WishlistProvider>
