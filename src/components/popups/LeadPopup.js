@@ -16,7 +16,7 @@ import { getPageViewCount } from "../../lib/pageViewCounter";
 const LAST_SHOWN_AT_VIEWS_KEY = "ivyhuts_lead_popup_last_shown_at_views";
 const CONVERTED_KEY = "ivyhuts_lead_popup_converted";
 const SCROLL_TRIGGER_PX = 400;
-const PAGES_BEFORE_RESHOW = 3;
+const PAGES_BEFORE_RESHOW = 1;
 
 function validate(data) {
   const errors = {};
