@@ -1,37 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import InsightSidebar from "./components/InsightSidebar";
 import InsightHeader from "./components/InsightHeader";
 import FilterBar, { rangeFromPreset } from "./components/FilterBar";
 import MarketSection from "./components/sections/MarketSection";
 import PricingSection from "./components/sections/PricingSection";
 import PropertySection from "./components/sections/PropertySection";
-import { getCurrentCustomer, getInsightsOverview, getInsightsMarket } from "../../services/insightsApi";
+import { getInsightsOverview, getInsightsMarket } from "../../services/insightsApi";
 import "./insight-theme.css";
 
-// Real protection lives server-side — in production every /api/insights/*
-// endpoint calls requireRole() with this same list (see
-// api/_lib/businessAuth.js). This check is UX only: it keeps an unauthorized
-// visitor from ever seeing a half-loaded dashboard shell, per the spec's own
-// "hiding the route is not security" note (§27).
-const INTERNAL_ROLES = ["MARKETING_AGENT", "MARKETING_MANAGER", "ADMIN"];
-
-// TEMPORARY local-development bypass, mirroring api/_lib/insightsDevAuth.js
-// on the backend: there's no MongoDB connection / seeded admin account
-// available locally yet, so the normal getCurrentCustomer() role check can
-// never succeed in dev. process.env.NODE_ENV is baked in at build time by
-// CRA (same convention as the `DEV` const in src/services/amberApi.js) — a
-// real `npm run build` always has NODE_ENV=production, so this bypass can
-// never ship. Scoped to this file only; no other page's auth behavior
-// changes.
-// TODO: Re-enable authentication/RBAC before production deployment — delete
-// this bypass once a real admin account exists and restore the
-// getCurrentCustomer()-only check below.
-const DEV_RBAC_BYPASS = process.env.NODE_ENV !== "production";
+// /insight access is temporarily unrestricted for now.
+// Backend auth is also bypassed in api/_lib/insightsDevAuth.js.
 
 export default function InsightPage() {
-  const navigate = useNavigate();
-  const [authState, setAuthState] = useState("checking"); // checking | ok | forbidden
   const [activeTab, setActiveTab] = useState("market");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [filters, setFilters] = useState({ rangeKey: "30d", ...rangeFromPreset("30d") });
@@ -50,34 +30,6 @@ export default function InsightPage() {
   // well above that for margin (skipped/failed rounds still count).
   const backgroundPollCountRef = useRef(0);
   const BACKGROUND_POLL_LIMIT = 40;
-
-  useEffect(() => {
-    if (DEV_RBAC_BYPASS) {
-      // See DEV_RBAC_BYPASS comment above — never calls getCurrentCustomer()
-      // at all in this mode, so opening /insight locally has no MongoDB
-      // dependency (that endpoint resolves a Mongo user to check its role).
-      setAuthState("ok");
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const customer = await getCurrentCustomer();
-        if (cancelled) return;
-        setAuthState(INTERNAL_ROLES.includes(customer.role) ? "ok" : "forbidden");
-      } catch (err) {
-        if (cancelled) return;
-        if (err.status === 401) {
-          navigate("/login?returnTo=/insight", { replace: true });
-        } else {
-          setAuthState("forbidden");
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [navigate]);
 
   const loadOverview = useCallback(async () => {
     try {
@@ -112,12 +64,11 @@ export default function InsightPage() {
   );
 
   useEffect(() => {
-    if (authState !== "ok") return;
     backgroundPollCountRef.current = 0;
     loadOverview();
     loadMarket();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authState, filters.from, filters.to, filters.city, filters.source, filters.country]);
+  }, [filters.from, filters.to, filters.city, filters.source, filters.country]);
 
   // /api/insights/market runs a resumable, budget-safe crawl of Amber's
   // ENTIRE catalog (see api/_lib/insightsMarket.js) — each call advances it
@@ -145,18 +96,6 @@ export default function InsightPage() {
   };
 
   const resetFilters = () => setFilters({ rangeKey: "30d", ...rangeFromPreset("30d") });
-
-  if (authState === "checking") {
-    return <div className="insight-fullscreen-loading" />;
-  }
-  if (authState === "forbidden") {
-    return (
-      <div className="insight-forbidden">
-        <h1>IVYHUTS Insights</h1>
-        <p>You don&apos;t have access to this page. This dashboard is restricted to internal marketing and admin staff.</p>
-      </div>
-    );
-  }
 
   const sourceOptions = overview ? overview.bySource.map((s) => s.source).filter(Boolean) : [];
 
