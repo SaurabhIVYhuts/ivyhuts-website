@@ -741,7 +741,8 @@
   border: 1px solid #EEE;
 }
 .perfect-acc-icon {
-  font-size: 1.8rem;
+  display: flex;
+  color: #B05E72;
   margin-bottom: 12px;
 }
 .perfect-acc-item h4 {

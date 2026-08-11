@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { MessageCircle, Mail, Phone, LifeBuoy, History } from "lucide-react";
+import { MessageCircle, Mail, Phone, LifeBuoy, History, Zap, Tag, Search, FileText, PartyPopper } from "lucide-react";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import TrustStrip from "../components/layout/TrustStrip";
@@ -18,9 +18,9 @@ import CompactPropertyCard from "../components/listing/CompactPropertyCard";
 
 // --- Static Data for Marketing Sections ---
 const STEPS = [
-  { title: "Discover and Finalize", desc: "Choose from a plethora of verified student home listings.", icon: "🔍" },
-  { title: "Get your paperwork done", desc: "Paperwork's on us, no need to fuss.", icon: "📄" },
-  { title: "Accommodation Booked!", desc: "Relax, pack your bags, and unravel a new life chapter!", icon: "🎉" }
+  { title: "Discover and Finalize", desc: "Choose from a plethora of verified student home listings.", icon: <Search size={22} strokeWidth={2} /> },
+  { title: "Get your paperwork done", desc: "Paperwork's on us, no need to fuss.", icon: <FileText size={22} strokeWidth={2} /> },
+  { title: "Accommodation Booked!", desc: "Relax, pack your bags, and unravel a new life chapter!", icon: <PartyPopper size={22} strokeWidth={2} /> }
 ];
 
 const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHuts! I'm looking for student accommodation abroad. Can you help?")}`;
@@ -356,12 +356,12 @@ function HomePage() {
         <p className="section-copy">Take the hassle out of securing your student home for the best years of your life</p>
         <div className="perfect-acc-grid">
           <div className="perfect-acc-item">
-            <div className="perfect-acc-icon">⚡</div>
+            <div className="perfect-acc-icon"><Zap size={22} strokeWidth={2} /></div>
             <h4>Fast & Easy Bookings</h4>
             <p>Time is money. Save both when you book with us.</p>
           </div>
           <div className="perfect-acc-item">
-            <div className="perfect-acc-icon">🏷️</div>
+            <div className="perfect-acc-icon"><Tag size={22} strokeWidth={2} /></div>
             <h4>Lowest Price Guaranteed</h4>
             <p>Find a lower price and we'll match it. T&C Apply</p>
           </div>
