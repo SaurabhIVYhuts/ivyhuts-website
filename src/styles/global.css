@@ -56,6 +56,34 @@
   --container-max: 1280px;
 }
 
+/* ── ROUTE LOADING FALLBACK — shown while a lazy-loaded page's JS chunk is
+   still downloading (see the Suspense fallback in App.js). Previously a
+   bare blank div with no indicator, which read as a broken "white layer"
+   flash on every route that isn't eagerly bundled (everything except
+   Home/PropertyListingPage). A small centered spinner gives the same brief
+   window actual loading feedback instead. ── */
+.route-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+}
+.route-loading-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--border-soft);
+  border-top-color: var(--brand-purple);
+  animation: route-loading-spin 0.7s linear infinite;
+}
+@keyframes route-loading-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-loading-spinner { animation: none; }
+}
+
 /* ── Reset & Base ── */
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -540,6 +568,27 @@ a { text-decoration: none; }
   line-height: 1.7;
 }
 
+/* ── FLAG ICONS — real flag images (flagcdn.com, via each country's ISO
+   code) instead of flag emoji. Flag emoji render as plain two-letter text
+   on Windows/many setups instead of an actual flag picture, so every chip/
+   pill/badge across the site that shows a country flag uses this. ── */
+.pill-flag {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 13px;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(94, 58, 107, 0.1);
+}
+
+.pill-flag img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .city-grid {
   display: grid;
   list-style: none;
@@ -571,12 +620,30 @@ a { text-decoration: none; }
 
 @media (max-width: 639px) {
   .city-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
     gap: 14px;
+    scroll-snap-type: x proximity;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
-  .city-grid > .city-card-item:nth-child(n + 5) {
+  .city-grid::-webkit-scrollbar {
     display: none;
+  }
+
+  .city-grid > .city-card-item {
+    flex: 0 0 72%;
+    scroll-snap-align: start;
+  }
+
+  /* Overrides the desktop/tablet card-count caps above so every card in
+     the filtered list is reachable by side-scrolling on mobile. */
+  .city-grid > .city-card-item:nth-child(n + 5) {
+    display: block;
   }
 }
 
@@ -685,9 +752,18 @@ a { text-decoration: none; }
 }
 
 .listing-card-image-empty {
+  width: 100%;
+  height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  color: #B49AAE;
+}
+.listing-card-image-empty span {
+  font-size: 0.7rem;
+  font-weight: 600;
 }
 
 .listing-card-badge-row {
@@ -1722,3 +1798,656 @@ a.footer-social-icon:hover {
   .hero-bg-ring { display: none; }
 }
 
+/* ═══════════════════════════════════════════════════════
+   MOBILE — BOTTOM NAV + MENU SHEET + SEARCH + HYGIENE
+   Appended block. Every rule here is scoped to
+   max-width: 767.98px — nothing above this point is touched, so desktop
+   (and the existing 1020px/768px/640px tablet queries above) render exactly
+   as before. See MobileBottomNav.js/.css and MobileMenuSheet.js/.css for the
+   two new nav components this block supports.
+   ═══════════════════════════════════════════════════════ */
+@media (max-width: 767.98px) {
+  /* Clears the fixed bottom tab bar (see MobileBottomNav.css) so it never
+     overlaps page content, incl. the footer. */
+  body {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
+  }
+
+  /* iOS input zoom guard */
+  input, select, textarea {
+    font-size: 16px;
+  }
+
+  /* Superseded by MobileMenuSheet, which the same hamburger now opens. */
+  .mobile-nav {
+    display: none;
+  }
+
+  /* The 1020px breakpoint above switches .hero-row to align-items:center
+     for its (now column-direction) children — correct for vertically
+     centering the huts illustrations either side of the card on tablet,
+     but it also means .hero-card-group's cross-axis (width) falls back to
+     fit-content sizing instead of filling the row, and .hero-purple-box's
+     own width:100% then has nothing definite to resolve against — the
+     purple card ends up sized to its own min-content floor and overflows
+     narrow phones instead of shrinking to fit. Stretching both back to
+     full width here fixes that without touching the 768–1020px tablet
+     range. */
+  .hero-row {
+    align-items: stretch;
+  }
+  .hero-card-group {
+    align-self: stretch;
+    width: 100%;
+    max-width: 100%;
+  }
+  .hero-purple-box {
+    width: 100%;
+  }
+
+  /* Hero search is reordered to sit first in the card, right under the
+     navbar (see the HERO block further below) — already the page's most
+     prominent, immediately-visible search affordance without needing to
+     be sticky itself. (position:sticky combined with a flex "order" that
+     moves an element earlier than its source position triggers a real
+     overlap bug in Chrome/Safari: the sticky offset is computed against
+     the element's pre-reorder flow position, not its rendered one — that
+     is what caused the headline to render underneath this box.) */
+  .hero-search-form {
+    background: #fff;
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-md);
+    padding: 4px;
+  }
+  .hero-search-input-wrap {
+    box-shadow: none;
+    border: none;
+  }
+
+  /* Small icon-only nav controls bumped toward the 44px tap-target
+     guideline without changing their visible icon size (content-box keeps
+     the icon glyph the same, padding only grows the hit area) — same
+     technique already used for .nav-hamburger just above. */
+  .nav-wa-btn, .nav-wishlist-btn {
+    box-sizing: content-box;
+    width: 34px;
+    height: 34px;
+    padding: 5px;
+  }
+  .wishlist-heart-btn {
+    box-sizing: content-box;
+    width: 30px;
+    height: 30px;
+    padding: 7px;
+  }
+
+  /* ── HERO — compacted and re-sequenced to match Amber's mobile hero
+     exactly: search pill FIRST (right under the navbar), then
+     headline+subcopy, then the trust badge — nothing else in the card.
+     Reordered with flex/order only, DOM stays exactly as authored (see
+     HomePage.js) — .hero-text becomes the flex column and its three
+     children (.hero-search-form / .hero-header-row / .hero-tagline) get
+     ordered independently of their source order. The stat cards and
+     3-step journey strip are hidden here (still exactly where they are in
+     the DOM, still what desktop renders) and shown instead as their own
+     standalone sections right after the hero — see the
+     .hero-stats-standalone/.hero-journey-standalone duplicate renders in
+     HomePage.js and their styling further below. ── */
+  .hero-purple-box {
+    padding: 26px 20px 24px;
+  }
+  .hero-text {
+    display: flex;
+    flex-direction: column;
+  }
+  .hero-search-form {
+    order: 1;
+    margin-top: 0;
+  }
+  .hero-header-row {
+    display: block;
+    order: 2;
+  }
+  .hero-inventory-stack {
+    display: none;
+  }
+  .hero h1 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+  }
+  .hero-purple-box .hero-text > p,
+  .hero-sub-tagline {
+    margin-bottom: 18px !important;
+  }
+  .hero .hero-journey-flow {
+    display: none;
+  }
+
+  /* Tagline becomes the trust badge — Amber's own equivalent ("24x7
+     Assistance") is a small pill below the headline/subcopy, not an
+     eyebrow label above it — same brand-tinted translucent treatment used
+     elsewhere in the hero (e.g. .hero-iim-badge), no new color. */
+  .hero-tagline {
+    order: 3;
+    display: inline-flex;
+    align-self: flex-start;
+    text-transform: none;
+    letter-spacing: 0.3px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 6px 14px;
+    border-radius: 999px;
+    margin: 4px 0 0;
+  }
+
+  /* Standalone stat-card row (duplicate of the in-hero cards, shown only
+     here at mobile widths) — full-width horizontal scroll. */
+  .hero-stats-standalone {
+    padding-top: 24px;
+    padding-bottom: 8px;
+  }
+  .hero-stats-standalone .hero-stat-cards {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+  .hero-stats-standalone .hero-stat-cards::-webkit-scrollbar {
+    display: none;
+  }
+  .hero-stats-standalone .stat-card {
+    flex: 0 0 72%;
+    scroll-snap-align: start;
+  }
+
+  /* Standalone 3-step journey strip — needs its own dark band since
+     HeroJourneyStrip's text/icons are styled white-on-purple for use
+     inside the hero card; reusing the same brand gradient as .cta-section
+     keeps it on-palette instead of inventing a new color. */
+  .hero-journey-standalone {
+    padding: 0 16px 8px;
+  }
+  .hero-journey-band {
+    background: linear-gradient(135deg, var(--brand-purple-deep) 0%, var(--brand-purple) 100%);
+    border-radius: var(--radius-lg);
+    padding: 20px 18px;
+  }
+  .hero-journey-band .hero-journey-flow {
+    margin: 0;
+  }
+
+  /* ── POPULAR CITIES — 2-row grid that scrolls horizontally as a unit
+     (matching Amber: e.g. London/Nottingham/Birmingham on top,
+     Coventry/Liverpool/Leicester below), instead of the single-row
+     carousel from the ≤639px rule earlier in this file. Same specificity
+     as the nth-child cutoff rules above (class + child-combinator +
+     nth-child), so being later in the file is what lets this win and
+     un-hide every card for side-scrolling. ── */
+  .city-grid {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(2, auto);
+    grid-auto-columns: minmax(118px, 32%);
+    column-gap: 12px;
+    row-gap: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    margin-inline: -16px;
+    padding: 4px 16px;
+  }
+  .city-grid::-webkit-scrollbar {
+    display: none;
+  }
+  .city-grid > .city-card-item {
+    flex: none;
+    scroll-snap-align: start;
+  }
+  .city-grid > .city-card-item:nth-child(n + 1) {
+    display: block;
+  }
+  .city-tab-row {
+    margin-inline: -16px;
+    padding-inline: 16px;
+  }
+
+  /* City name/country text was sized for the old single-row 72%-width
+     cards — at this grid's ~110–150px columns the desktop 1.25rem heading
+     overflows/wraps badly, so it gets its own smaller scale here. */
+  .city-grid .city-card-overlay {
+    padding: 10px;
+  }
+  .city-grid .city-card-overlay h3 {
+    font-size: 0.88rem;
+    margin-bottom: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .city-grid .city-card-overlay p {
+    font-size: 0.66rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── TRUST STRIP ("Why book with us") — horizontal-scroll card row
+     instead of the divided badge strip / 2x2 grid used above (this rule
+     comes later in the file so it wins for every mobile width, incl. the
+     ≤600px block earlier in this file). ── */
+  .trust-strip-inner {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    gap: 12px;
+    margin-inline: -16px;
+    padding: 20px 16px;
+  }
+  .trust-strip-inner::-webkit-scrollbar {
+    display: none;
+  }
+  .trust-badge {
+    flex: 0 0 72%;
+    scroll-snap-align: start;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+    padding: 20px 16px;
+    background: #fff;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+  .trust-divider {
+    display: none;
+  }
+  .trust-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* ── PARTNER WITH US / LIST YOUR STAY — two wide cards, horizontal scroll ── */
+  .partner-list-row {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    margin-inline: -16px;
+    padding: 4px 16px 4px;
+  }
+  .partner-list-row::-webkit-scrollbar {
+    display: none;
+  }
+  .partner-list-card {
+    flex: 0 0 84%;
+    scroll-snap-align: start;
+    display: block;
+    background: linear-gradient(135deg, #F1EAF4 0%, #FBF4F8 100%);
+    border: 1px solid var(--border-brand);
+    border-radius: var(--radius-lg);
+    padding: 22px 20px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .partner-list-eyebrow {
+    margin: 0 0 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--brand-purple);
+  }
+  .partner-list-card h3 {
+    margin: 0 0 8px;
+    font-size: 1.15rem;
+    color: var(--ink);
+  }
+  .partner-list-card p {
+    margin: 0 0 16px;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--ink-soft);
+  }
+
+  /* ── HUNDREDS OF CITIES — Cities/Countries tabs + horizontal link grid ── */
+  .hoc-tab-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .hoc-tab {
+    background: none;
+    border: none;
+    padding: 4px 2px 12px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ink-faint);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    cursor: pointer;
+  }
+  .hoc-tab.active {
+    color: var(--brand-purple);
+    border-bottom-color: var(--brand-puce);
+  }
+  .hoc-link-grid {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(4, auto);
+    column-gap: 24px;
+    row-gap: 14px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-inline: -16px;
+    padding: 4px 16px;
+    /* Fade the trailing edge instead of cutting the last column's words off
+       cleanly — reads as a "swipe for more" hint rather than a layout bug. */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent 100%);
+  }
+  .hoc-link-grid::-webkit-scrollbar {
+    display: none;
+  }
+  .hoc-link {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    text-decoration: underline;
+    text-decoration-color: var(--border-soft);
+    text-underline-offset: 3px;
+    white-space: nowrap;
+  }
+
+  /* ── NEED HELP? LET'S CONNECT — 2x2 contact tile grid ── */
+  .need-help-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .need-help-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 96px;
+    background: #fff;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    padding: 18px 12px;
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+  }
+  .need-help-tile svg {
+    width: 24px;
+    height: 24px;
+    color: var(--brand-purple);
+    stroke-width: 1.6;
+  }
+
+  /* ── FOOTER — collapsed accordion instead of always-expanded columns,
+     matching Amber's mobile footer. .footer-inner's own link columns are
+     hidden (its brand block stays, centered); .footer-accordion (a
+     mobile-only sibling — see SiteFooter.js) takes over. ── */
+  .footer-inner {
+    padding-bottom: var(--space-4);
+  }
+  .footer-inner .footer-links {
+    display: none;
+  }
+  .footer-brand {
+    flex: 1 1 100%;
+    text-align: center;
+  }
+
+  .footer-accordion {
+    padding: 0 16px 24px;
+  }
+  .footer-accordion-item {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .footer-accordion-item summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    list-style: none;
+  }
+  .footer-accordion-item summary::-webkit-details-marker {
+    display: none;
+  }
+  .footer-accordion-chevron {
+    flex-shrink: 0;
+    width: 9px;
+    height: 9px;
+    border-right: 1.5px solid rgba(255, 255, 255, 0.6);
+    border-bottom: 1.5px solid rgba(255, 255, 255, 0.6);
+    transform: rotate(45deg);
+    transition: transform 0.2s ease;
+  }
+  .footer-accordion-item[open] .footer-accordion-chevron {
+    transform: rotate(-135deg);
+  }
+  .footer-accordion-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 2px 0 18px;
+  }
+  .footer-accordion-body a,
+  .footer-accordion-body span {
+    font-size: 0.88rem;
+    color: rgba(255, 255, 255, 0.6);
+  }
+  .footer-accordion-body .footer-contact-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── FAQ — full-bleed divider rows instead of individually bordered/
+     shadowed cards, matching Amber's mobile FAQ treatment. ── */
+  .faq {
+    margin-inline: -16px;
+  }
+  .faq-item {
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border-soft);
+    border-radius: 0;
+    box-shadow: none;
+    margin-bottom: 0;
+  }
+  .faq-item:last-child {
+    border-bottom: none;
+  }
+  .faq-item summary {
+    padding: 16px;
+  }
+  .faq-item[open] summary {
+    background: none;
+    color: var(--ink);
+  }
+  .faq-item[open] .faq-icon {
+    color: var(--brand-puce);
+  }
+  .faq-item p {
+    padding: 0 16px 16px;
+    border-top: none;
+  }
+}
+
+/* ── MOBILE-ONLY / DESKTOP-ONLY UTILITIES ──
+   New sections built for the mobile clone (see HomePage.js) render this
+   markup unconditionally; these utilities are what keep it invisible at
+   desktop widths without touching a single existing selector. */
+@media (min-width: 768px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+@media (max-width: 767.98px) {
+  .desktop-only {
+    display: none !important;
+  }
+  
+  /* ── EXACT MOBILE NAVBAR (Amber Style) ── */
+  .navbar {
+    background: #5E3A6B !important;
+    border-bottom: none !important;
+    height: 60px !important;
+  }
+  .navbar-scrolled {
+    background: #5E3A6B !important;
+    box-shadow: none !important;
+  }
+
+  /* Keep the real two-tone wordmark (gold IVY, gradient-clipped) — only
+     "huts" needs to flip to white here, since it was styled dark-purple-
+     on-white and the navbar itself is now solid brand-purple. */
+  .logo-ivy, .logo-huts {
+    font-size: 1.8rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.5px !important;
+  }
+  .logo-huts {
+    color: #fff !important;
+  }
+  .ham-line {
+    background: #fff !important;
+  }
+  .nav-mobile-right .nav-wishlist-btn,
+  .nav-mobile-right .nav-wa-btn {
+    display: none !important;
+  }
+}
+
+/* ── COMPACT PROPERTY CARD EXTRAS ── */
+.chp-image-container {
+  position: relative;
+}
+.chp-floating-heart {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+}
+.chp-floating-heart .wishlist-heart-btn {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-radius: 50%;
+  padding: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── MOBILE CITY GRID & TABS OVERRIDE ── */
+@media (max-width: 639px) {
+  .city-tab-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    gap: 16px !important;
+    padding-bottom: 12px !important;
+    margin-bottom: 16px !important;
+    scroll-snap-type: x proximity;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .city-tab-row::-webkit-scrollbar { display: none; }
+  
+  .country-filter-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    background: none !important;
+    border: 1px solid transparent !important;
+    padding: 8px !important;
+    border-radius: 12px !important;
+    min-width: 72px !important;
+    scroll-snap-align: start;
+    transition: border-color 0.2s !important;
+  }
+  .country-filter-btn.active {
+    border-color: #B05E72 !important;
+    box-shadow: 0 2px 8px rgba(176, 94, 114, 0.15) !important;
+  }
+  .country-filter-flag-wrap {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+  .country-filter-flag {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+  .country-filter-label {
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    color: #333 !important;
+    text-transform: uppercase !important;
+  }
+
+  .city-grid {
+    display: grid !important;
+    grid-template-rows: repeat(2, 1fr) !important;
+    grid-auto-flow: column !important;
+    grid-auto-columns: calc(50vw - 24px) !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 12px !important;
+    padding-bottom: 12px !important;
+    scroll-snap-type: x proximity !important;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .city-grid::-webkit-scrollbar { display: none; }
+  
+  .city-grid > .city-card-item {
+    flex: unset !important;
+    min-width: unset !important;
+    width: 100% !important;
+    scroll-snap-align: start;
+  }
+  
+  .city-card-image {
+    aspect-ratio: 1 / 1 !important;
+  }
+  
+  .city-grid > .city-card-item:nth-child(n) {
+    display: block !important;
+  }
+}

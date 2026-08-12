@@ -100,26 +100,48 @@
   stroke-width: 2.5;
 }
 
-/* ── MOBILE — stack vertically, no horizontal overflow ── */
+/* ── MOBILE — one compact row instead of a tall vertical stack. Each stage
+   is an equal third (flex-basis 0, not a fixed pixel width) so the row
+   always fits the available width instead of forcing it wider — a fixed
+   width here would blow out the hero card's layout. Titles wrap onto a
+   couple of short lines within their column instead. ── */
 @media (max-width: 640px) {
-  .hero-journey-flow { max-width: 340px; margin: 22px auto 20px; text-align: left; }
+  .hero-journey-flow { max-width: 100%; margin: 18px 0 0; text-align: left; }
 
   .hero-journey-main {
-    flex-direction: column;
-    gap: 14px;
+    flex-wrap: nowrap;
+    gap: 0;
   }
 
   .hero-journey-stage {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-width: 0;
-    width: 100%;
+    width: auto;
+  }
+
+  .hero-journey-stage-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .hero-journey-stage-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .hero-journey-stage-title {
+    font-size: 0.74rem;
+    line-height: 1.25;
   }
 
   .hero-journey-connector {
-    width: auto;
-    padding-top: 0;
-    transform: rotate(90deg);
-    align-self: flex-start;
-    margin-left: 17px;
+    flex: 0 0 auto;
+    width: 16px;
+    padding-top: 6px;
+  }
+
+  .hero-journey-connector svg {
+    width: 13px;
+    height: 13px;
   }
 }

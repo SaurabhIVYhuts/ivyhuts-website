@@ -197,6 +197,9 @@
   gap: 6px;
 }
 
+/* .pill-flag lives in global.css — reused by chip/pill buttons across
+   several pages, not just this one. */
+
 /* Amber-style active filter: red border + light red fill, using the
    error-red already established in the toolbar (PropertyListingPage.css)
    rather than introducing a new colour into the palette. */
@@ -216,17 +219,651 @@
   pointer-events: none;
 }
 
-/* ── RESPONSIVE ──
-   Hero's own column stacking + item reordering below 1020px lives in
-   global.css (single source of truth for the hero breakpoint) — only the
-   search form's internal input/button layout is scoped here. */
-@media (max-width: 640px) {
-  .hero-search-form {
+@media (min-width: 769px) {
+  .mobile-hero-text { display: none !important; }
+  .hero-search-btn-icon { display: none !important; }
+  .mobile-only-input { display: none !important; }
+}
+
+@media (max-width: 768px) {
+  /* Hide desktop text & icon & input */
+  .desktop-hero-text { display: none !important; }
+  .desktop-only-icon { display: none !important; }
+  .desktop-only-input { display: none !important; }
+  
+  /* Hero section wrapper redesign to seamlessly connect to navbar */
+  .hero {
+    background: #5E3A6B !important;
+    padding-top: 0 !important;
+  }
+  
+  /* Hero card redesign */
+  .hero-card-group, .hero-purple-box {
+    background: #5E3A6B !important; 
+    border-radius: 0 0 24px 24px !important;
+  }
+  .hero-purple-box {
+    padding-top: 10px;
+  }
+  
+  /* Reorder text and search form */
+  .hero-text {
+    display: flex;
     flex-direction: column;
+  }
+  .hero-header-row {
+    order: 0;
+  }
+  .hero-search-form {
+    order: -1;
+    margin-bottom: 16px;
+    flex-direction: row;
+    align-items: center;
+    background: #fff;
+    border-radius: 50px;
+    padding: 5px;
+    gap: 0;
     max-width: 100%;
   }
 
-  .hero-search-btn { width: 100%; }
+  /* Mobile text styling — kept compact (smaller heading, tighter gaps) so
+     the whole card stays close to Amber's actual hero height instead of
+     growing tall again once the stat cards + step row sit inside it. */
+  .mobile-hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 14px;
+  }
 
+  .mobile-hero-title {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #fff;
+    text-align: left;
+  }
+  .mobile-hero-title h1 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    line-height: 1.25;
+    margin: 0;
+  }
+  .mobile-hero-title .hero-sub-tagline {
+    font-size: 0.86rem;
+    line-height: 1.4;
+    margin: 0;
+    opacity: 0.95;
+    max-width: 90%;
+  }
+
+  /* Live stat cards (see HeroInventoryCards in HomePage.js) — a fixed
+     3-up grid, all cards always fully visible (no scroll/crop/auto-advance
+     jank). Glass-panel treatment matches the desktop hero redesign: a
+     translucent blurred card with the per-stat accent color living only in
+     the icon chip, instead of a loud opaque pastel block. */
+  .mobile-stats-carousel .hero-stat-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .mobile-stats-carousel .stat-card {
+    aspect-ratio: auto;
+    padding: 12px 6px;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 6px 16px rgba(20, 10, 25, 0.2);
+    border-radius: 16px;
+  }
+  .mobile-stats-carousel .stat-card-icon-badge {
+    width: 28px;
+    height: 28px;
+  }
+  .mobile-stats-carousel .stat-card-icon {
+    width: 13px;
+    height: 13px;
+  }
+  .mobile-stats-carousel .stat-card-value {
+    font-size: 0.98rem;
+    color: #fff;
+  }
+  .mobile-stats-carousel .stat-card-label {
+    font-size: 0.5rem;
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  /* 3-step process row — gold-tinted glass icon chips (matches the
+     desktop journey-strip redesign) on a subtle gradient band, with the
+     connector arrow centered on the icon row via align-items:center +
+     align-self on the step column, instead of a hand-tuned margin-top. */
+  .mobile-process-card {
+    background: linear-gradient(135deg, #472F4D 0%, #5E3A6B 100%);
+    border-radius: 18px;
+    padding: 18px 12px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  }
+  .process-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    flex: 1;
+    gap: 8px;
+  }
+  .process-icon {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(245, 217, 120, 0.14);
+    border: 1px solid rgba(245, 217, 120, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #F5D978;
+  }
+  .process-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+  .process-badge {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    background: #C8960C;
+    color: #472F4D;
+    font-size: 0.58rem;
+    font-weight: 800;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #472F4D;
+  }
+  .process-text {
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+  }
+  .process-arrow {
+    color: #B49E7C;
+    margin-top: 13px;
+    flex-shrink: 0;
+  }
+
+  /* Search input styling */
+  .hero-search-input-wrap {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    flex: 1;
+  }
+  .hero-search-input {
+    background: transparent;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #333;
+    flex: 1;
+    box-shadow: none;
+  }
+  .hero-search-input.mobile-only-input::placeholder {
+    color: #333;
+    font-weight: 600;
+  }
+  
+  .hero-search-btn {
+    background: linear-gradient(135deg, #C47A8A 0%, #B05E72 100%);
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: unset;
+    box-shadow: none;
+    flex-shrink: 0;
+  }
+  .hero-search-btn-text { display: none; }
+  .hero-search-btn-icon { display: block !important; color: #fff; }
+  .search-autocomplete-footer {
+    display: none;
+  }
+
+  /* Hide background patterns */
   .hero-pin-pattern { display: none; }
+  .hero-tagline { display: none; }
+  .hero-bg-ring, .hero-bg-lines { display: none; }
 }
+
+/* ── RECENT HISTORY SECTIONS ── */
+.recent-history-section {
+  padding: 24px 16px;
+  background: #fff;
+}
+
+.recent-history-section.has-top-border {
+  border-top: 1px solid #EBEBEB;
+}
+
+.section-heading-minimal h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 16px;
+}
+
+/* Recent Searches Row */
+.recent-searches-row {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px; /* scrollbar breathing room */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.recent-searches-row::-webkit-scrollbar {
+  display: none;
+}
+
+.recent-search-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #fff;
+  border: 1px solid #EBEBEB;
+  border-radius: 40px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.recent-search-pill:active {
+  background: #f9f9f9;
+}
+
+/* Recent Properties Scroller */
+.recent-properties-scroller {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  margin-right: -16px; /* Bleed to right edge */
+  padding-right: 16px;
+}
+.recent-properties-scroller::-webkit-scrollbar {
+  display: none;
+}
+.recent-properties-scroller .chp-card {
+  min-width: 260px;
+  max-width: 280px;
+  flex: 0 0 auto;
+}
+
+/* ── POPULAR CITIES (Amber Style) ── */
+.section-heading-popular {
+  margin-bottom: 20px;
+}
+.section-heading-popular .section-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #000;
+  margin: 0 0 6px;
+}
+.section-heading-popular .section-subtitle {
+  font-size: 0.95rem;
+  color: #555;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Country Tabs */
+.city-tab-row {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.city-tab-row::-webkit-scrollbar {
+  display: none;
+}
+.country-filter-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  min-width: 70px;
+}
+.country-filter-flag-wrap {
+  width: 70px;
+  height: 70px;
+  border-radius: 16px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  transition: border-color 0.2s;
+  margin-bottom: 8px;
+}
+.country-filter-btn.active .country-filter-flag-wrap {
+  border-color: #B05E72;
+}
+.country-filter-flag {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+.country-filter-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #333;
+}
+
+/* City Grid - Mobile Override */
+@media (max-width: 768px) {
+  .city-grid {
+    display: grid !important;
+    grid-template-rows: auto auto !important;
+    grid-auto-flow: column !important;
+    gap: 12px !important;
+    overflow-x: auto !important;
+    padding-bottom: 16px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    grid-template-columns: none !important;
+  }
+  .city-grid::-webkit-scrollbar {
+    display: none !important;
+  }
+  .city-grid > li {
+    width: 135px;
+    height: 170px;
+  }
+  .city-card {
+    height: 100% !important;
+    aspect-ratio: unset !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+  .city-card-image {
+    height: 100% !important;
+  }
+  .city-card-image img {
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+  .city-card-overlay {
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%) !important;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 14px !important;
+  }
+  .city-card-overlay h3 {
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    width: 100% !important;
+    margin: 0 !important;
+    color: #fff !important;
+  }
+  .city-card-overlay p {
+    display: none !important;
+  }
+}
+
+/* ── MOBILE STATS STRIP ── */
+.mobile-stats-strip {
+  background: #fff;
+  padding: 24px 16px;
+  border-top: 1px solid #EBEBEB;
+}
+.mobile-stats-grid {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.mobile-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+}
+.mobile-stat-icon {
+  width: 28px;
+  height: 28px;
+  color: #333;
+  margin-bottom: 12px;
+}
+.mobile-stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 4px;
+}
+.mobile-stat-label {
+  font-size: 0.75rem;
+  color: #555;
+}
+
+/* ── NEW MOBILE MARKETING SECTIONS ── */
+
+.filter-pills-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+  align-items: center;
+  scrollbar-width: none;
+}
+.filter-pills-row::-webkit-scrollbar { display: none; }
+.filter-pill {
+  padding: 6px 14px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.filter-pill.active {
+  border-color: #B07898;
+  color: #B05E72;
+  background: rgba(196, 122, 138, 0.1);
+}
+.filter-pill .chevron { font-size: 0.6rem; margin-left: 4px; color: #888; }
+.showing-text {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: #888;
+  padding-right: 16px;
+}
+.property-scroller {
+  display: flex;
+  overflow-x: auto;
+  gap: 12px;
+  padding: 4px 16px 16px 0;
+  list-style: none;
+  margin: 0;
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+}
+.property-scroller::-webkit-scrollbar { display: none; }
+.property-scroller-item {
+  flex: 0 0 260px;
+  scroll-snap-align: start;
+}
+
+.perfect-acc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+.perfect-acc-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  background: #FAFAFA;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #EEE;
+}
+.perfect-acc-icon {
+  display: flex;
+  color: #B05E72;
+  margin-bottom: 12px;
+}
+.perfect-acc-item h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: #111;
+  line-height: 1.3;
+}
+.perfect-acc-item p {
+  font-size: 0.8rem;
+  color: #555;
+  line-height: 1.4;
+  margin: 0;
+}
+
+
+.steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 24px;
+}
+.step-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.step-icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  background: rgba(196, 122, 138, 0.12);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  color: #B05E72;
+}
+.step-content {
+  padding-top: 4px;
+}
+.step-content h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 4px;
+}
+.step-content p {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ── 7. PARTNER / LIST OVERRIDE ── */
+.partner-list-row {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 16px;
+  scroll-snap-type: x mandatory;
+}
+.partner-list-row::-webkit-scrollbar { display: none; }
+.partner-list-card {
+  flex: 0 0 280px;
+  scroll-snap-align: start;
+  background: linear-gradient(135deg, #F1EAF4, #FBF4F8);
+  border-radius: 12px;
+  padding: 24px;
+  text-decoration: none;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.partner-list-card h3 { font-size: 1.2rem; font-weight: 800; margin: 4px 0 8px; color: #3A2442; }
+.partner-list-card p { font-size: 0.9rem; line-height: 1.4; margin-bottom: 20px; }
+.partner-list-eyebrow { font-size: 0.8rem; font-weight: 700; color: #5E3A6B; margin: 0; }
+.partner-list-card .btn-secondary { background: #fff; color: #5E3A6B; border: none; font-weight: 700; padding: 10px 20px; border-radius: 20px; box-shadow: 0 4px 10px rgba(94,58,107,0.12); }
+
+/* ── 8. HUNDREDS OF CITIES OVERRIDE ──
+   Section wrapper only — the tabs/link-grid themselves (.hoc-tab-row,
+   .hoc-tab, .hoc-link-grid, .hoc-link) are styled in global.css's mobile
+   block (proper horizontal-scroll grid with underlined links). They used
+   to be redefined here too with an older flex-wrap/no-underline treatment
+   that, being unscoped, always won the cascade over global.css's
+   mobile-only rules (this file is imported after global.css in App.js) —
+   that's what caused the unstyled, edge-clipped wrapped text. */
+.hundreds-cities-strip {
+  margin-top: 24px;
+  background: #FFF5F7;
+  padding: 24px 16px 32px;
+}
+
+/* ── 9. NEED HELP OVERRIDE ── */
+.need-help-strip { margin-top: 24px; margin-bottom: 32px; }
+.need-help-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.need-help-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 24px 12px;
+  text-decoration: none;
+  color: #333;
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+.need-help-tile svg { width: 32px; height: 32px; }
+.need-help-tile:nth-child(1) svg { color: #25D366; } /* WhatsApp — the same green used for every other WhatsApp touchpoint on the site */
+.need-help-tile:nth-child(2) svg { color: #C8960C; } /* Email — brand gold */
+.need-help-tile:nth-child(3) svg { color: #4A90D9; } /* Phone — matches the existing "support" accent used in .trust-icon--support */
+.need-help-tile:nth-child(4) svg { color: #5E3A6B; } /* Contact Us — brand purple */

@@ -56,7 +56,7 @@ function TenancyRow({ tenancy, room, onEnquire }) {
   );
 }
 
-export default function RoomTypeCard({ room, onEnquire }) {
+export default function RoomTypeCard({ room, onEnquire, fallbackImage }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [tenanciesExpanded, setTenanciesExpanded] = useState(false);
 
@@ -66,11 +66,27 @@ export default function RoomTypeCard({ room, onEnquire }) {
   const visibleTenancies = tenanciesExpanded ? room.tenancies : room.tenancies.slice(0, TENANCY_PREVIEW);
   const hiddenCount = room.tenancies.length - TENANCY_PREVIEW;
 
+  // Many room types come back from Amber with no room-specific photo — fall
+  // back to the property's own cover photo rather than leaving a flat,
+  // broken-looking blank tile at the top of the card.
+  const displayImage = room.image || fallbackImage;
+
   return (
     <div className={`room-type-card${room.available ? "" : " room-type-unavailable"}`}>
       <div className="room-type-summary">
         <div className="room-type-image">
-          {room.image ? <img src={room.image} alt={room.name} loading="lazy" /> : <div className="room-type-image-empty" />}
+          {displayImage ? (
+            <img src={displayImage} alt={room.name} loading="lazy" />
+          ) : (
+            <div className="room-type-image-empty">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="2" />
+                <circle cx="8.5" cy="10" r="1.5" />
+                <path d="M21 15l-5-5-9 9" />
+              </svg>
+              <span>Photo unavailable</span>
+            </div>
+          )}
         </div>
 
         <div className="room-type-info">

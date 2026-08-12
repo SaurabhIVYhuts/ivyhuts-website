@@ -6,6 +6,7 @@ import PropertyListingPage from "./pages/PropertyListingPage";
 import { initMetaPixel, trackPageView } from "./lib/metaPixel";
 import { bumpPageViewCount } from "./lib/pageViewCounter";
 import { WishlistProvider } from "./context/WishlistContext";
+import MobileBottomNav from "./components/layout/MobileBottomNav";
 
 const LoginPage                = lazy(() => import("./pages/LoginPage"));
 const WishlistPage             = lazy(() => import("./pages/WishlistPage"));
@@ -17,6 +18,7 @@ const StudentPlannerPage       = lazy(() => import("./pages/StudentPlannerPage")
 const PartnerPage              = lazy(() => import("./pages/PartnerPage"));
 const TermsPage                = lazy(() => import("./pages/legal/TermsPage"));
 const PrivacyPage              = lazy(() => import("./pages/legal/PrivacyPage"));
+const InsightPage              = lazy(() => import("./pages/insight/InsightPage"));
 
 /* ── SCROLL TO TOP ON ROUTE CHANGE ── */
 function ScrollToTop() {
@@ -50,7 +52,7 @@ function App() {
         <ScrollToTop />
         <MetaPixelTracker />
         <PageViewCounter />
-        <Suspense fallback={<div style={{ minHeight: "100vh", background: "#FBF4F8" }} />}>
+        <Suspense fallback={<div className="route-loading"><div className="route-loading-spinner" aria-label="Loading" /></div>}>
           <Routes>
             <Route path="/"               element={<HomePage />} />
             <Route path="/find-rooms"     element={<PropertyListingPage />} />
@@ -65,8 +67,10 @@ function App() {
             <Route path="/login"          element={<LoginPage />} />
             <Route path="/wishlist"       element={<WishlistPage />} />
             <Route path="/properties" element={<PropertyListingPage />} />
+            <Route path="/insight"    element={<InsightPage />} />
           </Routes>
         </Suspense>
+        <MobileBottomNav />
       </WishlistProvider>
     </Router>
   );

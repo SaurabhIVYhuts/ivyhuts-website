@@ -39,28 +39,29 @@ export default function CompactPropertyCard({ listing }) {
       onClick={goToDetails}
       onKeyDown={handleKeyDown}
     >
-      <PropertyImageGallery images={images} alt={name} badge={safeBadges[0]} />
-      <PropertyImageGallery
-        images={images}
-        alt={name}
-        badges={badges.slice(0, 2)}
-      />
+      <div className="chp-image-container">
+        <PropertyImageGallery
+          images={images}
+          alt={name}
+          badges={safeBadges.slice(0, 2)}
+        />
+        {wishlistSnapshot && (
+          <div className="chp-floating-heart">
+            <WishlistHeart property={wishlistSnapshot} />
+          </div>
+        )}
+      </div>
       <div className="chp-body">
         <h3 className="chp-title">{name}</h3>
         <p className="chp-location">{[safeAddress.locality, safeAddress.country].filter(Boolean).join(", ")}</p>
         <div className="chp-footer">
           {safePrice.from !== null ? (
-            <span className="chp-price">From {safePrice.currency}{safePrice.from}/{safePrice.duration || "wk"}</span>
+            <span className="chp-price">From <strong style={{color: '#000', fontSize: '1.05rem'}}>{safePrice.currency}{safePrice.from}</strong>/{safePrice.duration || "wk"}</span>
           ) : (
             <span className="chp-price">Price on request</span>
           )}
           {rating && <span className="chp-rating">★ {rating.overall}</span>}
         </div>
-        {wishlistSnapshot && (
-          <div className="chp-wishlist-row">
-            <WishlistHeart property={wishlistSnapshot} className="wishlist-heart-btn--on-light" />
-          </div>
-        )}
       </div>
     </div>
   );
