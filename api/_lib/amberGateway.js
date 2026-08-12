@@ -370,7 +370,15 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
         // this must never break the primary listings response if it fails.
         if (type === "listings" && params.city) {
             try {
-                const statsPayload = buildCityStatsPayloadFromListings(json);
+                // Same sanity check fetchListings applies to the primary
+                // response: don't derive/cache citystats from items Amber
+                // returned that don't actually belong to the requested city
+                // (see fetchListings' comment on the filter-gets-ignored case).
+                const cityLower = normalizeCityName(params.city);
+                const verifiedItems = extractResultArray(json).filter((item) => matchesCity(item, cityLower));
+                const statsPayload = verifiedItems.length > 0
+                    ? buildCityStatsPayloadFromListings({ message: json?.message, data: { result: verifiedItems, meta: { count: verifiedItems.length } } })
+                    : null;
                 if (statsPayload) {
                     const statsCacheKey = buildCacheKey("citystats", { city: params.city });
                     await sharedSet(statsCacheKey, { data: statsPayload, cachedAt: Date.now() }, TTL.citystats.maxAgeSeconds);
@@ -455,7 +463,14 @@ function matchesCity(item, cityLower) {
 }
 
 // Amber's `location_place_name` filter occasionally returns an empty result
-// for a city that does have listings. The fallback — fetch the unfiltered
+// for a city that does have listings — and, for a city string it doesn't
+// recognize at all (e.g. one not yet in its own location list), it can
+// instead silently ignore the filter and return its default/unfiltered page
+// rather than an empty one. Both are "the filter didn't actually apply";
+// checking only for emptiness would let the second case through unfiltered
+// and serve some other city's listings under this city's name, so every
+// primary result is sanity-checked against the requested city via
+// matchesCity() before being trusted. The fallback — fetch the unfiltered
 // dataset and filter server-side — is itself a normal fetchAmber() call, so
 // it's cached/budgeted/stampede-protected exactly like any other request.
 // Once that unfiltered dataset is cached once, every city's fallback becomes
@@ -474,7 +489,20 @@ function matchesCity(item, cityLower) {
 async function fetchListings(params, priority, source) {
     const deadlineAt = Date.now() + AMBER_FETCH_TIMEOUT_MS;
     const primary = await fetchAmber({ type: "listings", params, priority, source, deadlineAt });
-    if (extractResultArray(primary.data).length > 0 || !params.city) return primary;
+    if (!params.city) return primary;
+
+    const primaryItems = extractResultArray(primary.data);
+    const cityLower = normalizeCityName(params.city);
+    const matchedPrimary = primaryItems.filter((item) => matchesCity(item, cityLower));
+    if (matchedPrimary.length > 0) {
+        if (matchedPrimary.length === primaryItems.length) return primary;
+        // Amber returned a mix — keep only the items that actually belong to
+        // the requested city rather than trusting its filter wholesale.
+        return {
+            data: { message: primary.data?.message || "success", data: { result: matchedPrimary, meta: { count: matchedPrimary.length } } },
+            cacheStatus: primary.cacheStatus,
+        };
+    }
 
     // The fallback can now legitimately fail to even attempt Amber (deadline
     // already spent by a slow primary — see MIN_AMBER_ATTEMPT_MS) as well as
@@ -496,7 +524,6 @@ async function fetchListings(params, priority, source) {
         log(`source=${source} priority=${priority} action=FALLBACK_FAILED_SERVING_PRIMARY error=${err.message}`);
         return primary;
     }
-    const cityLower = normalizeCityName(params.city);
     const filtered = extractResultArray(fallback.data).filter((item) => matchesCity(item, cityLower));
     return {
         data: { message: "success", data: { result: filtered, meta: { count: filtered.length } } },
