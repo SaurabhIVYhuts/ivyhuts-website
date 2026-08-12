@@ -13,6 +13,7 @@ const PropertyDetailPage       = lazy(() => import("./pages/PropertyDetailPage")
 const LifeAbroadPage           = lazy(() => import("./pages/LifeAbroadPage"));
 const ListYourStayPage         = lazy(() => import("./pages/ListYourStayPage"));
 const ContactPage              = lazy(() => import("./pages/ContactPage"));
+const StudentPlannerPage       = lazy(() => import("./pages/StudentPlannerPage"));
 const PartnerPage              = lazy(() => import("./pages/PartnerPage"));
 const TermsPage                = lazy(() => import("./pages/legal/TermsPage"));
 const PrivacyPage              = lazy(() => import("./pages/legal/PrivacyPage"));
@@ -57,6 +58,7 @@ function App() {
             <Route path="/life-abroad"    element={<LifeAbroadPage />} />
             <Route path="/list-your-stay" element={<ListYourStayPage />} />
             <Route path="/contact"        element={<ContactPage />} />
+            <Route path="/student-planner" element={<StudentPlannerPage />} />
             <Route path="/partner"        element={<PartnerPage />} />
             <Route path="/terms"          element={<TermsPage />} />
             <Route path="/privacy"        element={<PrivacyPage />} />

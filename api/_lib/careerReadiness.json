@@ -1,0 +1,362 @@
+[
+  {
+    "careerId": "software-engineer",
+    "entryRoutes": ["Internship", "Graduate/entry-level developer role", "Junior developer role", "Campus recruitment", "Personal projects + direct applications"],
+    "portfolioExpectations": ["2-3 substantial software projects", "At least one deployed project", "Demonstrated Git/GitHub usage", "Clear README/documentation"],
+    "projectEvidence": ["Production-style web application", "Backend/API project", "Database-driven application", "Collaborative or open-source contribution"],
+    "interviewAreas": { "technical": ["Data Structures", "Algorithms", "Programming", "Databases"], "practical": ["Debugging", "Git", "Testing", "System design fundamentals"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Internship experience", "Deployed projects", "GitHub activity", "Coding/problem-solving practice"],
+    "preparationSteps": ["Strengthen core programming and data structures", "Build one substantial project end-to-end", "Learn testing and production practices", "Deploy and document the project", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "backend-engineer",
+    "entryRoutes": ["Internship", "Graduate/entry-level backend role", "Junior developer role", "Campus recruitment", "Personal API projects + direct applications"],
+    "portfolioExpectations": ["2-3 backend/API projects", "At least one deployed service", "Demonstrated database design", "Clear API documentation"],
+    "projectEvidence": ["REST or GraphQL API project", "Database-driven backend service", "Authentication/authorization implementation", "Collaborative or open-source contribution"],
+    "interviewAreas": { "technical": ["Data Structures", "Algorithms", "Databases", "System design"], "practical": ["API design", "Debugging", "Testing", "Version control"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Internship experience", "Deployed backend services", "GitHub activity", "API design practice"],
+    "preparationSteps": ["Strengthen programming and database fundamentals", "Build one substantial backend/API project", "Learn testing and deployment practices", "Document and deploy the service", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "frontend-engineer",
+    "entryRoutes": ["Internship", "Graduate/entry-level frontend role", "Junior developer role", "Campus recruitment", "Personal UI projects + direct applications"],
+    "portfolioExpectations": ["2-3 frontend projects", "At least one deployed, responsive site/app", "Demonstrated component-based development", "Clear README/documentation"],
+    "projectEvidence": ["Responsive web application", "Component library or design-system work", "API-integrated frontend project", "Collaborative or open-source contribution"],
+    "interviewAreas": { "technical": ["JavaScript fundamentals", "Programming", "Web Development", "UI Development"], "practical": ["Debugging", "Browser tooling", "Testing", "Version control"], "behavioral": ["Project explanation", "Design decisions", "Teamwork", "Communication"] },
+    "experienceSignals": ["Deployed frontend projects", "GitHub activity", "UI/UX practice", "Portfolio site"],
+    "preparationSteps": ["Strengthen core web development fundamentals", "Build one substantial frontend project", "Learn testing and accessibility practices", "Deploy and document the project", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "fullstack-developer",
+    "entryRoutes": ["Internship", "Graduate/entry-level full-stack role", "Junior developer role", "Campus recruitment", "Personal full-stack projects + direct applications"],
+    "portfolioExpectations": ["2-3 end-to-end projects", "At least one deployed full-stack application", "Demonstrated frontend + backend integration", "Clear README/documentation"],
+    "projectEvidence": ["Full-stack web application", "Database-driven backend with a working frontend", "API-integrated project", "Collaborative or open-source contribution"],
+    "interviewAreas": { "technical": ["Programming", "Web Development", "Databases", "APIs"], "practical": ["Debugging", "Testing", "Git", "System design fundamentals"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Deployed full-stack projects", "GitHub activity", "Internship experience", "Coding practice"],
+    "preparationSteps": ["Strengthen core programming across the stack", "Build one substantial full-stack project", "Learn testing and deployment practices", "Deploy and document the project", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "data-engineer",
+    "entryRoutes": ["Internship", "Graduate/entry-level data role", "Junior data engineer role", "Campus recruitment", "Personal data pipeline projects + direct applications"],
+    "portfolioExpectations": ["1-2 substantial data pipeline projects", "At least one project with real or public datasets", "Demonstrated SQL/database work", "Clear documentation of pipeline design"],
+    "projectEvidence": ["ETL/data pipeline project", "Database schema/design work", "Data pipeline deployed on cloud infrastructure", "Collaborative or open-source contribution"],
+    "interviewAreas": { "technical": ["SQL", "Data Pipelines", "Databases", "Programming"], "practical": ["Data modelling", "Debugging pipelines", "Testing data quality", "Version control"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Internship experience", "Deployed data pipelines", "GitHub activity", "Dataset/pipeline projects"],
+    "preparationSteps": ["Strengthen SQL and data modelling fundamentals", "Build one substantial data pipeline project", "Learn cloud data tooling basics", "Deploy and document the pipeline", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "machine-learning-engineer",
+    "entryRoutes": ["Internship", "Graduate/entry-level ML role", "Junior ML engineer role", "Campus recruitment", "Personal ML projects + direct applications"],
+    "portfolioExpectations": ["1-2 substantial ML projects", "At least one project with a trained and evaluated model", "Demonstrated data preprocessing work", "Clear documentation of methodology and results"],
+    "projectEvidence": ["ML pipeline", "Model training/evaluation project", "Deployed model/API", "Data preprocessing project"],
+    "interviewAreas": { "technical": ["Machine Learning", "Statistics", "Programming", "Model Building"], "practical": ["Data preprocessing", "Model evaluation", "Debugging", "Version control"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Internship experience", "Deployed ML models", "GitHub activity", "ML competition or coursework projects"],
+    "preparationSteps": ["Strengthen core ML and statistics fundamentals", "Build one substantial ML project end-to-end", "Learn model evaluation and deployment basics", "Deploy and document the model", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "ai-engineer",
+    "entryRoutes": ["Internship", "Graduate/entry-level AI role", "Junior AI engineer role", "Campus recruitment", "Personal AI projects + direct applications"],
+    "portfolioExpectations": ["1-2 substantial AI projects", "At least one project with a deployed model or API", "Demonstrated understanding of model evaluation", "Clear documentation of methodology"],
+    "projectEvidence": ["Deep learning project", "Model training/evaluation project", "Deployed model/API", "Data preprocessing project"],
+    "interviewAreas": { "technical": ["Machine Learning", "Deep Learning", "Algorithms", "Programming"], "practical": ["Model evaluation", "Debugging", "Deployment basics", "Version control"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Internship experience", "Deployed AI models", "GitHub activity", "AI coursework/competition projects"],
+    "preparationSteps": ["Strengthen core ML/deep learning fundamentals", "Build one substantial AI project end-to-end", "Learn model deployment basics", "Deploy and document the project", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "data-scientist",
+    "entryRoutes": ["Internship", "Graduate/entry-level data role", "Junior data scientist role", "Campus recruitment", "Personal analysis projects + direct applications"],
+    "portfolioExpectations": ["1-2 substantial analysis projects", "At least one project with a real or public dataset", "Demonstrated statistical analysis and visualization", "Clear write-up of findings and methodology"],
+    "projectEvidence": ["Exploratory data analysis project", "Statistical modelling project", "Data visualization/dashboard project", "Machine learning project with evaluation"],
+    "interviewAreas": { "technical": ["Statistics", "Programming", "Data Analysis", "Machine Learning"], "practical": ["Data visualization", "Model evaluation", "Debugging", "Version control"], "behavioral": ["Project explanation", "Communicating findings", "Teamwork", "Problem-solving examples"] },
+    "experienceSignals": ["Internship experience", "Published analysis/portfolio projects", "GitHub activity", "Coursework or competition projects"],
+    "preparationSteps": ["Strengthen statistics and programming fundamentals", "Build one substantial analysis project end-to-end", "Learn data visualization and communication", "Document and share findings clearly", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "cybersecurity-engineer",
+    "entryRoutes": ["Internship", "Graduate/entry-level security role", "Junior security engineer role", "Campus recruitment", "Personal security labs + direct applications"],
+    "portfolioExpectations": ["1-2 security-focused projects", "At least one hands-on lab or CTF writeup", "Demonstrated secure system design", "Clear documentation of findings/approach"],
+    "projectEvidence": ["Security lab or home-lab setup", "Vulnerability analysis writeup", "Secure application build", "Network/security tooling project"],
+    "interviewAreas": { "technical": ["Network Security", "Security Operations", "Risk Assessment", "Programming"], "practical": ["Threat analysis", "Incident response basics", "Tooling familiarity", "Debugging"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Internship experience", "CTF participation", "Home-lab/security projects", "GitHub or writeup activity"],
+    "preparationSteps": ["Strengthen networking and security fundamentals", "Build a hands-on security lab or project", "Practice vulnerability analysis", "Document findings clearly", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "security-analyst",
+    "entryRoutes": ["Internship", "Graduate/entry-level SOC analyst role", "Junior security analyst role", "Campus recruitment", "Certifications + direct applications"],
+    "portfolioExpectations": ["1-2 security monitoring/analysis projects", "Demonstrated familiarity with SIEM/monitoring tools", "Evidence of incident-response practice", "Clear documentation of investigations"],
+    "projectEvidence": ["Security monitoring/home-lab project", "Log analysis writeup", "Simulated incident-response exercise", "Network/security tooling project"],
+    "interviewAreas": { "technical": ["Network Security", "Threat Analysis", "Security Operations"], "practical": ["Log analysis", "Monitoring tools", "Incident response basics"], "behavioral": ["Project explanation", "Problem-solving examples", "Communication", "Attention to detail"] },
+    "experienceSignals": ["Internship experience", "Security certifications in progress", "Home-lab projects", "CTF participation"],
+    "preparationSteps": ["Strengthen networking and security fundamentals", "Build a monitoring/analysis home-lab project", "Practice log analysis and incident response", "Document investigations clearly", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "penetration-tester",
+    "entryRoutes": ["Internship", "Graduate/entry-level security role", "Junior penetration tester role", "CTF/competition-driven entry", "Certifications + direct applications"],
+    "portfolioExpectations": ["1-2 CTF or lab writeups", "Demonstrated ethical hacking practice in a legal/lab environment", "Evidence of vulnerability reporting", "Clear, professional writeups"],
+    "projectEvidence": ["CTF challenge writeups", "Vulnerability assessment lab", "Exploit/PoC development in a sanctioned lab", "Security tooling project"],
+    "interviewAreas": { "technical": ["Ethical Hacking", "Vulnerability Assessment", "Network Security"], "practical": ["Tooling familiarity", "Reporting", "Scripting"], "behavioral": ["Project explanation", "Ethics and professionalism", "Problem-solving examples", "Communication"] },
+    "experienceSignals": ["CTF participation", "Certifications in progress", "Home-lab/writeup activity", "Bug bounty participation (where legal/sanctioned)"],
+    "preparationSteps": ["Strengthen networking and security fundamentals", "Practice in legal lab environments (e.g. CTFs)", "Build a portfolio of writeups", "Learn professional reporting standards", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "security-engineer",
+    "entryRoutes": ["Internship", "Graduate/entry-level security engineering role", "Junior security engineer role", "Campus recruitment", "Personal secure-development projects + direct applications"],
+    "portfolioExpectations": ["1-2 secure-development projects", "Demonstrated secure coding practices", "Evidence of vulnerability remediation", "Clear documentation of security decisions"],
+    "projectEvidence": ["Secure application build", "Vulnerability remediation writeup", "Security automation/tooling project", "Collaborative or open-source contribution"],
+    "interviewAreas": { "technical": ["Network Security", "Secure Coding", "Security Auditing", "Programming"], "practical": ["Threat modelling", "Debugging", "Tooling familiarity", "Version control"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Internship experience", "Deployed secure applications", "GitHub activity", "Security certifications in progress"],
+    "preparationSteps": ["Strengthen secure coding fundamentals", "Build a secure application project", "Practice threat modelling", "Document security decisions clearly", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "cloud-engineer",
+    "entryRoutes": ["Internship", "Graduate/entry-level cloud role", "Junior cloud engineer role", "Campus recruitment", "Personal cloud projects + direct applications"],
+    "portfolioExpectations": ["1-2 cloud infrastructure projects", "At least one deployed, cloud-hosted project", "Demonstrated automation/infrastructure-as-code work", "Clear documentation of architecture"],
+    "projectEvidence": ["Cloud-hosted application deployment", "Infrastructure-as-code project", "Containerized application", "CI/CD pipeline setup"],
+    "interviewAreas": { "technical": ["Cloud Platforms", "Networking", "Automation"], "practical": ["Deployment", "Debugging infrastructure", "Tooling familiarity"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Internship experience", "Cloud certifications in progress", "Deployed cloud projects", "GitHub/infra-as-code activity"],
+    "preparationSteps": ["Strengthen cloud platform fundamentals", "Build one substantial cloud-hosted project", "Learn infrastructure-as-code and automation", "Document the architecture clearly", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "it-support-specialist",
+    "entryRoutes": ["Entry-level helpdesk/support role", "Graduate IT support scheme", "Internship", "Certifications + direct applications"],
+    "portfolioExpectations": ["Evidence of hands-on troubleshooting practice", "Familiarity with common support ticketing/tools", "Clear, organized documentation habits"],
+    "projectEvidence": ["Home-lab troubleshooting setup", "Documented resolution of real support issues", "Basic scripting/automation for repetitive tasks"],
+    "interviewAreas": { "technical": ["IT Support", "Troubleshooting", "Networking"], "practical": ["Ticketing systems", "Customer communication", "Documentation"], "behavioral": ["Handling frustrated users", "Problem-solving examples", "Communication", "Patience under pressure"] },
+    "experienceSignals": ["Internship or part-time support experience", "Relevant certifications in progress", "Home-lab troubleshooting practice", "Volunteer/informal tech support experience"],
+    "preparationSteps": ["Strengthen networking and troubleshooting fundamentals", "Practice on a home lab or volunteer support role", "Learn a ticketing/support tool", "Build clear documentation habits", "Practice behavioral interviews", "Apply for entry-level support roles"]
+  },
+  {
+    "careerId": "systems-administrator",
+    "entryRoutes": ["Entry-level sysadmin role", "Graduate IT scheme", "Internship", "Certifications + direct applications"],
+    "portfolioExpectations": ["Home-lab server/network setup", "Evidence of scripting/automation work", "Clear documentation of system configurations"],
+    "projectEvidence": ["Home-lab server administration project", "Automation script for routine maintenance", "Monitoring/alerting setup"],
+    "interviewAreas": { "technical": ["Systems Administration", "Networking", "Scripting"], "practical": ["Automation", "Monitoring tools", "Troubleshooting"], "behavioral": ["Problem-solving examples", "Communication", "Reliability under pressure"] },
+    "experienceSignals": ["Internship experience", "Certifications in progress", "Home-lab administration projects", "Scripting/automation activity"],
+    "preparationSteps": ["Strengthen systems and networking fundamentals", "Build a home-lab administration project", "Learn scripting for automation", "Document configurations clearly", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "network-engineer",
+    "entryRoutes": ["Entry-level network role", "Graduate IT scheme", "Internship", "Certifications + direct applications"],
+    "portfolioExpectations": ["Home-lab network setup", "Evidence of troubleshooting complex network issues", "Clear network diagrams/documentation"],
+    "projectEvidence": ["Home-lab network build/simulation", "Network troubleshooting writeup", "Basic automation/scripting for network tasks"],
+    "interviewAreas": { "technical": ["Networking", "Troubleshooting", "Security Fundamentals"], "practical": ["Network tooling", "Diagramming", "Monitoring"], "behavioral": ["Problem-solving examples", "Communication", "Reliability under pressure"] },
+    "experienceSignals": ["Internship experience", "Networking certifications in progress", "Home-lab projects", "Troubleshooting practice"],
+    "preparationSteps": ["Strengthen core networking fundamentals", "Build a home-lab network project", "Practice troubleshooting scenarios", "Document network designs clearly", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "mobile-app-developer",
+    "entryRoutes": ["Internship", "Graduate/entry-level mobile role", "Junior mobile developer role", "Campus recruitment", "Personal app projects + direct applications"],
+    "portfolioExpectations": ["2-3 mobile app projects", "At least one published/deployed app", "Demonstrated UI and performance considerations", "Clear README/documentation"],
+    "projectEvidence": ["Published or side-loaded mobile application", "API-integrated mobile app", "Cross-platform app project", "Collaborative or open-source contribution"],
+    "interviewAreas": { "technical": ["Programming", "Mobile UI", "App Performance"], "practical": ["Debugging", "Testing", "Version control"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Internship experience", "Published apps", "GitHub activity", "App store/TestFlight releases"],
+    "preparationSteps": ["Strengthen core mobile development fundamentals", "Build one substantial mobile app project", "Learn testing and performance practices", "Publish/deploy and document the app", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "embedded-systems-engineer",
+    "entryRoutes": ["Internship", "Graduate/entry-level embedded role", "Junior embedded engineer role", "Campus recruitment", "Personal hardware projects + direct applications"],
+    "portfolioExpectations": ["1-2 embedded/hardware projects", "Evidence of firmware/microcontroller work", "Clear documentation of circuit/system design"],
+    "projectEvidence": ["Microcontroller-based project", "Sensor integration project", "Real-time system prototype", "Firmware development project"],
+    "interviewAreas": { "technical": ["Embedded Systems", "Programming", "Microcontrollers"], "practical": ["Debugging hardware/firmware", "Testing", "Documentation"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Internship experience", "Hardware/hobbyist projects", "Lab/coursework projects", "GitHub or writeup activity"],
+    "preparationSteps": ["Strengthen embedded systems fundamentals", "Build one substantial hardware/firmware project", "Practice debugging hardware issues", "Document the system design clearly", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "hardware-engineer",
+    "entryRoutes": ["Internship", "Graduate/entry-level hardware role", "Junior hardware engineer role", "Campus recruitment", "Personal circuit-design projects + direct applications"],
+    "portfolioExpectations": ["1-2 circuit/hardware design projects", "Evidence of simulation or prototyping work", "Clear schematics/documentation"],
+    "projectEvidence": ["Circuit design/simulation project", "PCB prototype", "Digital logic design project", "Lab/coursework hardware project"],
+    "interviewAreas": { "technical": ["Digital Logic", "Circuit Design", "Computer Architecture"], "practical": ["Simulation tools", "Prototyping", "Debugging"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Internship experience", "Lab/coursework projects", "Hobbyist hardware projects", "Simulation/prototyping activity"],
+    "preparationSteps": ["Strengthen digital logic and circuit fundamentals", "Build one substantial hardware design project", "Practice with simulation tools", "Document schematics clearly", "Practice technical interviews", "Apply for internships/junior roles"]
+  },
+  {
+    "careerId": "business-analyst",
+    "entryRoutes": ["Graduate scheme", "Internship", "Entry-level business analyst role", "Direct applications with a strong project/case-study portfolio"],
+    "portfolioExpectations": ["1-2 case-study style analysis projects", "Evidence of process mapping or requirements-gathering", "Clear, structured written reports"],
+    "projectEvidence": ["Business process analysis writeup", "Data-driven recommendation report", "Requirements-gathering case study"],
+    "interviewAreas": { "technical": ["Business Strategy", "Data Analysis"], "practical": ["Process mapping", "Stakeholder interviews", "Reporting"], "behavioral": ["Case-study reasoning", "Communication", "Stakeholder management", "Problem-solving examples"] },
+    "experienceSignals": ["Internship experience", "Case-study competitions", "Society/club leadership", "Data analysis coursework projects"],
+    "preparationSteps": ["Strengthen business analysis fundamentals", "Practice a structured case study", "Build a process-improvement or data report", "Present findings clearly", "Practice case-study interviews", "Apply for graduate schemes/internships"]
+  },
+  {
+    "careerId": "product-analyst",
+    "entryRoutes": ["Graduate scheme", "Internship", "Entry-level product analyst role", "Direct applications with a product case-study portfolio"],
+    "portfolioExpectations": ["1-2 product analysis case studies", "Evidence of data-driven product reasoning", "Clear dashboards or written recommendations"],
+    "projectEvidence": ["Product usage/data analysis writeup", "Dashboard or metrics project", "Product improvement case study"],
+    "interviewAreas": { "technical": ["Data Analysis", "Market Research"], "practical": ["Dashboards", "Prioritization frameworks", "Reporting"], "behavioral": ["Case-study reasoning", "Communication", "Stakeholder thinking", "Problem-solving examples"] },
+    "experienceSignals": ["Internship experience", "Product case-study competitions", "Data analysis coursework projects", "Personal product teardown writeups"],
+    "preparationSteps": ["Strengthen data analysis fundamentals", "Practice a product case study", "Build a metrics/dashboard project", "Present findings clearly", "Practice case-study interviews", "Apply for graduate schemes/internships"]
+  },
+  {
+    "careerId": "operations-analyst",
+    "entryRoutes": ["Graduate scheme", "Internship", "Entry-level operations analyst role", "Direct applications with a process-improvement portfolio"],
+    "portfolioExpectations": ["1-2 process-improvement case studies", "Evidence of data-driven operational reasoning", "Clear written reports/recommendations"],
+    "projectEvidence": ["Process-improvement case study", "Operational data analysis writeup", "Supply chain/logistics case study"],
+    "interviewAreas": { "technical": ["Process Improvement", "Data Analysis"], "practical": ["Process mapping", "Reporting", "Quality control thinking"], "behavioral": ["Case-study reasoning", "Communication", "Problem-solving examples", "Attention to detail"] },
+    "experienceSignals": ["Internship experience", "Case-study competitions", "Operations/process coursework projects", "Society/club operational roles"],
+    "preparationSteps": ["Strengthen operations and process-analysis fundamentals", "Practice a structured case study", "Build a process-improvement report", "Present findings clearly", "Practice case-study interviews", "Apply for graduate schemes/internships"]
+  },
+  {
+    "careerId": "marketing-specialist",
+    "entryRoutes": ["Graduate scheme", "Internship", "Entry-level marketing role", "Direct applications with a campaign portfolio"],
+    "portfolioExpectations": ["1-2 campaign or content projects", "Evidence of audience/market research", "A portfolio of writing/creative work"],
+    "projectEvidence": ["Sample marketing campaign plan", "Content/social media portfolio", "Market research writeup"],
+    "interviewAreas": { "technical": ["Market Research", "Branding"], "practical": ["Campaign planning", "Content creation", "Analytics basics"], "behavioral": ["Creativity", "Communication", "Stakeholder thinking", "Problem-solving examples"] },
+    "experienceSignals": ["Internship experience", "Society/club marketing roles", "Personal content/social media projects", "Campaign case-study competitions"],
+    "preparationSteps": ["Strengthen marketing and branding fundamentals", "Build a sample campaign or content portfolio", "Practice audience/market research", "Present a campaign case study", "Practice interviews", "Apply for graduate schemes/internships"]
+  },
+  {
+    "careerId": "business-development-associate",
+    "entryRoutes": ["Graduate scheme", "Internship", "Entry-level business development role", "Direct applications with a strong communication portfolio"],
+    "portfolioExpectations": ["Evidence of outreach/relationship-building experience", "A sample pitch or proposal", "Clear written and verbal communication samples"],
+    "projectEvidence": ["Sample business pitch/proposal", "Market research writeup", "Society/club business-development activity"],
+    "interviewAreas": { "technical": ["Business Strategy", "Market Research"], "practical": ["Pitching", "Negotiation basics", "Networking"], "behavioral": ["Communication", "Resilience", "Relationship-building", "Problem-solving examples"] },
+    "experienceSignals": ["Internship experience", "Society/club leadership or outreach roles", "Sales/customer-facing experience", "Pitch competition participation"],
+    "preparationSteps": ["Strengthen business fundamentals and market awareness", "Practice a sample pitch or proposal", "Build outreach/networking experience", "Refine communication skills", "Practice behavioral interviews", "Apply for graduate schemes/internships"]
+  },
+  {
+    "careerId": "financial-analyst",
+    "entryRoutes": ["Graduate scheme", "Internship", "Entry-level analyst role", "Direct applications with a modelling portfolio"],
+    "portfolioExpectations": ["1-2 financial modelling case studies", "Evidence of spreadsheet/modelling proficiency", "Clear written analysis/recommendations"],
+    "projectEvidence": ["Financial model/valuation case study", "Company analysis writeup", "Coursework/competition financial project"],
+    "interviewAreas": { "technical": ["Financial Analysis", "Financial Modelling", "Statistics"], "practical": ["Spreadsheet modelling", "Reporting", "Valuation basics"], "behavioral": ["Case-study reasoning", "Communication", "Attention to detail", "Problem-solving examples"] },
+    "experienceSignals": ["Internship experience", "Finance society/competition participation", "Modelling coursework projects", "Relevant certifications in progress"],
+    "preparationSteps": ["Strengthen financial analysis and modelling fundamentals", "Build a sample financial model or case study", "Practice spreadsheet proficiency", "Present findings clearly", "Practice case-study interviews", "Apply for graduate schemes/internships"]
+  },
+  {
+    "careerId": "investment-analyst",
+    "entryRoutes": ["Graduate scheme", "Internship", "Entry-level investment analyst role", "Direct applications with a valuation portfolio"],
+    "portfolioExpectations": ["1-2 investment case studies/stock pitches", "Evidence of valuation/modelling proficiency", "Clear written investment theses"],
+    "projectEvidence": ["Stock/investment pitch", "Valuation model", "Market research writeup"],
+    "interviewAreas": { "technical": ["Valuation", "Financial Modelling", "Market Research"], "practical": ["Spreadsheet modelling", "Reporting", "Portfolio analysis basics"], "behavioral": ["Case-study reasoning", "Communication", "Attention to detail", "Problem-solving examples"] },
+    "experienceSignals": ["Internship experience", "Investment society/competition participation", "Stock-pitch competitions", "Relevant certifications in progress"],
+    "preparationSteps": ["Strengthen valuation and financial modelling fundamentals", "Build a sample stock pitch or investment thesis", "Practice spreadsheet proficiency", "Present findings clearly", "Practice case-study interviews", "Apply for graduate schemes/internships"]
+  },
+  {
+    "careerId": "risk-analyst",
+    "entryRoutes": ["Graduate scheme", "Internship", "Entry-level risk analyst role", "Direct applications with an analytical portfolio"],
+    "portfolioExpectations": ["1-2 risk-assessment case studies", "Evidence of statistical/data analysis proficiency", "Clear written risk reports"],
+    "projectEvidence": ["Risk-assessment case study", "Statistical analysis writeup", "Regulatory/compliance research project"],
+    "interviewAreas": { "technical": ["Risk Assessment", "Statistics", "Regulatory Compliance"], "practical": ["Data analysis", "Reporting", "Modelling basics"], "behavioral": ["Case-study reasoning", "Communication", "Attention to detail", "Problem-solving examples"] },
+    "experienceSignals": ["Internship experience", "Finance/risk society participation", "Analytical coursework projects", "Relevant certifications in progress"],
+    "preparationSteps": ["Strengthen risk-assessment and statistics fundamentals", "Build a sample risk-assessment case study", "Practice data analysis and reporting", "Present findings clearly", "Practice case-study interviews", "Apply for graduate schemes/internships"]
+  },
+  {
+    "careerId": "corporate-finance-analyst",
+    "entryRoutes": ["Graduate scheme", "Internship", "Entry-level corporate finance role", "Direct applications with a modelling portfolio"],
+    "portfolioExpectations": ["1-2 budgeting/planning case studies", "Evidence of financial reporting proficiency", "Clear written analysis/recommendations"],
+    "projectEvidence": ["Budgeting/capital-planning case study", "Financial reporting exercise", "Coursework/competition finance project"],
+    "interviewAreas": { "technical": ["Budgeting", "Capital Structure", "Financial Reporting"], "practical": ["Spreadsheet modelling", "Reporting", "Forecasting basics"], "behavioral": ["Case-study reasoning", "Communication", "Attention to detail", "Problem-solving examples"] },
+    "experienceSignals": ["Internship experience", "Finance society/competition participation", "Modelling coursework projects", "Relevant certifications in progress"],
+    "preparationSteps": ["Strengthen budgeting and financial reporting fundamentals", "Build a sample budgeting/planning case study", "Practice spreadsheet proficiency", "Present findings clearly", "Practice case-study interviews", "Apply for graduate schemes/internships"]
+  },
+  {
+    "careerId": "accountant",
+    "entryRoutes": ["Graduate scheme", "Internship", "Entry-level accounting role", "Direct applications, often alongside professional qualification study (e.g. ACCA/ACA)"],
+    "portfolioExpectations": ["Evidence of bookkeeping/accounting coursework or practice", "Familiarity with accounting software", "Clear, accurate written financial records"],
+    "projectEvidence": ["Bookkeeping/accounting practice exercise", "Financial statement preparation exercise", "Coursework accounting case study"],
+    "interviewAreas": { "technical": ["Financial Accounting", "Bookkeeping", "Financial Reporting"], "practical": ["Accounting software", "Reconciliation", "Attention to detail"], "behavioral": ["Communication", "Reliability", "Problem-solving examples", "Integrity/ethics"] },
+    "experienceSignals": ["Internship experience", "Progress toward a professional qualification", "Accounting society participation", "Bookkeeping practice/coursework"],
+    "preparationSteps": ["Strengthen accounting fundamentals", "Practice with accounting software", "Consider starting a professional qualification", "Build accuracy and attention-to-detail habits", "Practice interviews", "Apply for graduate schemes/internships"]
+  },
+  {
+    "careerId": "auditor",
+    "entryRoutes": ["Graduate scheme (often at an accounting firm)", "Internship", "Entry-level audit role", "Direct applications, typically alongside professional qualification study"],
+    "portfolioExpectations": ["Evidence of analytical/attention-to-detail coursework", "Familiarity with auditing/accounting concepts", "Clear, structured written findings"],
+    "projectEvidence": ["Auditing/internal-controls case study", "Financial statement review exercise", "Coursework compliance project"],
+    "interviewAreas": { "technical": ["Auditing Fundamentals", "Internal Controls"], "practical": ["Attention to detail", "Reporting", "Risk assessment basics"], "behavioral": ["Integrity/ethics", "Communication", "Problem-solving examples", "Reliability"] },
+    "experienceSignals": ["Internship experience", "Progress toward a professional qualification", "Accounting/audit society participation", "Analytical coursework projects"],
+    "preparationSteps": ["Strengthen auditing and internal-controls fundamentals", "Consider starting a professional qualification", "Practice structured case analysis", "Build attention-to-detail habits", "Practice interviews", "Apply for graduate schemes/internships"]
+  },
+  {
+    "careerId": "tax-associate",
+    "entryRoutes": ["Graduate scheme (often at an accounting/tax firm)", "Internship", "Entry-level tax role", "Direct applications, typically alongside professional qualification study"],
+    "portfolioExpectations": ["Evidence of tax/accounting coursework", "Familiarity with tax compliance concepts", "Clear, accurate written work"],
+    "projectEvidence": ["Tax computation/compliance case study", "Coursework tax-planning exercise", "Financial accounting exercise"],
+    "interviewAreas": { "technical": ["Taxation Basics", "Financial Accounting"], "practical": ["Compliance", "Attention to detail", "Reporting"], "behavioral": ["Communication", "Reliability", "Problem-solving examples", "Integrity/ethics"] },
+    "experienceSignals": ["Internship experience", "Progress toward a professional qualification", "Accounting/tax society participation", "Coursework projects"],
+    "preparationSteps": ["Strengthen tax and accounting fundamentals", "Consider starting a professional qualification", "Practice structured case analysis", "Build accuracy and attention-to-detail habits", "Practice interviews", "Apply for graduate schemes/internships"]
+  },
+  {
+    "careerId": "mechanical-engineer",
+    "entryRoutes": ["Internship/industrial placement", "Graduate engineering scheme", "Entry-level mechanical engineer role", "Campus recruitment"],
+    "portfolioExpectations": ["1-2 substantial design/build projects", "Evidence of CAD proficiency", "Clear technical documentation/drawings"],
+    "projectEvidence": ["CAD design project", "Prototype/build project", "Coursework/competition engineering project"],
+    "interviewAreas": { "technical": ["Mechanics", "Engineering Mathematics", "CAD Design"], "practical": ["CAD tools", "Prototyping", "Testing"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Industrial placement/internship experience", "Design competition participation", "CAD/coursework projects", "Relevant society involvement"],
+    "preparationSteps": ["Strengthen core mechanics and CAD fundamentals", "Build one substantial design/build project", "Practice technical documentation", "Present the project clearly", "Practice technical interviews", "Apply for placements/graduate schemes"]
+  },
+  {
+    "careerId": "manufacturing-engineer",
+    "entryRoutes": ["Internship/industrial placement", "Graduate engineering scheme", "Entry-level manufacturing engineer role", "Campus recruitment"],
+    "portfolioExpectations": ["1-2 process-improvement or production projects", "Evidence of CAD/process design proficiency", "Clear technical documentation"],
+    "projectEvidence": ["Production process design/improvement project", "CAD design for manufacturing project", "Quality-control case study"],
+    "interviewAreas": { "technical": ["Production Processes", "Quality Control", "CAD Design"], "practical": ["Process design", "Lean manufacturing concepts", "Testing"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Industrial placement/internship experience", "Process-improvement coursework projects", "CAD projects", "Relevant society involvement"],
+    "preparationSteps": ["Strengthen manufacturing and process-design fundamentals", "Build one substantial process-improvement project", "Practice CAD and technical documentation", "Present the project clearly", "Practice technical interviews", "Apply for placements/graduate schemes"]
+  },
+  {
+    "careerId": "design-engineer",
+    "entryRoutes": ["Internship/industrial placement", "Graduate engineering scheme", "Entry-level design engineer role", "Campus recruitment"],
+    "portfolioExpectations": ["2-3 CAD design projects", "Evidence of design-analysis/simulation work", "Clear technical drawings/documentation"],
+    "projectEvidence": ["CAD modelling project", "Design analysis/simulation project", "Prototype build"],
+    "interviewAreas": { "technical": ["CAD Modelling", "Materials Selection", "Design Analysis"], "practical": ["CAD tools", "Simulation tools", "Prototyping"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Industrial placement/internship experience", "CAD portfolio projects", "Design competition participation", "Relevant society involvement"],
+    "preparationSteps": ["Strengthen CAD and design-analysis fundamentals", "Build a CAD design portfolio project", "Practice simulation/prototyping tools", "Document designs clearly", "Practice technical interviews", "Apply for placements/graduate schemes"]
+  },
+  {
+    "careerId": "electrical-engineer",
+    "entryRoutes": ["Internship/industrial placement", "Graduate engineering scheme", "Entry-level electrical engineer role", "Campus recruitment"],
+    "portfolioExpectations": ["1-2 substantial circuit/systems projects", "Evidence of circuit analysis proficiency", "Clear technical documentation/schematics"],
+    "projectEvidence": ["Circuit design/analysis project", "Coursework electrical systems project", "Prototype/build project"],
+    "interviewAreas": { "technical": ["Circuit Analysis", "Engineering Mathematics", "Electromagnetics"], "practical": ["Simulation tools", "Testing", "Documentation"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Industrial placement/internship experience", "Design competition participation", "Coursework projects", "Relevant society involvement"],
+    "preparationSteps": ["Strengthen circuit analysis and engineering mathematics", "Build one substantial electrical systems project", "Practice technical documentation", "Present the project clearly", "Practice technical interviews", "Apply for placements/graduate schemes"]
+  },
+  {
+    "careerId": "power-systems-engineer",
+    "entryRoutes": ["Internship/industrial placement", "Graduate engineering scheme", "Entry-level power systems role", "Campus recruitment"],
+    "portfolioExpectations": ["1-2 power/energy systems projects", "Evidence of systems analysis proficiency", "Clear technical documentation"],
+    "projectEvidence": ["Power distribution/grid systems project", "Renewable energy systems case study", "Coursework power-systems project"],
+    "interviewAreas": { "technical": ["Power Generation", "Grid Systems", "Electrical Safety"], "practical": ["Systems analysis tools", "Testing", "Documentation"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Industrial placement/internship experience", "Energy/power coursework projects", "Relevant society involvement", "Renewable-energy project work"],
+    "preparationSteps": ["Strengthen power systems fundamentals", "Build one substantial power/energy project", "Practice systems analysis and safety awareness", "Document the project clearly", "Practice technical interviews", "Apply for placements/graduate schemes"]
+  },
+  {
+    "careerId": "control-systems-engineer",
+    "entryRoutes": ["Internship/industrial placement", "Graduate engineering scheme", "Entry-level control systems role", "Campus recruitment"],
+    "portfolioExpectations": ["1-2 control/automation projects", "Evidence of feedback-systems modelling", "Clear technical documentation"],
+    "projectEvidence": ["Feedback control system project", "Automation/robotics prototype", "Coursework control-systems project"],
+    "interviewAreas": { "technical": ["Feedback Systems", "Automation", "Sensors"], "practical": ["Modelling tools", "Testing", "Debugging"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Industrial placement/internship experience", "Robotics/automation coursework projects", "Relevant society involvement", "Competition participation"],
+    "preparationSteps": ["Strengthen control-systems fundamentals", "Build one substantial automation/control project", "Practice modelling and testing", "Document the project clearly", "Practice technical interviews", "Apply for placements/graduate schemes"]
+  },
+  {
+    "careerId": "civil-engineer",
+    "entryRoutes": ["Internship/industrial placement", "Graduate engineering scheme", "Entry-level civil engineer role", "Campus recruitment"],
+    "portfolioExpectations": ["1-2 substantial design projects", "Evidence of structural analysis/CAD proficiency", "Clear technical drawings/documentation"],
+    "projectEvidence": ["Structural analysis/design project", "Coursework infrastructure design project", "CAD design project"],
+    "interviewAreas": { "technical": ["Structural Analysis", "Engineering Mathematics", "CAD Design"], "practical": ["CAD tools", "Site awareness concepts", "Documentation"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Industrial placement/internship experience", "Design competition participation", "Coursework projects", "Relevant society involvement"],
+    "preparationSteps": ["Strengthen structural analysis and CAD fundamentals", "Build one substantial design project", "Practice technical documentation", "Present the project clearly", "Practice technical interviews", "Apply for placements/graduate schemes"]
+  },
+  {
+    "careerId": "structural-engineer",
+    "entryRoutes": ["Internship/industrial placement", "Graduate engineering scheme", "Entry-level structural engineer role", "Campus recruitment"],
+    "portfolioExpectations": ["1-2 structural design/analysis projects", "Evidence of load-calculation proficiency", "Clear technical drawings/documentation"],
+    "projectEvidence": ["Structural design/analysis project", "Load calculation case study", "Coursework structural engineering project"],
+    "interviewAreas": { "technical": ["Structural Analysis", "Load Calculations", "Materials"], "practical": ["CAD tools", "Design codes awareness", "Documentation"], "behavioral": ["Project explanation", "Problem-solving examples", "Teamwork", "Communication"] },
+    "experienceSignals": ["Industrial placement/internship experience", "Design competition participation", "Coursework structural projects", "Relevant society involvement"],
+    "preparationSteps": ["Strengthen structural analysis fundamentals", "Build one substantial structural design project", "Practice load calculations and documentation", "Present the project clearly", "Practice technical interviews", "Apply for placements/graduate schemes"]
+  },
+  {
+    "careerId": "construction-project-manager",
+    "entryRoutes": ["Internship/industrial placement", "Graduate construction management scheme", "Entry-level assistant project manager role", "Campus recruitment"],
+    "portfolioExpectations": ["Evidence of project-planning/scheduling coursework", "Familiarity with cost estimation basics", "Clear written project plans/reports"],
+    "projectEvidence": ["Project planning/scheduling case study", "Cost estimation exercise", "Coursework construction management project"],
+    "interviewAreas": { "technical": ["Project Planning", "Cost Estimation", "Site Management"], "practical": ["Scheduling tools", "Risk assessment basics", "Reporting"], "behavioral": ["Communication", "Stakeholder management", "Problem-solving examples", "Reliability under pressure"] },
+    "experienceSignals": ["Industrial placement/internship experience", "Construction/project-management coursework projects", "Relevant society involvement", "Site experience (where available)"],
+    "preparationSteps": ["Strengthen project-planning and cost-estimation fundamentals", "Build a sample project plan/schedule", "Practice risk assessment and reporting", "Present the plan clearly", "Practice interviews", "Apply for placements/graduate schemes"]
+  }
+]

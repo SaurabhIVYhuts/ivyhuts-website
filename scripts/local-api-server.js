@@ -21,6 +21,8 @@ const http = require("http");
 const { URL } = require("url");
 const amberHandler = require("../api/amber.js");
 const enquireHandler = require("../api/enquire.js");
+const studentPlannerHandler = require("../api/student-planner.js");
+const studentPlannerPptHandler = require("../api/student-planner-ppt.js");
 const authRoutes = {
     "/api/auth/signup": require("../api/auth/signup.js"),
     "/api/auth/login": require("../api/auth/login.js"),
@@ -94,6 +96,23 @@ const server = http.createServer(async (req, res) => {
         if (url.pathname === "/api/enquire") {
             req.body = await readJsonBody(req);
             await enquireHandler(req, res);
+            return;
+        }
+        // Student Planner (Milestone 2+) and its PPT export (Milestone 9) —
+        // previously missing from this router entirely, so both silently
+        // fell through to amberHandler below (a GET-only handler, hence the
+        // 405 on POST /api/student-planner-ppt). These are real handlers,
+        // same as every other route here — student-planner.js talks to
+        // Amber via ./_lib/accommodationIndex.js -> ./_lib/amberGateway.js
+        // like normal; student-planner-ppt.js never touches Amber at all
+        // (see its own header comment).
+        if (url.pathname === "/api/student-planner") {
+            await studentPlannerHandler(req, res);
+            return;
+        }
+        if (url.pathname === "/api/student-planner-ppt") {
+            req.body = await readJsonBody(req);
+            await studentPlannerPptHandler(req, res);
             return;
         }
         if (Object.prototype.hasOwnProperty.call(authRoutes, url.pathname)) {

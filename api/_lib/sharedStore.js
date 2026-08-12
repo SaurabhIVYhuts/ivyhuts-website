@@ -30,8 +30,26 @@ function log(...args) {
     console.log("[Amber Gateway]", ...args);
 }
 
+// Deployed Vercel environments (VERCEL_ENV is Vercel's own signal for this —
+// "production"/"preview" for real deployed infrastructure, "development"
+// under `vercel dev`'s local emulation, and simply absent for a plain `node`
+// invocation like this repo's scripts/verify-*.js) must NEVER silently fall
+// back to per-instance memory for the Amber budget/lock/cache: every
+// concurrently-running instance would independently enforce the full budget
+// against its own empty state, multiplying real Amber traffic — exactly the
+// failure mode RedisUnavailableError elsewhere in this file already exists
+// to prevent for the "configured but unreachable" case. This closes the
+// other case: "not configured at all," when that's really a deployed
+// environment rather than genuine local dev. (NODE_ENV=="production" was
+// considered and rejected — Vercel sets it for Preview AND Production, but
+// so can an ambient CI shell running this repo's local-Redis-forced verify
+// script, which would then fail closed for the wrong reason; VERCEL_ENV is
+// unset in that case.) Local dev and the verify scripts are unaffected.
 let warnedFallback = false;
 function warnFallbackOnce() {
+    if (["production", "preview"].includes(process.env.VERCEL_ENV)) {
+        throw new RedisUnavailableError(new Error("UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN are not configured in a deployed Vercel environment"));
+    }
     if (warnedFallback) return;
     warnedFallback = true;
     console.warn(

@@ -1,0 +1,213 @@
+[
+  {
+    "id": "computer-science",
+    "name": "Computer Science",
+    "aliases": ["BSc Computer Science", "Computer Science BSc", "BSc CS", "CS", "Comp Sci", "Computing", "BTech Computer Science", "Bachelor of Computer Science"],
+    "category": "Computing & Technology",
+    "summary": "Computer Science focuses on computation, programming, algorithms, software systems, data and problem solving.",
+    "coreSkills": ["Programming", "Algorithms", "Data Structures", "Databases", "Software Engineering", "Problem Solving"],
+    "technicalAreas": ["Programming Languages", "Web Development", "Databases", "Cloud Computing", "Computer Systems"],
+    "specializationPaths": [
+      { "id": "ai-ml", "name": "AI / Machine Learning", "aliases": ["AI", "Machine Learning", "ML", "Artificial Intelligence"], "emphasisSkills": ["Python", "Machine Learning", "Statistics", "Data Processing", "Neural Networks"] },
+      { "id": "cybersecurity", "name": "Cybersecurity", "aliases": ["Cyber Security", "InfoSec"], "emphasisSkills": ["Network Security", "Cryptography", "Threat Analysis", "Security Auditing"] },
+      { "id": "data", "name": "Data", "aliases": ["Data Engineering", "Data Analytics"], "emphasisSkills": ["SQL", "Data Modelling", "Data Pipelines", "Data Visualization"] },
+      { "id": "cloud", "name": "Cloud", "aliases": ["Cloud Computing"], "emphasisSkills": ["Cloud Platforms", "Containers", "Distributed Systems", "DevOps"] },
+      { "id": "software-engineering", "name": "Software Engineering", "aliases": ["SE"], "emphasisSkills": ["System Design", "Testing", "Version Control", "Agile Practices"] }
+    ]
+  },
+  {
+    "id": "software-engineering",
+    "name": "Software Engineering",
+    "aliases": ["BSc Software Engineering", "Software Engineering BSc", "BEng Software Engineering", "Software Eng"],
+    "category": "Computing & Technology",
+    "summary": "Software Engineering focuses on designing, building, testing and maintaining reliable, large-scale software systems.",
+    "coreSkills": ["Programming", "System Design", "Software Testing", "Version Control", "Requirements Analysis", "Teamwork"],
+    "technicalAreas": ["Software Architecture", "Web Development", "DevOps", "Databases", "Quality Assurance"],
+    "specializationPaths": [
+      { "id": "cloud", "name": "Cloud", "aliases": ["Cloud Computing"], "emphasisSkills": ["Cloud Platforms", "Containers", "CI/CD", "Infrastructure as Code"] },
+      { "id": "mobile", "name": "Mobile Development", "aliases": ["Mobile", "App Development"], "emphasisSkills": ["iOS/Android", "Mobile UI", "App Performance", "Cross-Platform Frameworks"] },
+      { "id": "backend", "name": "Backend Engineering", "aliases": ["Backend"], "emphasisSkills": ["APIs", "Databases", "Distributed Systems", "Scalability"] },
+      { "id": "security", "name": "Application Security", "aliases": ["AppSec"], "emphasisSkills": ["Secure Coding", "Threat Modelling", "Code Review", "Vulnerability Testing"] }
+    ]
+  },
+  {
+    "id": "information-technology",
+    "name": "Information Technology",
+    "aliases": ["BSc Information Technology", "IT", "Info Tech", "Information Technology BSc"],
+    "category": "Computing & Technology",
+    "summary": "Information Technology focuses on deploying, managing and securing the systems and networks organisations rely on.",
+    "coreSkills": ["Networking", "Systems Administration", "IT Support", "Databases", "Security Fundamentals", "Troubleshooting"],
+    "technicalAreas": ["Networks", "Cloud Computing", "IT Infrastructure", "Databases", "Cybersecurity Basics"],
+    "specializationPaths": [
+      { "id": "cloud", "name": "Cloud Infrastructure", "aliases": ["Cloud"], "emphasisSkills": ["Cloud Platforms", "Virtualization", "Networking", "Automation"] },
+      { "id": "cybersecurity", "name": "Cybersecurity", "aliases": ["Cyber Security"], "emphasisSkills": ["Network Security", "Risk Management", "Security Auditing", "Incident Response"] },
+      { "id": "systems-admin", "name": "Systems Administration", "aliases": ["SysAdmin"], "emphasisSkills": ["Server Management", "Scripting", "Monitoring", "Automation"] },
+      { "id": "data", "name": "Data & Databases", "aliases": ["Databases"], "emphasisSkills": ["SQL", "Database Administration", "Data Backup", "Reporting"] }
+    ]
+  },
+  {
+    "id": "data-science",
+    "name": "Data Science",
+    "aliases": ["BSc Data Science", "Data Science BSc", "Applied Data Science"],
+    "category": "Computing & Technology",
+    "summary": "Data Science focuses on extracting insight from data using statistics, programming and machine learning.",
+    "coreSkills": ["Statistics", "Programming", "Data Analysis", "Machine Learning", "Data Visualization", "Databases"],
+    "technicalAreas": ["Data Engineering", "Machine Learning", "Statistical Modelling", "Data Visualization", "Big Data"],
+    "specializationPaths": [
+      { "id": "ml", "name": "Machine Learning", "aliases": ["ML"], "emphasisSkills": ["Python", "Model Building", "Feature Engineering", "Neural Networks"] },
+      { "id": "data-engineering", "name": "Data Engineering", "aliases": [], "emphasisSkills": ["Data Pipelines", "ETL", "SQL", "Distributed Systems"] },
+      { "id": "analytics", "name": "Business Analytics", "aliases": ["Analytics"], "emphasisSkills": ["Data Storytelling", "Dashboards", "Statistics", "Business Insight"] },
+      { "id": "ai", "name": "AI", "aliases": ["Artificial Intelligence"], "emphasisSkills": ["Deep Learning", "NLP", "Computer Vision", "Model Deployment"] }
+    ]
+  },
+  {
+    "id": "artificial-intelligence",
+    "name": "Artificial Intelligence",
+    "aliases": ["BSc Artificial Intelligence", "AI", "Artificial Intelligence BSc", "BSc AI"],
+    "category": "Computing & Technology",
+    "summary": "Artificial Intelligence focuses on building systems that learn, reason and make decisions from data.",
+    "coreSkills": ["Programming", "Mathematics", "Machine Learning", "Algorithms", "Statistics", "Data Structures"],
+    "technicalAreas": ["Machine Learning", "Deep Learning", "Natural Language Processing", "Computer Vision", "Robotics"],
+    "specializationPaths": [
+      { "id": "ml", "name": "Machine Learning", "aliases": ["ML"], "emphasisSkills": ["Model Training", "Python", "Feature Engineering", "Evaluation Metrics"] },
+      { "id": "nlp", "name": "Natural Language Processing", "aliases": ["NLP"], "emphasisSkills": ["Text Processing", "Language Models", "Tokenization", "Sentiment Analysis"] },
+      { "id": "cv", "name": "Computer Vision", "aliases": ["CV"], "emphasisSkills": ["Image Processing", "Neural Networks", "Object Detection", "Convolutional Networks"] },
+      { "id": "robotics", "name": "Robotics", "aliases": [], "emphasisSkills": ["Control Systems", "Sensors", "Path Planning", "Embedded Programming"] }
+    ]
+  },
+  {
+    "id": "cybersecurity",
+    "name": "Cybersecurity",
+    "aliases": ["BSc Cybersecurity", "Cyber Security", "BSc Cyber Security", "Cybersecurity BSc", "InfoSec"],
+    "category": "Computing & Technology",
+    "summary": "Cybersecurity focuses on protecting systems, networks and data from unauthorised access and attack.",
+    "coreSkills": ["Network Security", "Cryptography", "Risk Assessment", "Ethical Hacking", "Security Operations", "Programming"],
+    "technicalAreas": ["Network Security", "Application Security", "Cloud Security", "Incident Response", "Governance & Compliance"],
+    "specializationPaths": [
+      { "id": "offensive", "name": "Penetration Testing", "aliases": ["Ethical Hacking"], "emphasisSkills": ["Ethical Hacking", "Vulnerability Assessment", "Exploit Development", "Reporting"] },
+      { "id": "defensive", "name": "Security Operations", "aliases": ["SOC", "Blue Team"], "emphasisSkills": ["Threat Detection", "SIEM Tools", "Incident Response", "Monitoring"] },
+      { "id": "cloud-security", "name": "Cloud Security", "aliases": ["Cloud"], "emphasisSkills": ["Cloud Platforms", "Identity Management", "Security Auditing", "Compliance"] },
+      { "id": "grc", "name": "Governance, Risk & Compliance", "aliases": ["GRC"], "emphasisSkills": ["Risk Assessment", "Policy Design", "Auditing", "Regulatory Frameworks"] }
+    ]
+  },
+  {
+    "id": "computer-engineering",
+    "name": "Computer Engineering",
+    "aliases": ["BEng Computer Engineering", "Computer Engineering BEng", "Comp Eng"],
+    "category": "Computing & Technology",
+    "summary": "Computer Engineering combines hardware and software to design and build computing systems and devices.",
+    "coreSkills": ["Programming", "Digital Logic", "Computer Architecture", "Embedded Systems", "Electronics Fundamentals", "Problem Solving"],
+    "technicalAreas": ["Embedded Systems", "Computer Architecture", "Digital Design", "Software Development", "Networks"],
+    "specializationPaths": [
+      { "id": "embedded", "name": "Embedded Systems", "aliases": [], "emphasisSkills": ["Microcontrollers", "Firmware", "Real-Time Systems", "Sensors"] },
+      { "id": "hardware", "name": "Hardware Design", "aliases": [], "emphasisSkills": ["Digital Logic", "Circuit Design", "VLSI", "Prototyping"] },
+      { "id": "software", "name": "Software Engineering", "aliases": ["Software"], "emphasisSkills": ["System Design", "Programming", "Testing", "Version Control"] },
+      { "id": "iot", "name": "IoT", "aliases": ["Internet of Things"], "emphasisSkills": ["Sensors", "Connectivity Protocols", "Edge Computing", "Embedded Programming"] }
+    ]
+  },
+  {
+    "id": "business-administration",
+    "name": "Business Administration",
+    "aliases": ["BBA", "Business Administration BBA", "Bachelor of Business Administration", "Business Admin"],
+    "category": "Business & Finance",
+    "summary": "Business Administration builds broad management, strategy and organisational skills across business functions.",
+    "coreSkills": ["Business Strategy", "Financial Literacy", "Communication", "Project Management", "Leadership", "Market Research"],
+    "technicalAreas": ["Management", "Marketing", "Finance", "Operations", "Human Resources"],
+    "specializationPaths": [
+      { "id": "marketing", "name": "Marketing", "aliases": [], "emphasisSkills": ["Market Research", "Branding", "Digital Marketing", "Campaign Planning"] },
+      { "id": "finance", "name": "Finance", "aliases": [], "emphasisSkills": ["Financial Analysis", "Budgeting", "Investment Basics", "Financial Reporting"] },
+      { "id": "operations", "name": "Operations Management", "aliases": ["Operations"], "emphasisSkills": ["Process Improvement", "Supply Chain", "Project Management", "Quality Control"] },
+      { "id": "entrepreneurship", "name": "Entrepreneurship", "aliases": [], "emphasisSkills": ["Business Planning", "Pitching", "Fundraising Basics", "Product Strategy"] }
+    ]
+  },
+  {
+    "id": "finance",
+    "name": "Finance",
+    "aliases": ["BSc Finance", "Finance BSc", "Financial Management"],
+    "category": "Business & Finance",
+    "summary": "Finance focuses on managing money, investments and risk for individuals, companies and markets.",
+    "coreSkills": ["Financial Analysis", "Accounting Fundamentals", "Statistics", "Financial Modelling", "Risk Management", "Communication"],
+    "technicalAreas": ["Corporate Finance", "Investment Analysis", "Financial Markets", "Risk Management", "Financial Reporting"],
+    "specializationPaths": [
+      { "id": "investment", "name": "Investment Analysis", "aliases": [], "emphasisSkills": ["Valuation", "Portfolio Analysis", "Financial Modelling", "Market Research"] },
+      { "id": "corporate", "name": "Corporate Finance", "aliases": [], "emphasisSkills": ["Budgeting", "Capital Structure", "Financial Planning", "Reporting"] },
+      { "id": "risk", "name": "Risk Management", "aliases": [], "emphasisSkills": ["Risk Assessment", "Regulatory Compliance", "Statistics", "Modelling"] },
+      { "id": "fintech", "name": "FinTech", "aliases": [], "emphasisSkills": ["Financial Data Analysis", "Payments Systems", "Basic Programming", "Digital Finance Tools"] }
+    ]
+  },
+  {
+    "id": "accounting",
+    "name": "Accounting",
+    "aliases": ["BSc Accounting", "Accounting BSc", "Accountancy", "BSc Accountancy"],
+    "category": "Business & Finance",
+    "summary": "Accounting focuses on recording, analysing and reporting the financial activity of organisations.",
+    "coreSkills": ["Financial Accounting", "Bookkeeping", "Auditing Fundamentals", "Taxation Basics", "Financial Reporting", "Attention to Detail"],
+    "technicalAreas": ["Financial Accounting", "Management Accounting", "Auditing", "Taxation", "Financial Reporting Standards"],
+    "specializationPaths": [
+      { "id": "audit", "name": "Audit", "aliases": ["Auditing"], "emphasisSkills": ["Auditing Standards", "Internal Controls", "Risk Assessment", "Reporting"] },
+      { "id": "tax", "name": "Taxation", "aliases": ["Tax"], "emphasisSkills": ["Tax Law Basics", "Tax Planning", "Compliance", "Reporting"] },
+      { "id": "management-accounting", "name": "Management Accounting", "aliases": [], "emphasisSkills": ["Budgeting", "Cost Analysis", "Financial Planning", "Performance Reporting"] },
+      { "id": "corporate-accounting", "name": "Corporate Accounting", "aliases": [], "emphasisSkills": ["Financial Statements", "Reconciliation", "Reporting Standards", "Compliance"] }
+    ]
+  },
+  {
+    "id": "mechanical-engineering",
+    "name": "Mechanical Engineering",
+    "aliases": ["BEng Mechanical Engineering", "Mechanical Engineering BEng", "Mech Eng", "ME"],
+    "category": "Engineering",
+    "summary": "Mechanical Engineering focuses on designing, analysing and manufacturing mechanical systems and machines.",
+    "coreSkills": ["Engineering Mathematics", "Mechanics", "CAD Design", "Thermodynamics", "Materials Science", "Problem Solving"],
+    "technicalAreas": ["Design & CAD", "Thermodynamics", "Manufacturing", "Robotics & Automation", "Materials Engineering"],
+    "specializationPaths": [
+      { "id": "design", "name": "Design Engineering", "aliases": [], "emphasisSkills": ["CAD Modelling", "Prototyping", "Materials Selection", "Design Analysis"] },
+      { "id": "manufacturing", "name": "Manufacturing", "aliases": [], "emphasisSkills": ["Production Processes", "Quality Control", "Automation", "Lean Manufacturing"] },
+      { "id": "robotics", "name": "Robotics & Automation", "aliases": ["Robotics"], "emphasisSkills": ["Control Systems", "Sensors", "Programming Basics", "Mechatronics"] },
+      { "id": "energy", "name": "Energy Systems", "aliases": [], "emphasisSkills": ["Thermodynamics", "Fluid Mechanics", "Renewable Systems", "Energy Efficiency"] }
+    ]
+  },
+  {
+    "id": "electrical-engineering",
+    "name": "Electrical Engineering",
+    "aliases": ["BEng Electrical Engineering", "Electrical Engineering BEng", "EE", "Elec Eng"],
+    "category": "Engineering",
+    "summary": "Electrical Engineering focuses on the design and analysis of electrical systems, circuits and power.",
+    "coreSkills": ["Circuit Analysis", "Engineering Mathematics", "Electromagnetics", "Signal Processing", "Programming Basics", "Problem Solving"],
+    "technicalAreas": ["Power Systems", "Circuit Design", "Control Systems", "Signal Processing", "Electronics"],
+    "specializationPaths": [
+      { "id": "power", "name": "Power Systems", "aliases": [], "emphasisSkills": ["Power Generation", "Grid Systems", "Electrical Safety", "Renewable Energy"] },
+      { "id": "control", "name": "Control Systems", "aliases": [], "emphasisSkills": ["Feedback Systems", "Automation", "Sensors", "Modelling"] },
+      { "id": "electronics", "name": "Electronics", "aliases": [], "emphasisSkills": ["Circuit Design", "Embedded Systems", "Signal Processing", "PCB Design"] },
+      { "id": "renewable", "name": "Renewable Energy", "aliases": [], "emphasisSkills": ["Solar Systems", "Grid Integration", "Energy Storage", "Sustainability"] }
+    ]
+  },
+  {
+    "id": "civil-engineering",
+    "name": "Civil Engineering",
+    "aliases": ["BEng Civil Engineering", "Civil Engineering BEng", "Civil Eng"],
+    "category": "Engineering",
+    "summary": "Civil Engineering focuses on designing, building and maintaining infrastructure such as buildings, roads and bridges.",
+    "coreSkills": ["Structural Analysis", "Engineering Mathematics", "CAD Design", "Construction Materials", "Project Management", "Problem Solving"],
+    "technicalAreas": ["Structural Engineering", "Construction Management", "Geotechnical Engineering", "Transportation", "Water Resources"],
+    "specializationPaths": [
+      { "id": "structural", "name": "Structural Engineering", "aliases": [], "emphasisSkills": ["Structural Analysis", "Load Calculations", "Materials", "Design Codes"] },
+      { "id": "construction", "name": "Construction Management", "aliases": [], "emphasisSkills": ["Project Planning", "Cost Estimation", "Site Management", "Scheduling"] },
+      { "id": "geotechnical", "name": "Geotechnical Engineering", "aliases": [], "emphasisSkills": ["Soil Mechanics", "Foundation Design", "Site Investigation", "Ground Stability"] },
+      { "id": "transportation", "name": "Transportation Engineering", "aliases": [], "emphasisSkills": ["Traffic Analysis", "Road Design", "Urban Planning Basics", "Infrastructure Planning"] }
+    ]
+  },
+  {
+    "id": "electronics-engineering",
+    "name": "Electronics Engineering",
+    "aliases": ["BEng Electronics Engineering", "Electronics Engineering BEng", "Electronics & Communication Engineering", "ECE"],
+    "category": "Engineering",
+    "summary": "Electronics Engineering focuses on designing circuits, devices and systems that process signals and information.",
+    "coreSkills": ["Circuit Design", "Signal Processing", "Embedded Systems", "Engineering Mathematics", "Programming Basics", "Problem Solving"],
+    "technicalAreas": ["Circuit Design", "Embedded Systems", "Communications", "Signal Processing", "VLSI Design"],
+    "specializationPaths": [
+      { "id": "embedded", "name": "Embedded Systems", "aliases": [], "emphasisSkills": ["Microcontrollers", "Firmware", "Real-Time Systems", "Sensors"] },
+      { "id": "communications", "name": "Communications Systems", "aliases": ["Communications"], "emphasisSkills": ["Signal Processing", "Wireless Systems", "Networking Basics", "Protocols"] },
+      { "id": "vlsi", "name": "VLSI Design", "aliases": ["VLSI"], "emphasisSkills": ["Digital Logic", "Chip Design", "Simulation Tools", "Verification"] },
+      { "id": "iot", "name": "IoT", "aliases": ["Internet of Things"], "emphasisSkills": ["Sensors", "Connectivity Protocols", "Edge Computing", "Embedded Programming"] }
+    ]
+  }
+]

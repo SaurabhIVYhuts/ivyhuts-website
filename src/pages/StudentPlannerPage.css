@@ -1,0 +1,552 @@
+/* ═══════════════════════════════════
+   STUDENT PLANNER PAGE
+   ═══════════════════════════════════ */
+
+.sp-page { min-height: 100vh; background: var(--surface); }
+.sp-main { max-width: var(--container-max); margin: 0 auto; padding: 48px 24px 80px; }
+
+/* ── HERO / INTRO ── */
+.sp-hero { max-width: 720px; margin: 0 auto; text-align: center; }
+.sp-eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--brand-rose);
+  margin: 0 0 10px;
+}
+.sp-hero-title {
+  font-size: clamp(1.9rem, 4.4vw, 2.6rem);
+  font-weight: 900;
+  color: var(--ink);
+  margin: 0 0 16px;
+}
+.sp-hero-sub {
+  font-size: 0.98rem;
+  color: var(--ink-softer);
+  line-height: 1.7;
+  margin: 0 0 40px;
+}
+
+/* ── FORM ── */
+.sp-form-card {
+  background: var(--surface-white);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-md);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sp-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.sp-form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.sp-field { display: flex; flex-direction: column; gap: 5px; }
+.sp-field label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ink-softer);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.sp-field input,
+.sp-field select {
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 13px 16px;
+  font-size: 0.94rem;
+  color: var(--ink);
+  font-family: inherit;
+  outline: none;
+  background: var(--surface-white);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.sp-field input:focus,
+.sp-field select:focus {
+  border-color: var(--brand-rose);
+  box-shadow: 0 0 0 3px rgba(176, 120, 152, 0.12);
+}
+.sp-req { color: #C0392B; }
+.sp-opt { color: var(--ink-faint); font-weight: 500; text-transform: none; letter-spacing: 0; }
+.sp-field-err { font-size: 0.73rem; color: #C0392B; font-weight: 600; }
+.sp-field input[readonly] { background: var(--surface); color: var(--ink-softer); cursor: default; }
+
+/* ── UNIVERSITY AUTOCOMPLETE ── */
+.sp-university-autocomplete { position: relative; }
+.sp-university-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface-white);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  max-height: 260px;
+  overflow-y: auto;
+}
+.sp-university-suggestions li button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+.sp-university-suggestions li button:hover { background: var(--surface); }
+.sp-university-suggestion-name { font-size: 0.88rem; font-weight: 700; color: var(--ink); }
+.sp-university-suggestion-loc { font-size: 0.76rem; color: var(--ink-faint); }
+.sp-university-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 13px 16px;
+  background: var(--surface);
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.sp-university-change {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--brand-purple);
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ── SHARED SECTION SHELL ── */
+.sp-results { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px; }
+.sp-section-head { margin-bottom: 16px; }
+.sp-section-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sp-section-sub { font-size: 0.88rem; color: var(--ink-softer); margin: 4px 0 0; }
+
+.sp-results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.sp-results-title { font-size: clamp(1.3rem, 3vw, 1.7rem); font-weight: 900; color: var(--ink); margin: 0; }
+
+/* ── JOURNEY HEADER ── */
+.sp-journey-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--surface-white);
+  border-radius: var(--radius-full);
+  padding: 12px 20px;
+  box-shadow: var(--shadow-sm);
+}
+.sp-journey-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--brand-purple);
+  white-space: nowrap;
+}
+.sp-journey-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--brand-purple);
+}
+/* Stages the product vision names but hasn't built yet (Career/Salary/
+   Hiring, through Milestone 5) — visually muted so the journey strip never
+   implies that data already exists. */
+.sp-journey-step--upcoming { color: var(--ink-faint); opacity: 0.7; }
+.sp-journey-step--upcoming .sp-journey-icon { background: none; border: 1.5px dashed var(--border-soft); color: var(--ink-faint); }
+.sp-journey-arrow { color: var(--ink-faint); font-weight: 700; }
+
+/* ── UNIVERSITY OVERVIEW ── */
+.sp-university-card {
+  display: flex;
+  gap: 16px;
+  background: var(--surface-white);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+.sp-university-icon {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(94, 58, 107, 0.1);
+  color: var(--brand-purple);
+}
+.sp-university-location { font-size: 0.85rem; color: var(--ink-softer); margin: 2px 0 10px; }
+.sp-university-summary { font-size: 0.92rem; color: var(--ink-soft); line-height: 1.6; margin: 0 0 12px; }
+.sp-university-facts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sp-university-facts li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+}
+.sp-university-facts svg { color: var(--brand-rose); flex-shrink: 0; }
+
+/* ── RECOMMENDED RESIDENCES ── */
+.sp-residence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+.sp-residence-card {
+  background: var(--surface-white);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.sp-residence-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.sp-residence-card-image { position: relative; aspect-ratio: 4 / 3; }
+.sp-residence-card-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sp-residence-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: var(--brand-purple);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+.sp-residence-card-body { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.sp-residence-name { font-size: 0.95rem; font-weight: 700; color: var(--ink); margin: 0; }
+.sp-residence-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.78rem; color: var(--ink-softer); }
+.sp-residence-meta { display: flex; align-items: center; gap: 4px; }
+.sp-residence-room-type { font-weight: 600; color: var(--ink-soft); }
+.sp-residence-rating { display: flex; align-items: center; gap: 3px; color: var(--brand-gold-deep); font-weight: 700; }
+.sp-residence-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.sp-residence-price { font-size: 1rem; font-weight: 800; color: var(--ink); }
+.sp-residence-price-duration { font-size: 0.75rem; font-weight: 500; color: var(--ink-faint); }
+
+/* ── BUILDING STATE (accommodation index has no data yet for this city) ── */
+.sp-building-note {
+  background: var(--surface);
+  border: 1.5px dashed var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--ink-softer);
+}
+
+/* ── MAP ── */
+.sp-map-shell {
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  /* Fixed, capped height on every breakpoint (item 8) — a map that grows
+     with content would push the rest of the report off-screen on mobile. */
+  height: 380px;
+}
+.sp-map-leaflet { width: 100%; height: 100%; }
+.sp-map-unavailable {
+  background: var(--surface-white);
+  border: 1.5px dashed var(--border-soft);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--ink-softer);
+}
+.sp-map-building-note { margin-top: 12px; }
+.sp-map-note { font-size: 0.78rem; color: var(--ink-faint); margin: 12px 0 0; text-align: center; }
+
+/* Custom divIcon markers — university visually distinct (larger, filled
+   purple circle) from residence pins (smaller, white/outlined) per item 8. */
+.sp-map-divicon { display: flex; align-items: center; justify-content: center; }
+.sp-map-divicon span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+}
+.sp-map-divicon--university span {
+  background: var(--brand-purple);
+  color: #fff;
+  font-size: 17px;
+  border: 2px solid #fff;
+}
+.sp-map-divicon--residence span {
+  background: #fff;
+  color: var(--brand-purple);
+  font-size: 14px;
+  border: 2px solid var(--brand-rose);
+}
+.sp-map-popup { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; min-width: 160px; }
+.sp-map-popup strong { font-size: 0.86rem; color: var(--ink); }
+.sp-map-popup-row { display: flex; align-items: center; gap: 8px; color: var(--ink-softer); }
+.sp-map-popup-rating { display: flex; align-items: center; gap: 3px; color: var(--brand-gold-deep); font-weight: 700; }
+.sp-map-popup .btn { margin-top: 4px; align-self: flex-start; }
+
+/* ── COMPARE TABLE ── */
+.sp-compare-scroll { overflow-x: auto; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.sp-compare-table { width: 100%; border-collapse: collapse; background: var(--surface-white); font-size: 0.84rem; }
+.sp-compare-table th,
+.sp-compare-table td { padding: 12px 14px; text-align: left; white-space: nowrap; }
+.sp-compare-table thead th {
+  background: var(--surface);
+  color: var(--ink-softer);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 700;
+}
+.sp-compare-table tbody tr { border-top: 1px solid var(--border-soft); }
+.sp-compare-name { font-weight: 700; color: var(--ink); }
+.sp-budget-fit { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
+.sp-budget-fit--ok { color: #1E7B4D; }
+.sp-budget-fit--over { color: #B0752B; }
+
+/* ── LIVING EXPENSES ── */
+.sp-expenses-card {
+  background: var(--surface-white);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sp-expenses-subhead { font-size: 0.86rem; font-weight: 800; color: var(--ink-softer); text-transform: uppercase; letter-spacing: 0.4px; margin: 0 0 4px; }
+.sp-expenses-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--ink-soft); }
+.sp-expenses-total {
+  border-top: 1.5px solid var(--border-soft);
+  margin-top: 6px;
+  padding-top: 12px;
+  font-weight: 800;
+  color: var(--ink);
+  font-size: 1rem;
+}
+.sp-expenses-pending { font-size: 0.78rem; color: var(--ink-faint); margin: 2px 0 0; line-height: 1.5; }
+.sp-expenses-annual {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-top: 6px;
+}
+.sp-expenses-annual-label { font-size: 0.82rem; font-weight: 700; color: var(--ink-softer); }
+.sp-expenses-annual-value { font-size: 1rem; font-weight: 800; color: var(--brand-purple); }
+.sp-expenses-scenarios { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+.sp-scenario-tile {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+.sp-scenario-tile--average { background: rgba(94, 58, 107, 0.08); }
+.sp-scenario-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-faint); }
+.sp-scenario-value { font-size: 0.98rem; font-weight: 800; color: var(--ink); }
+.sp-scenario-unit { font-size: 0.72rem; font-weight: 500; color: var(--ink-faint); }
+.sp-expenses-note { display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: var(--ink-faint); margin: 8px 0 0; }
+
+/* ── DEGREE & SKILLS (Milestone 5) ── */
+.sp-degree-block {
+  background: var(--surface-white);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+.sp-degree-block:last-child { margin-bottom: 0; }
+.sp-degree-subhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0 0 10px;
+}
+.sp-degree-name { font-size: 1.05rem; font-weight: 800; color: var(--ink); margin: 0 0 4px; }
+.sp-degree-category { font-size: 0.78rem; font-weight: 700; color: var(--brand-rose); text-transform: uppercase; letter-spacing: 0.4px; margin: 0 0 10px; }
+.sp-degree-summary { font-size: 0.9rem; color: var(--ink-soft); line-height: 1.6; margin: 0; }
+.sp-degree-pending { font-size: 0.88rem; color: var(--ink-softer); line-height: 1.6; margin: 4px 0 0; }
+.sp-degree-note { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--ink-faint); margin: 10px 0 0; }
+.sp-skill-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.sp-skill-chip {
+  background: var(--surface);
+  color: var(--brand-purple);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+}
+.sp-skill-chip--muted { background: var(--surface); color: var(--ink-soft); }
+.sp-skill-chip--outline { background: transparent; border: 1.5px solid var(--border-soft); color: var(--ink-softer); }
+.sp-skill-chip--active { background: var(--brand-purple); color: #fff; border-color: var(--brand-purple); }
+.sp-specialization-emphasis { margin-top: 14px; padding-top: 14px; border-top: 1.5px solid var(--border-soft); }
+.sp-specialization-emphasis-label { font-size: 0.78rem; font-weight: 700; color: var(--ink-softer); margin: 0 0 8px; }
+
+/* ── CAREER PATHS (Milestone 6) ── */
+.sp-career-intro { margin: 4px 0 14px; }
+.sp-career-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.sp-career-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sp-career-card-head { display: flex; align-items: flex-start; gap: 10px; }
+.sp-career-rank {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--brand-purple);
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sp-career-title { font-size: 0.98rem; font-weight: 800; color: var(--ink); margin: 0; }
+.sp-career-category { font-size: 0.74rem; font-weight: 600; color: var(--ink-faint); margin: 2px 0 0; }
+.sp-career-badge {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+}
+.sp-career-badge--strong { background: rgba(30, 123, 77, 0.12); color: #1E7B4D; }
+.sp-career-badge--good { background: rgba(94, 58, 107, 0.12); color: var(--brand-purple); }
+.sp-career-badge--possible { background: rgba(176, 117, 43, 0.12); color: #B0752B; }
+.sp-career-summary { font-size: 0.84rem; color: var(--ink-soft); line-height: 1.55; margin: 0; }
+.sp-career-skill-group { display: flex; flex-direction: column; gap: 6px; }
+.sp-career-skill-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-faint); margin: 0; }
+.sp-career-skill-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sp-career-skill { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
+.sp-career-skill--have { color: #1E7B4D; }
+.sp-career-skill--have svg { flex-shrink: 0; }
+.sp-career-skill--develop { color: var(--ink-softer); }
+.sp-career-skill--develop svg { flex-shrink: 0; color: var(--ink-faint); }
+
+/* ── SALARY (Milestone 7) ── */
+.sp-career-salary { border-top: 1px solid var(--border-soft); padding-top: 10px; margin-top: 2px; }
+.sp-career-salary-value { font-size: 0.95rem; font-weight: 800; color: var(--ink); margin: 2px 0 0; }
+.sp-career-salary-unavailable { font-size: 0.78rem; color: var(--ink-faint); font-style: italic; margin: 0; }
+.sp-salary-progression {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.sp-salary-stage {
+  flex: 1 1 130px;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+.sp-salary-stage-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-faint); }
+.sp-salary-stage-value { font-size: 0.94rem; font-weight: 800; color: var(--brand-purple); }
+.sp-salary-stage-arrow { display: flex; align-items: center; color: var(--ink-faint); font-weight: 700; }
+.sp-salary-disclaimer { margin-top: 12px; }
+
+/* ── HIRING PATH (Milestone 8) ── */
+.sp-hiring-primary-label { font-size: 0.78rem; font-weight: 700; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.4px; margin: 0 0 6px; }
+.sp-hiring-primary-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sp-hiring-primary-head .sp-degree-name { margin: 0; }
+.sp-career-skill--extra { color: var(--brand-purple); }
+.sp-career-skill--extra svg { flex-shrink: 0; }
+.sp-hiring-list { list-style: disc; margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: 0.86rem; color: var(--ink-soft); }
+.sp-hiring-subnote { font-size: 0.8rem; color: var(--ink-softer); margin: 10px 0 8px; }
+.sp-interview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
+.sp-interview-group { display: flex; flex-direction: column; gap: 6px; }
+.sp-hiring-steps { list-style: decimal; margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 0.88rem; color: var(--ink-soft); font-weight: 600; }
+.sp-hiring-steps li::marker { color: var(--brand-purple); font-weight: 800; }
+
+/* ── PPT CTA ── */
+.sp-ppt-card {
+  background: linear-gradient(135deg, var(--brand-purple) 0%, var(--brand-rose) 100%);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  color: #fff;
+}
+.sp-ppt-card .sp-section-title { color: #fff; }
+.sp-ppt-card .sp-section-sub { color: rgba(255,255,255,0.85); }
+.sp-ppt-card .btn-primary { background: #fff; color: var(--brand-purple); box-shadow: none; }
+.sp-ppt-card .btn-primary:disabled { opacity: 0.85; }
+.sp-ppt-error { font-size: 0.8rem; font-weight: 700; color: #FFD9D9; margin: 8px 0 0; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 720px) {
+  .sp-main { padding: 32px 18px 56px; }
+  .sp-form-card { padding: 24px; }
+  .sp-form-row,
+  .sp-form-row-3 { grid-template-columns: 1fr; }
+  .sp-university-card { flex-direction: column; }
+  .sp-map-shell { height: 280px; }
+  .sp-expenses-scenarios { grid-template-columns: 1fr; }
+  .sp-ppt-card { flex-direction: column; align-items: flex-start; }
+  .sp-salary-progression { flex-direction: column; }
+  .sp-salary-stage-arrow { transform: rotate(90deg); align-self: center; }
+}

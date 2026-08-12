@@ -1,0 +1,402 @@
+[
+  {
+    "id": "software-engineer",
+    "title": "Software Engineer",
+    "category": "Software Development",
+    "summary": "Builds and maintains software applications and systems using programming, design and testing skills.",
+    "requiredSkills": ["Programming", "Data Structures", "Algorithms", "Software Engineering"],
+    "preferredSkills": ["Git", "Testing", "Cloud Platforms"],
+    "relevantDegrees": ["computer-science", "software-engineering", "information-technology", "computer-engineering"],
+    "relevantSpecializations": ["computer-science:software-engineering", "software-engineering:backend", "computer-engineering:software"]
+  },
+  {
+    "id": "backend-engineer",
+    "title": "Backend Engineer",
+    "category": "Software Development",
+    "summary": "Designs and builds the server-side logic, APIs and data layer that power applications.",
+    "requiredSkills": ["Programming", "Databases", "APIs", "System Design"],
+    "preferredSkills": ["Cloud Platforms", "Testing", "Distributed Systems"],
+    "relevantDegrees": ["computer-science", "software-engineering", "information-technology"],
+    "relevantSpecializations": ["software-engineering:backend", "computer-science:software-engineering"]
+  },
+  {
+    "id": "frontend-engineer",
+    "title": "Frontend Engineer",
+    "category": "Software Development",
+    "summary": "Builds the user-facing interfaces and interactions of web applications.",
+    "requiredSkills": ["Programming", "Web Development", "UI Development"],
+    "preferredSkills": ["Testing", "Accessibility", "Version Control"],
+    "relevantDegrees": ["computer-science", "software-engineering"],
+    "relevantSpecializations": []
+  },
+  {
+    "id": "fullstack-developer",
+    "title": "Full Stack Developer",
+    "category": "Software Development",
+    "summary": "Works across both the frontend and backend of applications, from interface to data layer.",
+    "requiredSkills": ["Programming", "Web Development", "Databases", "APIs"],
+    "preferredSkills": ["Cloud Platforms", "Testing", "System Design"],
+    "relevantDegrees": ["computer-science", "software-engineering", "information-technology"],
+    "relevantSpecializations": []
+  },
+  {
+    "id": "data-engineer",
+    "title": "Data Engineer",
+    "category": "Data & Analytics",
+    "summary": "Builds and maintains the pipelines and infrastructure that move and prepare data for analysis.",
+    "requiredSkills": ["Programming", "SQL", "Data Pipelines", "Databases"],
+    "preferredSkills": ["Cloud Platforms", "Distributed Systems", "ETL"],
+    "relevantDegrees": ["computer-science", "data-science", "information-technology", "software-engineering"],
+    "relevantSpecializations": ["computer-science:data", "data-science:data-engineering", "information-technology:data"]
+  },
+  {
+    "id": "machine-learning-engineer",
+    "title": "Machine Learning Engineer",
+    "category": "Data & Analytics",
+    "summary": "Builds and deploys models that let systems learn patterns from data.",
+    "requiredSkills": ["Programming", "Machine Learning", "Statistics", "Model Building"],
+    "preferredSkills": ["Python", "Cloud Platforms", "Model Deployment"],
+    "relevantDegrees": ["computer-science", "data-science", "artificial-intelligence"],
+    "relevantSpecializations": ["computer-science:ai-ml", "data-science:ml", "artificial-intelligence:ml"]
+  },
+  {
+    "id": "ai-engineer",
+    "title": "AI Engineer",
+    "category": "Data & Analytics",
+    "summary": "Designs and integrates AI-driven systems, from model selection to deployment.",
+    "requiredSkills": ["Programming", "Machine Learning", "Deep Learning", "Algorithms"],
+    "preferredSkills": ["Python", "Model Deployment", "Neural Networks"],
+    "relevantDegrees": ["computer-science", "artificial-intelligence", "data-science"],
+    "relevantSpecializations": ["computer-science:ai-ml", "artificial-intelligence:ml", "artificial-intelligence:nlp", "artificial-intelligence:cv", "data-science:ai"]
+  },
+  {
+    "id": "data-scientist",
+    "title": "Data Scientist",
+    "category": "Data & Analytics",
+    "summary": "Extracts insight from data using statistics, analysis and machine learning.",
+    "requiredSkills": ["Statistics", "Programming", "Data Analysis", "Machine Learning"],
+    "preferredSkills": ["Data Visualization", "Model Building", "Communication"],
+    "relevantDegrees": ["data-science", "artificial-intelligence"],
+    "relevantSpecializations": ["computer-science:ai-ml", "data-science:ml", "data-science:analytics", "data-science:ai"]
+  },
+  {
+    "id": "cybersecurity-engineer",
+    "title": "Cybersecurity Engineer",
+    "category": "Security",
+    "summary": "Designs and implements systems and controls that protect networks and data from attack.",
+    "requiredSkills": ["Network Security", "Programming", "Security Operations", "Risk Assessment"],
+    "preferredSkills": ["Cloud Security", "Cryptography", "Incident Response"],
+    "relevantDegrees": ["computer-science", "cybersecurity", "information-technology", "software-engineering"],
+    "relevantSpecializations": ["computer-science:cybersecurity", "information-technology:cybersecurity", "software-engineering:security"]
+  },
+  {
+    "id": "security-analyst",
+    "title": "Security Analyst",
+    "category": "Security",
+    "summary": "Monitors systems for threats and investigates security incidents.",
+    "requiredSkills": ["Network Security", "Threat Analysis", "Security Operations"],
+    "preferredSkills": ["SIEM Tools", "Incident Response", "Monitoring"],
+    "relevantDegrees": ["cybersecurity", "information-technology"],
+    "relevantSpecializations": ["cybersecurity:defensive"]
+  },
+  {
+    "id": "penetration-tester",
+    "title": "Penetration Tester",
+    "category": "Security",
+    "summary": "Simulates attacks to find and report security weaknesses before attackers do.",
+    "requiredSkills": ["Ethical Hacking", "Vulnerability Assessment", "Network Security"],
+    "preferredSkills": ["Exploit Development", "Reporting", "Scripting"],
+    "relevantDegrees": ["cybersecurity"],
+    "relevantSpecializations": ["cybersecurity:offensive"]
+  },
+  {
+    "id": "security-engineer",
+    "title": "Security Engineer",
+    "category": "Security",
+    "summary": "Builds secure systems and remediates vulnerabilities across the software lifecycle.",
+    "requiredSkills": ["Network Security", "Programming", "Secure Coding", "Security Auditing"],
+    "preferredSkills": ["Cloud Security", "Threat Modelling", "Automation"],
+    "relevantDegrees": ["cybersecurity", "computer-science", "software-engineering"],
+    "relevantSpecializations": ["cybersecurity:cloud-security", "software-engineering:security"]
+  },
+  {
+    "id": "cloud-engineer",
+    "title": "Cloud Engineer",
+    "category": "Cloud & Infrastructure",
+    "summary": "Designs, deploys and manages applications and infrastructure on cloud platforms.",
+    "requiredSkills": ["Cloud Platforms", "Networking", "Automation"],
+    "preferredSkills": ["Containers", "DevOps", "Infrastructure as Code"],
+    "relevantDegrees": ["computer-science", "software-engineering", "information-technology"],
+    "relevantSpecializations": ["computer-science:cloud", "software-engineering:cloud", "information-technology:cloud"]
+  },
+  {
+    "id": "it-support-specialist",
+    "title": "IT Support Specialist",
+    "category": "IT Operations",
+    "summary": "Provides frontline technical support and troubleshooting for users and systems.",
+    "requiredSkills": ["IT Support", "Troubleshooting", "Networking"],
+    "preferredSkills": ["Systems Administration", "Customer Service", "Documentation"],
+    "relevantDegrees": ["information-technology"],
+    "relevantSpecializations": []
+  },
+  {
+    "id": "systems-administrator",
+    "title": "Systems Administrator",
+    "category": "IT Operations",
+    "summary": "Manages and maintains servers, networks and IT infrastructure.",
+    "requiredSkills": ["Systems Administration", "Networking", "Scripting"],
+    "preferredSkills": ["Automation", "Monitoring", "Cloud Platforms"],
+    "relevantDegrees": ["information-technology"],
+    "relevantSpecializations": ["information-technology:systems-admin"]
+  },
+  {
+    "id": "network-engineer",
+    "title": "Network Engineer",
+    "category": "IT Operations",
+    "summary": "Designs, builds and maintains the networks that connect systems and users.",
+    "requiredSkills": ["Networking", "Troubleshooting", "Security Fundamentals"],
+    "preferredSkills": ["Cloud Platforms", "Automation", "Monitoring"],
+    "relevantDegrees": ["information-technology", "electronics-engineering"],
+    "relevantSpecializations": ["electronics-engineering:communications"]
+  },
+  {
+    "id": "mobile-app-developer",
+    "title": "Mobile App Developer",
+    "category": "Software Development",
+    "summary": "Builds applications for mobile devices and platforms.",
+    "requiredSkills": ["Programming", "Mobile UI", "App Performance"],
+    "preferredSkills": ["Cross-Platform Frameworks", "Testing", "Version Control"],
+    "relevantDegrees": ["software-engineering", "computer-science"],
+    "relevantSpecializations": ["software-engineering:mobile"]
+  },
+  {
+    "id": "embedded-systems-engineer",
+    "title": "Embedded Systems Engineer",
+    "category": "Hardware & Embedded",
+    "summary": "Designs software and hardware for devices with dedicated, embedded functions.",
+    "requiredSkills": ["Embedded Systems", "Programming", "Microcontrollers"],
+    "preferredSkills": ["Firmware", "Real-Time Systems", "Sensors"],
+    "relevantDegrees": ["computer-engineering", "electronics-engineering"],
+    "relevantSpecializations": ["computer-engineering:embedded", "electronics-engineering:embedded", "computer-engineering:iot", "electronics-engineering:iot"]
+  },
+  {
+    "id": "hardware-engineer",
+    "title": "Hardware Engineer",
+    "category": "Hardware & Embedded",
+    "summary": "Designs and tests the circuits and hardware that computing systems run on.",
+    "requiredSkills": ["Digital Logic", "Circuit Design", "Computer Architecture"],
+    "preferredSkills": ["VLSI", "Prototyping", "Simulation Tools"],
+    "relevantDegrees": ["computer-engineering", "electronics-engineering"],
+    "relevantSpecializations": ["computer-engineering:hardware", "electronics-engineering:vlsi"]
+  },
+  {
+    "id": "business-analyst",
+    "title": "Business Analyst",
+    "category": "Business Operations",
+    "summary": "Analyses business processes and data to recommend improvements and support decisions.",
+    "requiredSkills": ["Business Strategy", "Communication", "Data Analysis"],
+    "preferredSkills": ["Process Improvement", "Stakeholder Management", "Reporting"],
+    "relevantDegrees": ["business-administration", "finance", "accounting"],
+    "relevantSpecializations": ["business-administration:operations"]
+  },
+  {
+    "id": "product-analyst",
+    "title": "Product Analyst",
+    "category": "Business Operations",
+    "summary": "Analyses product usage and market data to guide product decisions.",
+    "requiredSkills": ["Data Analysis", "Market Research", "Communication"],
+    "preferredSkills": ["Dashboards", "Business Insight", "Prioritization"],
+    "relevantDegrees": ["business-administration"],
+    "relevantSpecializations": ["business-administration:marketing"]
+  },
+  {
+    "id": "operations-analyst",
+    "title": "Operations Analyst",
+    "category": "Business Operations",
+    "summary": "Analyses and improves the processes that keep business operations running smoothly.",
+    "requiredSkills": ["Process Improvement", "Project Management", "Data Analysis"],
+    "preferredSkills": ["Supply Chain", "Quality Control", "Reporting"],
+    "relevantDegrees": ["business-administration"],
+    "relevantSpecializations": ["business-administration:operations"]
+  },
+  {
+    "id": "marketing-specialist",
+    "title": "Marketing Specialist",
+    "category": "Marketing",
+    "summary": "Plans and executes campaigns to build brand awareness and reach customers.",
+    "requiredSkills": ["Market Research", "Branding", "Communication"],
+    "preferredSkills": ["Digital Marketing", "Campaign Planning", "Content Strategy"],
+    "relevantDegrees": ["business-administration"],
+    "relevantSpecializations": ["business-administration:marketing"]
+  },
+  {
+    "id": "business-development-associate",
+    "title": "Business Development Associate",
+    "category": "Business Operations",
+    "summary": "Identifies and pursues new business opportunities and partnerships.",
+    "requiredSkills": ["Communication", "Business Strategy", "Market Research"],
+    "preferredSkills": ["Pitching", "Negotiation", "Networking"],
+    "relevantDegrees": ["business-administration"],
+    "relevantSpecializations": ["business-administration:entrepreneurship"]
+  },
+  {
+    "id": "financial-analyst",
+    "title": "Financial Analyst",
+    "category": "Finance",
+    "summary": "Analyses financial data and builds models to support business decisions.",
+    "requiredSkills": ["Financial Analysis", "Financial Modelling", "Statistics"],
+    "preferredSkills": ["Reporting", "Communication", "Valuation"],
+    "relevantDegrees": ["finance", "business-administration", "accounting"],
+    "relevantSpecializations": ["finance:corporate", "business-administration:finance"]
+  },
+  {
+    "id": "investment-analyst",
+    "title": "Investment Analyst",
+    "category": "Finance",
+    "summary": "Researches and evaluates investment opportunities and market trends.",
+    "requiredSkills": ["Valuation", "Financial Modelling", "Market Research"],
+    "preferredSkills": ["Portfolio Analysis", "Communication", "Risk Assessment"],
+    "relevantDegrees": ["finance"],
+    "relevantSpecializations": ["finance:investment"]
+  },
+  {
+    "id": "risk-analyst",
+    "title": "Risk Analyst",
+    "category": "Finance",
+    "summary": "Assesses and monitors financial and operational risks for an organisation.",
+    "requiredSkills": ["Risk Assessment", "Statistics", "Regulatory Compliance"],
+    "preferredSkills": ["Financial Modelling", "Reporting", "Communication"],
+    "relevantDegrees": ["finance", "accounting"],
+    "relevantSpecializations": ["finance:risk"]
+  },
+  {
+    "id": "corporate-finance-analyst",
+    "title": "Corporate Finance Analyst",
+    "category": "Finance",
+    "summary": "Supports budgeting, planning and capital decisions within a company's finance function.",
+    "requiredSkills": ["Budgeting", "Capital Structure", "Financial Reporting"],
+    "preferredSkills": ["Financial Planning", "Communication", "Financial Modelling"],
+    "relevantDegrees": ["finance", "accounting"],
+    "relevantSpecializations": ["finance:corporate"]
+  },
+  {
+    "id": "accountant",
+    "title": "Accountant",
+    "category": "Finance",
+    "summary": "Records, reports and manages the financial activity of an organisation.",
+    "requiredSkills": ["Financial Accounting", "Bookkeeping", "Financial Reporting"],
+    "preferredSkills": ["Taxation Basics", "Attention to Detail", "Auditing Fundamentals"],
+    "relevantDegrees": ["accounting"],
+    "relevantSpecializations": ["accounting:corporate-accounting", "accounting:management-accounting"]
+  },
+  {
+    "id": "auditor",
+    "title": "Auditor",
+    "category": "Finance",
+    "summary": "Reviews financial records and internal controls for accuracy and compliance.",
+    "requiredSkills": ["Auditing Fundamentals", "Internal Controls", "Attention to Detail"],
+    "preferredSkills": ["Risk Assessment", "Reporting", "Compliance"],
+    "relevantDegrees": ["accounting"],
+    "relevantSpecializations": ["accounting:audit"]
+  },
+  {
+    "id": "tax-associate",
+    "title": "Tax Associate",
+    "category": "Finance",
+    "summary": "Prepares and reviews tax filings and supports tax planning and compliance.",
+    "requiredSkills": ["Taxation Basics", "Financial Accounting", "Attention to Detail"],
+    "preferredSkills": ["Tax Planning", "Compliance", "Reporting"],
+    "relevantDegrees": ["accounting"],
+    "relevantSpecializations": ["accounting:tax"]
+  },
+  {
+    "id": "mechanical-engineer",
+    "title": "Mechanical Engineer",
+    "category": "Engineering",
+    "summary": "Designs, analyses and tests mechanical systems and machines.",
+    "requiredSkills": ["Mechanics", "Engineering Mathematics", "CAD Design"],
+    "preferredSkills": ["Thermodynamics", "Materials Science", "Problem Solving"],
+    "relevantDegrees": ["mechanical-engineering"],
+    "relevantSpecializations": []
+  },
+  {
+    "id": "manufacturing-engineer",
+    "title": "Manufacturing Engineer",
+    "category": "Engineering",
+    "summary": "Designs and improves the processes used to manufacture products.",
+    "requiredSkills": ["Production Processes", "Quality Control", "CAD Design"],
+    "preferredSkills": ["Automation", "Lean Manufacturing", "Process Improvement"],
+    "relevantDegrees": ["mechanical-engineering"],
+    "relevantSpecializations": ["mechanical-engineering:manufacturing"]
+  },
+  {
+    "id": "design-engineer",
+    "title": "CAD/Design Engineer",
+    "category": "Engineering",
+    "summary": "Designs and models components and products using CAD tools.",
+    "requiredSkills": ["CAD Modelling", "Materials Selection", "Design Analysis"],
+    "preferredSkills": ["Prototyping", "Simulation Tools", "Problem Solving"],
+    "relevantDegrees": ["mechanical-engineering", "civil-engineering"],
+    "relevantSpecializations": ["mechanical-engineering:design"]
+  },
+  {
+    "id": "electrical-engineer",
+    "title": "Electrical Engineer",
+    "category": "Engineering",
+    "summary": "Designs and analyses electrical systems, circuits and power distribution.",
+    "requiredSkills": ["Circuit Analysis", "Engineering Mathematics", "Electromagnetics"],
+    "preferredSkills": ["Signal Processing", "Problem Solving", "Programming Basics"],
+    "relevantDegrees": ["electrical-engineering"],
+    "relevantSpecializations": []
+  },
+  {
+    "id": "power-systems-engineer",
+    "title": "Power Systems Engineer",
+    "category": "Engineering",
+    "summary": "Designs and maintains systems that generate and distribute electrical power.",
+    "requiredSkills": ["Power Generation", "Grid Systems", "Electrical Safety"],
+    "preferredSkills": ["Renewable Energy", "Circuit Analysis", "Reporting"],
+    "relevantDegrees": ["electrical-engineering"],
+    "relevantSpecializations": ["electrical-engineering:power", "electrical-engineering:renewable"]
+  },
+  {
+    "id": "control-systems-engineer",
+    "title": "Control Systems Engineer",
+    "category": "Engineering",
+    "summary": "Designs systems that automatically monitor and control processes and machines.",
+    "requiredSkills": ["Feedback Systems", "Automation", "Sensors"],
+    "preferredSkills": ["Modelling", "Programming Basics", "Problem Solving"],
+    "relevantDegrees": ["electrical-engineering", "mechanical-engineering"],
+    "relevantSpecializations": ["electrical-engineering:control", "mechanical-engineering:robotics"]
+  },
+  {
+    "id": "civil-engineer",
+    "title": "Civil Engineer",
+    "category": "Engineering",
+    "summary": "Designs, builds and maintains infrastructure such as buildings, roads and bridges.",
+    "requiredSkills": ["Structural Analysis", "Engineering Mathematics", "CAD Design"],
+    "preferredSkills": ["Construction Materials", "Project Management", "Problem Solving"],
+    "relevantDegrees": ["civil-engineering"],
+    "relevantSpecializations": []
+  },
+  {
+    "id": "structural-engineer",
+    "title": "Structural Engineer",
+    "category": "Engineering",
+    "summary": "Analyses and designs the structural elements that keep buildings and infrastructure standing.",
+    "requiredSkills": ["Structural Analysis", "Load Calculations", "Materials"],
+    "preferredSkills": ["Design Codes", "CAD Design", "Problem Solving"],
+    "relevantDegrees": ["civil-engineering"],
+    "relevantSpecializations": ["civil-engineering:structural"]
+  },
+  {
+    "id": "construction-project-manager",
+    "title": "Construction Project Manager",
+    "category": "Engineering",
+    "summary": "Plans and oversees construction projects from design through completion.",
+    "requiredSkills": ["Project Planning", "Cost Estimation", "Site Management"],
+    "preferredSkills": ["Scheduling", "Communication", "Risk Assessment"],
+    "relevantDegrees": ["civil-engineering"],
+    "relevantSpecializations": ["civil-engineering:construction"]
+  }
+]
