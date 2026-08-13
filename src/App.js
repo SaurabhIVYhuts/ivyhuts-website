@@ -19,6 +19,7 @@ const PartnerPage              = lazy(() => import("./pages/PartnerPage"));
 const TermsPage                = lazy(() => import("./pages/legal/TermsPage"));
 const PrivacyPage              = lazy(() => import("./pages/legal/PrivacyPage"));
 const InsightPage              = lazy(() => import("./pages/insight/InsightPage"));
+const ThankYouPage             = lazy(() => import("./pages/ThankYouPage"));
 
 /* ── SCROLL TO TOP ON ROUTE CHANGE ── */
 function ScrollToTop() {
@@ -68,6 +69,8 @@ function App() {
             <Route path="/wishlist"       element={<WishlistPage />} />
             <Route path="/properties" element={<PropertyListingPage />} />
             <Route path="/insight"    element={<InsightPage />} />
+            {/* Not linked from navbar/footer/sitemap — reached only via a successful form-submission redirect */}
+            <Route path="/thank-you"  element={<ThankYouPage />} />
           </Routes>
         </Suspense>
         <MobileBottomNav />

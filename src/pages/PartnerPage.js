@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom"; // eslint-disable-line no-unused-vars
+import { useNavigate } from "react-router-dom";
 import "./PartnerPage.css";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
+import { trackFormSubmission } from "../lib/formConversionPixel";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 
@@ -18,6 +19,7 @@ const PARTNER_TYPES = [
 ];
 
 export default function PartnerPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     name: "", company: "", email: "", phone: "",
     partnerType: "", properties: "", countries: "", message: "",
@@ -68,8 +70,11 @@ export default function PartnerPage() {
       });
     } catch (_) {}
 
-    // Email notification — fire-and-forget, same-origin. Must never block or
-    // affect the success screen: a failed/misconfigured mailer still shows success.
+    // Email notification — the one destination whose result we actually wait
+    // for: it's the existing backend's honest confirmation of success (see
+    // api/enquire.js), and it's what gates the new Lead conversion pixel and
+    // the /thank-you redirect below.
+    let confirmed = false;
     try {
       const enquiryPayload = {
         propertyName: form.company || undefined,
@@ -80,23 +85,31 @@ export default function PartnerPage() {
         message: `Partner Type: ${form.partnerType}. Properties/Rooms: ${form.properties || "Not specified"}.\n\n${form.message.trim()}`,
         websiteSource: "ivyhuts.com/partner",
       };
-      fetch("/api/enquire", {
+      const res = await fetch("/api/enquire", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(enquiryPayload),
-      })
-        .then((res) => res.json().catch(() => ({})).then((resBody) => ({ ok: res.ok, resBody })))
-        .then(({ ok, resBody }) => {
-          if (ok && resBody.emailSent) {
-            console.log("[Partner] Notification email sent successfully");
-          } else {
-            console.error("[Partner] Notification email failed:", resBody.message || resBody.error || "unknown error");
-          }
-        })
-        .catch((err) => console.error("[Partner] /api/enquire request failed:", err));
-    } catch (_) {}
+      });
+      const resBody = await res.json().catch(() => ({}));
+      confirmed = res.ok && resBody.emailSent === true;
+      if (confirmed) {
+        console.log("[Partner] Notification email sent successfully");
+      } else {
+        console.error("[Partner] Notification email failed:", resBody.message || resBody.error || "unknown error");
+      }
+    } catch (err) {
+      console.error("[Partner] /api/enquire request failed:", err);
+    }
 
-    setStatus("success");
+    if (!confirmed) {
+      setStatus("idle");
+      setErrors({ submit: "Something went wrong. Please try again, or reach us directly at contact@ivyhuts.com." });
+      return;
+    }
+
+    const submissionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    trackFormSubmission(submissionId, "Partner With Us");
+    navigate("/thank-you");
   };
 
   return (
@@ -163,20 +176,6 @@ export default function PartnerPage() {
       </div>
 
       <div className="pp-body">
-        {status === "success" ? (
-          <div className="pp-success">
-            <svg className="pp-success-icon" viewBox="0 0 56 56" fill="none">
-              <circle cx="28" cy="28" r="26" stroke="url(#pp-grad)" strokeWidth="2.5"/>
-              <path d="M16 28l8 8 16-16" stroke="#5E3A6B" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-              <defs><linearGradient id="pp-grad" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse"><stop stopColor="#5E3A6B"/><stop offset="1" stopColor="#B07898"/></linearGradient></defs>
-            </svg>
-            <h2>Thanks for reaching out!</h2>
-            <p>We will review your enquiry and get back to you at <strong>{form.email}</strong> within 48 hours to discuss next steps.</p>
-            <button className="btn btn-secondary" onClick={() => { setStatus("idle"); setForm({ name: "", company: "", email: "", phone: "", partnerType: "", properties: "", countries: "", message: "" }); }}>
-              Submit Another Enquiry
-            </button>
-          </div>
-        ) : (
           <div className="pp-form-wrap">
             <h2 className="pp-form-title">Get in Touch</h2>
             <p className="pp-form-sub">Fill in the form and our partnerships team will get back to you within 48 hours.</p>
@@ -241,7 +240,6 @@ export default function PartnerPage() {
               </button>
             </form>
           </div>
-        )}
       </div></main>
 
       <SiteFooter />

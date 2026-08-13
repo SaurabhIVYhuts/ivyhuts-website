@@ -8,6 +8,7 @@ import SiteFooter from "../components/layout/SiteFooter";
 import PropertyGallery from "../components/listing/PropertyGallery";
 import RoomTypeCard from "../components/listing/RoomTypeCard";
 import WishlistHeart from "../components/listing/WishlistHeart";
+import ShareButton from "../components/listing/ShareButton";
 import { trackEvent } from "../lib/eventsApi";
 import "./PropertyDetailPage.css";
 
@@ -335,6 +336,11 @@ export default function PropertyDetailPage() {
             <div className="pdp-sidebar-card">
               <div className="pdp-sidebar-name-row">
                 <div className="pdp-sidebar-name">{name}</div>
+                <ShareButton
+                  className="share-btn--on-light"
+                  title={name}
+                  text={`Check out ${name} on IVYhuts`}
+                />
                 <WishlistHeart
                   className="wishlist-heart-btn--on-light"
                   property={{

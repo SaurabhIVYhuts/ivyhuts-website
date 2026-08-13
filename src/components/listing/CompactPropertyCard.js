@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import PropertyImageGallery from "./PropertyImageGallery";
 import WishlistHeart from "./WishlistHeart";
+import ShareButton from "./ShareButton";
 
 export default function CompactPropertyCard({ listing }) {
   const { id, name, address, images, price, rating, badges, slug } = listing;
@@ -48,6 +49,15 @@ export default function CompactPropertyCard({ listing }) {
         {wishlistSnapshot && (
           <div className="chp-floating-heart">
             <WishlistHeart property={wishlistSnapshot} />
+          </div>
+        )}
+        {slug && (
+          <div className="chp-floating-share">
+            <ShareButton
+              url={`${window.location.origin}/property/${encodeURIComponent(slug)}`}
+              title={name}
+              text={`Check out ${name} on IVYhuts`}
+            />
           </div>
         )}
       </div>
