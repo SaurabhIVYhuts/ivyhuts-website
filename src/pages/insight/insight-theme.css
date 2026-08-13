@@ -365,6 +365,124 @@
   font-weight: 800;
 }
 
+/* ── CALENDAR ── */
+.insight-calendar { position: relative; margin-left: auto; }
+.insight-calendar-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--brand-rose);
+  background: #F8EEF4;
+  color: var(--brand-purple);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.insight-calendar-trigger:hover { background: var(--brand-purple); color: #fff; }
+.insight-calendar-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  background: var(--surface-white);
+  border: 1px solid var(--border-brand);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 14px;
+  width: 280px;
+}
+.insight-calendar-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.insight-calendar-nav span { font-size: 0.86rem; font-weight: 700; color: var(--brand-purple-deep); }
+.insight-calendar-nav button { border: none; background: none; color: var(--brand-purple); cursor: pointer; padding: 4px; border-radius: var(--radius-sm); }
+.insight-calendar-nav button:hover { background: #F8EEF4; }
+.insight-calendar-weekdays, .insight-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.insight-calendar-weekdays span { font-size: 0.66rem; font-weight: 700; text-align: center; color: var(--ink-faint); padding-bottom: 4px; }
+.insight-calendar-day {
+  position: relative;
+  aspect-ratio: 1;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+.insight-calendar-day:hover:not(:disabled) { background: #F8EEF4; }
+.insight-calendar-day:disabled { color: var(--ink-faint); opacity: 0.4; cursor: not-allowed; }
+.insight-calendar-day-outside { color: var(--ink-faint); opacity: 0.5; }
+.insight-calendar-day-today { border: 1.5px solid var(--brand-gold); }
+.insight-calendar-day-selected { background: linear-gradient(135deg, var(--brand-purple) 0%, var(--brand-rose) 100%); color: #fff; }
+.insight-calendar-day-has-data::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--brand-gold-deep);
+}
+.insight-calendar-day-selected.insight-calendar-day-has-data::after { background: #fff; }
+.insight-calendar-today-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-soft);
+  background: none;
+  color: var(--brand-purple);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.insight-calendar-today-btn:hover { background: #F8EEF4; }
+
+/* ── MODE BANNER ── */
+.insight-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 32px;
+  font-size: 0.82rem;
+}
+.insight-mode-banner strong { display: block; }
+.insight-mode-banner span { display: block; font-size: 0.76rem; opacity: 0.85; }
+.insight-mode-banner-live { background: rgba(46,125,50,0.09); color: #2E7D32; }
+.insight-mode-banner-historical { background: rgba(200,150,12,0.1); color: var(--brand-gold-deep); }
+
+/* ── DIMENSION SWITCH ── */
+.insight-dimension-switch { display: flex; gap: 4px; background: var(--surface); border-radius: var(--radius-full); padding: 3px; }
+.insight-dimension-switch button {
+  border: none;
+  background: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.insight-dimension-switch button.active { background: var(--brand-purple); color: #fff; }
+
+/* ── COMPARISON ── */
+.insight-comparison-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.insight-comparison-item { display: flex; flex-direction: column; gap: 3px; }
+.insight-comparison-label { font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-faint); }
+.insight-comparison-value { font-size: 1.3rem; font-weight: 700; color: var(--brand-purple-deep); }
+.insight-delta { font-size: 0.78rem; font-weight: 700; }
+.insight-delta-up { color: #2E7D32; }
+.insight-delta-down { color: #C0392B; }
+.insight-delta-flat { color: var(--ink-faint); }
+
 /* ── SKELETONS ── */
 .insight-skeleton {
   background: linear-gradient(90deg, #F3ECF1 25%, #F8EEF4 37%, #F3ECF1 63%);
@@ -431,6 +549,9 @@
   .insight-header { padding: 16px; }
   .insight-filterbar { padding: 12px 16px; overflow-x: auto; flex-wrap: nowrap; }
   .insight-filter-select { flex-shrink: 0; }
+  .insight-calendar { flex-shrink: 0; }
+  .insight-calendar-popover { right: auto; left: 0; }
+  .insight-mode-banner { padding: 10px 16px; }
   .insight-content { padding: 16px 16px 40px; }
   .insight-kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .insight-barlist-row { grid-template-columns: 90px 1fr auto; }

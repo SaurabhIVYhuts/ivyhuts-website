@@ -15,7 +15,7 @@ export function rangeFromPreset(key) {
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
-export default function FilterBar({ filters, onChange, onReset, sourceOptions }) {
+export default function FilterBar({ filters, onChange, onReset, sourceOptions, children }) {
   const set = (patch) => onChange({ ...filters, ...patch });
 
   return (
@@ -60,6 +60,8 @@ export default function FilterBar({ filters, onChange, onReset, sourceOptions })
           ))}
         </select>
       )}
+
+      {children}
 
       <button type="button" className="insight-filter-reset" onClick={onReset}>
         Reset Filters

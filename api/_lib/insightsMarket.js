@@ -38,6 +38,10 @@ const PAGES_PER_ADVANCE = RATE_BUDGET_PER_MINUTE; // at most one full shared bud
 const CRAWL_KEY = "insights:marketCrawl:v2";
 const CRAWL_LOCK_KEY = "insights:marketCrawl:v2:lock";
 const CRAWL_LOCK_TTL_MS = 20_000;
+// Defensive cap on the full sold-out property list kept in the crawl state —
+// real sold-out volume is far smaller than this (low thousands at most), but
+// this keeps a single Redis value bounded regardless of catalog growth.
+const SOLD_OUT_PROPERTIES_CAP = 5000;
 // A stale/expired crawl just starts over from page 1 — cheap to redo and
 // keeps the breakdown from drifting too far behind real inventory changes.
 const CRAWL_TTL_SECONDS = 3 * 60 * 60;
@@ -111,6 +115,8 @@ function freshCrawlState() {
         soldOut: { nextPage: 1, expectedTotal: null, fetchedCount: 0, done: false },
         available: { nextPage: 1, expectedTotal: null, fetchedCount: 0, done: false },
         countries: {}, // { [country]: { soldOut, available, cities: { [city]: { soldOut, available, priceSum, priceCount, priceMin, priceMax, currency, samples: [...] } } } }
+        postcodes: {}, // { [postcode]: { postcode, city, country, soldOut, available } } — only populated when Amber actually returns a postal code
+        soldOutProperties: [], // full (uncapped-per-city) list of sold-out items, capped overall at SOLD_OUT_PROPERTIES_CAP — the source for postcode/property-level daily-snapshot reporting
         startedAt: Date.now(),
         updatedAt: Date.now(),
     };
@@ -129,7 +135,7 @@ async function saveCrawlState(state) {
 function bucketItem(state, raw, available) {
     const item = normalizeItem(raw, available);
     if (!item) return;
-    const { country, locality: city } = item;
+    const { country, locality: city, pincode } = item;
 
     if (!state.countries[country]) state.countries[country] = { soldOut: 0, available: 0, cities: {} };
     const countryBucket = state.countries[country];
@@ -165,6 +171,39 @@ function bucketItem(state, raw, available) {
             minPrice: item.minPrice,
             currency: item.currency,
         });
+    }
+
+    // Postcode-level bucketing — only when Amber actually returned one.
+    // Many listings have no postal_code at all; a bucket keyed on null would
+    // just be noise, not a real postcode breakdown, so those are skipped.
+    if (pincode) {
+        if (!state.postcodes) state.postcodes = {};
+        if (!state.postcodes[pincode]) {
+            state.postcodes[pincode] = { postcode: pincode, city, country, soldOut: 0, available: 0 };
+        }
+        if (available) state.postcodes[pincode].available += 1;
+        else state.postcodes[pincode].soldOut += 1;
+    }
+
+    // Full sold-out property record (not sampled) — this is exactly what
+    // sold-out market intelligence needs to report on. Capped defensively so
+    // the shared-store value can never grow unbounded.
+    if (!available) {
+        if (!state.soldOutProperties) state.soldOutProperties = [];
+        if (state.soldOutProperties.length < SOLD_OUT_PROPERTIES_CAP) {
+            state.soldOutProperties.push({
+                id: item.id,
+                slug: item.slug,
+                name: item.name,
+                country,
+                city,
+                locality: city,
+                pincode: item.pincode,
+                available: false,
+                minPrice: item.minPrice,
+                currency: item.currency,
+            });
+        }
     }
 }
 
@@ -228,24 +267,42 @@ async function advanceCrawl() {
     }
 }
 
-// Builds the full market intelligence payload for /api/insights/market.
-// `country`/`city` filter the already-accumulated crawl aggregate — they
-// never change what's crawled (the crawl always covers the whole catalog,
-// which is what makes the totals reconcile), only what's returned.
-async function getMarketIntelligence({ country, city } = {}) {
-    const state = await advanceCrawl();
-    const siteWide = await getInventoryStats();
+function computeMedian(sortedNums) {
+    if (!sortedNums.length) return null;
+    const mid = Math.floor(sortedNums.length / 2);
+    if (sortedNums.length % 2 === 0) return Math.round((sortedNums[mid - 1] + sortedNums[mid]) / 2);
+    return sortedNums[mid];
+}
 
+// Builds the full market intelligence payload from an already-loaded crawl
+// state — a pure function so it can be reused by the live /api/insights/market
+// endpoint (called every request, no extra Amber cost) and by the daily
+// digest job (which calls it once after topping up the crawl). `country`/
+// `city` filter the already-accumulated aggregate — they never change what's
+// crawled (the crawl always covers the whole catalog, which is what makes
+// the totals reconcile), only what's returned.
+//
+// Returns a superset of the original /api/insights/market shape
+// ({siteWide, crawlProgress, coverage, cities}) plus countries[]/postcodes[]/
+// properties[]/pricing{} — existing consumers of the original fields are
+// unaffected by the additions.
+function buildFullBreakdown(state, siteWide, { country, city } = {}) {
     const cities = [];
+    const countryTotals = {};
     let totalSoldOut = 0;
     let totalAvailable = 0;
+
     for (const [countryName, countryBucket] of Object.entries(state.countries)) {
         if (country && countryName !== country) continue;
+        let countrySoldOut = 0;
+        let countryAvailable = 0;
         for (const [cityName, cityBucket] of Object.entries(countryBucket.cities)) {
             if (city && cityName !== city) continue;
             const total = cityBucket.soldOut + cityBucket.available;
             totalSoldOut += cityBucket.soldOut;
             totalAvailable += cityBucket.available;
+            countrySoldOut += cityBucket.soldOut;
+            countryAvailable += cityBucket.available;
             cities.push({
                 city: cityName,
                 country: countryName,
@@ -261,8 +318,63 @@ async function getMarketIntelligence({ country, city } = {}) {
                 properties: cityBucket.samples,
             });
         }
+        if (countrySoldOut + countryAvailable > 0) countryTotals[countryName] = { soldOut: countrySoldOut, available: countryAvailable };
     }
     cities.sort((a, b) => b.soldOut - a.soldOut);
+
+    // Countries ranked by sold-out count, with each one's share of the
+    // total sold-out inventory (never an invented percentage).
+    const countries = Object.entries(countryTotals)
+        .map(([name, t]) => ({
+            country: name,
+            soldOut: t.soldOut,
+            available: t.available,
+            total: t.soldOut + t.available,
+            soldOutShare: totalSoldOut ? t.soldOut / totalSoldOut : null,
+        }))
+        .sort((a, b) => b.soldOut - a.soldOut)
+        .map((c, i) => ({ ...c, rank: i + 1 }));
+
+    // Postcodes ranked by sold-out count — only real postal-code data,
+    // capped to the top 100 (a management dashboard table, not a full dump).
+    const postcodes = Object.values(state.postcodes || {})
+        .filter((p) => (!country || p.country === country) && (!city || p.city === city))
+        .sort((a, b) => b.soldOut - a.soldOut)
+        .slice(0, 100)
+        .map((p, i) => ({
+            postcode: p.postcode,
+            city: p.city,
+            country: p.country,
+            soldOut: p.soldOut,
+            available: p.available,
+            total: p.soldOut + p.available,
+            soldOutShare: totalSoldOut ? p.soldOut / totalSoldOut : null,
+            rank: i + 1,
+        }));
+
+    // Full sold-out property list (source of truth for the Property
+    // Intelligence / "strongest sold-out presence" section), filtered the
+    // same way as everything else above.
+    const properties = (state.soldOutProperties || [])
+        .filter((p) => (!country || p.country === country) && (!city || p.city === city))
+        .sort((a, b) => (b.minPrice ?? -1) - (a.minPrice ?? -1));
+
+    // Pricing intelligence — average/median/min/max ASKING price of
+    // sold-out inventory, computed only over items with real price data
+    // (missing price is excluded, never treated as zero). Deliberately
+    // scoped to sold-out inventory (not the general cached-property sample
+    // the existing Pricing tab uses) since that's what this system reports
+    // on; the dashboard labels this distinctly from the existing tab.
+    const pricedValues = properties.filter((p) => Number.isFinite(p.minPrice)).map((p) => p.minPrice);
+    const sortedPrices = [...pricedValues].sort((a, b) => a - b);
+    const pricing = {
+        sampleSize: pricedValues.length,
+        currency: properties.find((p) => p.currency)?.currency || null,
+        average: pricedValues.length ? Math.round(pricedValues.reduce((s, v) => s + v, 0) / pricedValues.length) : null,
+        median: computeMedian(sortedPrices),
+        min: pricedValues.length ? sortedPrices[0] : null,
+        max: pricedValues.length ? sortedPrices[sortedPrices.length - 1] : null,
+    };
 
     const complete = state.soldOut.done && state.available.done;
     return {
@@ -274,9 +386,8 @@ async function getMarketIntelligence({ country, city } = {}) {
             availableExpected: state.available.expectedTotal,
             complete,
         },
-        // Kept for the frontend's existing "coverage" copy — now reports
-        // real crawl progress (properties counted so far) rather than a
-        // curated city list's coverage.
+        // Kept for the frontend's existing "coverage" copy — reports real
+        // crawl progress (properties counted so far), not a curated list's.
         coverage: {
             citiesWithData: cities.length,
             totalCities: cities.length,
@@ -287,7 +398,23 @@ async function getMarketIntelligence({ country, city } = {}) {
                     : null,
         },
         cities,
+        countries,
+        postcodes,
+        properties,
+        pricing,
+        totalSoldOut,
+        totalAvailable,
+        soldOutPercentage: totalSoldOut + totalAvailable ? Math.round((totalSoldOut / (totalSoldOut + totalAvailable)) * 1000) / 10 : null,
     };
 }
 
-module.exports = { getMarketIntelligence };
+// Builds the full market intelligence payload for /api/insights/market —
+// advances the crawl by one budget window, then delegates to the pure
+// buildFullBreakdown() above.
+async function getMarketIntelligence({ country, city } = {}) {
+    const state = await advanceCrawl();
+    const siteWide = await getInventoryStats();
+    return buildFullBreakdown(state, siteWide, { country, city });
+}
+
+module.exports = { getMarketIntelligence, buildFullBreakdown, loadCrawlState, advanceCrawl };
