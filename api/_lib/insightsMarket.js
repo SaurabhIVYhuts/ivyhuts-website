@@ -402,9 +402,30 @@ function buildFullBreakdown(state, siteWide, { country, city } = {}) {
         postcodes,
         properties,
         pricing,
+        // Items the breakdown crawl has counted SO FAR — correct as the
+        // denominator for the country/city/postcode share-of-counted-so-far
+        // percentages above (which are inherently crawl-progress-relative),
+        // but NOT the same thing as the site's real total, especially while
+        // crawlProgress.complete is false.
         totalSoldOut,
         totalAvailable,
-        soldOutPercentage: totalSoldOut + totalAvailable ? Math.round((totalSoldOut / (totalSoldOut + totalAvailable)) * 1000) / 10 : null,
+        // Authoritative headline figures — reconciled with the homepage's
+        // own Sold Out counter. siteWide.total/soldOut/remaining come from
+        // getInventoryStats()'s two lightweight COUNT-only Amber requests
+        // (exact, not a page-by-page crawl), so these are correct
+        // immediately, even on the very first request before the breakdown
+        // crawl has counted more than a page or two. Only fall back to the
+        // crawl's own running total in the rare case siteWide itself
+        // couldn't be fetched this request (shared budget momentarily
+        // exhausted) — see api/_lib/inventoryStats.js's `ready` contract.
+        totalInventory: siteWide?.ready ? siteWide.total : totalSoldOut + totalAvailable,
+        soldOutInventory: siteWide?.ready ? siteWide.soldOut : totalSoldOut,
+        availableInventory: siteWide?.ready ? siteWide.remaining : totalAvailable,
+        soldOutPercentage: (() => {
+            const total = siteWide?.ready ? siteWide.total : totalSoldOut + totalAvailable;
+            const soldOut = siteWide?.ready ? siteWide.soldOut : totalSoldOut;
+            return total ? Math.round((soldOut / total) * 1000) / 10 : null;
+        })(),
     };
 }
 

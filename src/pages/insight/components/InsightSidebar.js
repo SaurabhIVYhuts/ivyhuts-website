@@ -1,8 +1,7 @@
 import React from "react";
-import { LayoutDashboard, Globe2, Tag, Building2, CalendarClock } from "lucide-react";
+import { Globe2, Tag, Building2, CalendarClock } from "lucide-react";
 
 const NAV_ITEMS = [
-  { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "market", label: "Market Intelligence", icon: Globe2 },
   { key: "pricing", label: "Pricing", icon: Tag },
   { key: "property", label: "Property Performance", icon: Building2 },

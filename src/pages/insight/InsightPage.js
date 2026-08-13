@@ -4,7 +4,6 @@ import InsightHeader from "./components/InsightHeader";
 import FilterBar, { rangeFromPreset } from "./components/FilterBar";
 import InsightCalendar from "./components/InsightCalendar";
 import ModeBanner from "./components/ModeBanner";
-import OverviewSection from "./components/sections/OverviewSection";
 import MarketSection from "./components/sections/MarketSection";
 import PricingSection from "./components/sections/PricingSection";
 import PropertySection from "./components/sections/PropertySection";
@@ -16,7 +15,7 @@ import "./insight-theme.css";
 // Backend auth is also bypassed in api/_lib/insightsDevAuth.js.
 
 export default function InsightPage() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("market");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [filters, setFilters] = useState({ rangeKey: "30d", ...rangeFromPreset("30d") });
   // null = today, live. "YYYY-MM-DD" = a historical date picked from the
@@ -109,14 +108,13 @@ export default function InsightPage() {
 
   const sourceOptions = overview ? overview.bySource.map((s) => s.source).filter(Boolean) : [];
 
-  // The existing Market/Pricing/Property tab components assume `market`,
-  // once truthy, always has real cities[]/properties[] arrays — true for
-  // live mode and for any historical date that actually has a snapshot.
-  // For a historical date with no stored snapshot (available:false), fall
-  // back to null so those components' existing "no data" empty state
-  // renders instead of crashing on missing arrays. Overview/Booking read
-  // the raw `market` object directly so they can show the specific
-  // "no snapshot for this date" message.
+  // Pricing/Property assume `market`, once truthy, always has real
+  // cities[]/properties[] arrays — true for live mode and for any
+  // historical date that actually has a snapshot. For a historical date
+  // with no stored snapshot (available:false), fall back to null so those
+  // components' existing "no data" empty state renders instead of crashing
+  // on missing arrays. Market/Booking read the raw `market` object directly
+  // so they can show the specific "no snapshot for this date" message.
   const marketForLegacyTabs = market && market.available !== false ? market : null;
 
   return (
@@ -136,9 +134,8 @@ export default function InsightPage() {
           />
         )}
         <div className="insight-content">
-          {activeTab === "overview" && <OverviewSection data={market} loading={loadingMarket} error={errorMarket} onRetry={loadMarket} onResetFilters={resetFilters} />}
           {activeTab === "market" && (
-            <MarketSection market={marketForLegacyTabs} overview={overview} loading={loadingMarket} error={errorMarket} onRetry={loadMarket} onResetFilters={resetFilters} />
+            <MarketSection market={market} overview={overview} loading={loadingMarket} error={errorMarket} onRetry={loadMarket} onResetFilters={resetFilters} />
           )}
           {activeTab === "pricing" && (
             <PricingSection market={marketForLegacyTabs} loading={loadingMarket} error={errorMarket} onRetry={loadMarket} onResetFilters={resetFilters} />

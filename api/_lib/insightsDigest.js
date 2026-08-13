@@ -9,6 +9,12 @@
 // step is wrapped so a failure downstream (email) never undoes success
 // upstream (the saved snapshot), and a total Amber outage never destroys a
 // previous day's data — see the module-level comments below for exactly how.
+//
+// A snapshot is ONLY ever written once the crawl has counted the entire
+// catalog (crawlProgress.complete === true) — never a partial pass. If the
+// crawl isn't done yet when this runs, nothing is saved and an alert email
+// explains why; the previous day's snapshot stays the latest until a later
+// run (or a manual retrigger) catches the crawl complete.
 const { loadCrawlState, advanceCrawl, buildFullBreakdown } = require("./insightsMarket");
 const { getInventoryStats } = require("./inventoryStats");
 const { istDateString, saveSnapshot, getPreviousSnapshot, getRecentSnapshots, updateSnapshotEmailStatus } = require("./insightsSnapshotStore");
@@ -85,34 +91,47 @@ async function runDailyDigest() {
     const siteWide = await getInventoryStats();
     const breakdown = buildFullBreakdown(state, siteWide, {});
 
-    // Nothing real to report at all — e.g. the very first run before any
-    // crawl has ever completed a pass, or a total, sustained Amber outage.
-    // Per spec: never write a fabricated/empty snapshot, and never silently
-    // report success — alert instead, leaving any previous day untouched.
-    if (breakdown.coverage.itemsCounted === 0) {
-        const reason = "No Amber inventory data is available yet — the catalog crawl has not accumulated any results.";
-        console.error(`[insights-digest] FAILED date=${date} reason=${reason}`);
+    // A snapshot is only ever saved once the crawl has counted every single
+    // property in Amber's catalog (both the sold-out and available sides) —
+    // never a partial catalog pass. Two sub-cases:
+    //   - itemsCounted === 0: nothing at all has been crawled yet (first-ever
+    //     run, or a total/sustained Amber outage) — treated as a real failure.
+    //   - itemsCounted > 0 but not complete: the crawl is legitimately still
+    //     working through the catalog (normally kept warm by
+    //     api/insights/advance-crawl.js's 5-minute cadence, so this should be
+    //     rare by 08:00 IST) — not an error, just not ready yet. Either way,
+    //     nothing is written and any previous day's snapshot is untouched;
+    //     today's dashboard/email simply has to wait for a later run.
+    if (!breakdown.crawlProgress.complete) {
+        const counted = breakdown.coverage.itemsCounted;
+        const expected = breakdown.coverage.itemsExpected;
+        const isEmpty = counted === 0;
+        const reason = isEmpty
+            ? "No Amber inventory data is available yet — the catalog crawl has not accumulated any results."
+            : `The catalog crawl has not finished counting the full inventory yet (${counted.toLocaleString()}${
+                  expected != null ? ` of ${expected.toLocaleString()}` : ""
+              } items counted) — deferring today's snapshot until it completes, so no partial data ever gets recorded.`;
+        console.warn(`[insights-digest] ${isEmpty ? "FAILED" : "DEFERRED"} date=${date} reason=${reason}`);
         let alertSent = false;
         let alertError = null;
         try {
-            await sendInsightsFailureAlertEmail(date, reason);
+            await sendInsightsFailureAlertEmail(date, reason, isEmpty ? "failed" : "skipped");
             alertSent = true;
         } catch (err) {
             alertError = err.message;
             console.error("[insights-digest] failure-alert email also failed:", err.message);
         }
-        return { ok: false, date, status: "failed", reason, alertSent, alertError };
+        return { ok: false, date, status: isEmpty ? "failed" : "skipped", reason, alertSent, alertError, coverage: breakdown.coverage };
     }
 
-    const status = breakdown.crawlProgress.complete ? "success" : "partial";
     const payload = {
         generatedAt,
         source: "amber",
-        status,
+        status: "success",
         error: null,
-        totalInventory: breakdown.totalSoldOut + breakdown.totalAvailable,
-        availableInventory: breakdown.totalAvailable,
-        soldOutInventory: breakdown.totalSoldOut,
+        totalInventory: breakdown.totalInventory,
+        availableInventory: breakdown.availableInventory,
+        soldOutInventory: breakdown.soldOutInventory,
         soldOutPercentage: breakdown.soldOutPercentage,
         siteWide: breakdown.siteWide,
         crawlProgress: breakdown.crawlProgress,
@@ -170,8 +189,8 @@ async function runDailyDigest() {
         }
     }
 
-    console.log(`[insights-digest] date=${date} status=${status} emailSent=${emailSent} itemsCounted=${breakdown.coverage.itemsCounted}`);
-    return { ok: true, date, status, saved: true, emailSent, emailError, coverage: breakdown.coverage };
+    console.log(`[insights-digest] date=${date} status=success emailSent=${emailSent} itemsCounted=${breakdown.coverage.itemsCounted}`);
+    return { ok: true, date, status: "success", saved: true, emailSent, emailError, coverage: breakdown.coverage };
 }
 
 module.exports = { runDailyDigest };

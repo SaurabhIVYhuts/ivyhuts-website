@@ -231,10 +231,13 @@ async function sendInsightsDigestEmail(snapshot, comparison) {
     return { sent: true };
 }
 
-// Sent instead of the full report when the digest job has nothing real to
-// report at all (crawl state completely empty — see insightsDigest.js) so
-// the failure is visible without anyone having to check server logs.
-async function sendInsightsFailureAlertEmail(dateStr, errorMessage) {
+// Sent instead of the full report whenever insightsDigest.js decides NOT to
+// save a snapshot today — either a real failure (crawl state completely
+// empty) or a benign deferral (crawl legitimately still counting the
+// catalog, so writing a snapshot now would mean recording partial data).
+// `status` only changes the subject line's framing; the body always explains
+// the real reason via `errorMessage`.
+async function sendInsightsFailureAlertEmail(dateStr, errorMessage, status = "failed") {
     const recipients = String(process.env.INSIGHTS_REPORT_RECIPIENTS || "")
         .split(",")
         .map((s) => s.trim())
@@ -245,11 +248,14 @@ async function sendInsightsFailureAlertEmail(dateStr, errorMessage) {
     const from = process.env.RESEND_FROM || "IVYhuts <onboarding@resend.dev>";
     const dateLabel = formatDateLong(dateStr);
 
+    const subjectLabel = status === "skipped" ? "snapshot deferred" : "snapshot failed";
+    const headline = status === "skipped" ? `Today's market-intelligence snapshot for ${dateLabel} was deferred.` : `The daily market-intelligence snapshot for ${dateLabel} could not be generated.`;
+
     const email = {
         body: {
             name: "IVYhuts Team",
             intro: [
-                `The daily market-intelligence snapshot for ${dateLabel} could not be generated.`,
+                headline,
                 `Reason: ${errorMessage}`,
                 "The previous day's snapshot remains available on the dashboard — no existing data was lost or overwritten.",
             ],
@@ -263,7 +269,7 @@ async function sendInsightsFailureAlertEmail(dateStr, errorMessage) {
     const { error } = await resend.emails.send({
         from,
         to: recipients,
-        subject: `IVYHUTS Market Intelligence — snapshot failed (${dateLabel})`,
+        subject: `IVYHUTS Market Intelligence — ${subjectLabel} (${dateLabel})`,
         html,
         text,
     });
