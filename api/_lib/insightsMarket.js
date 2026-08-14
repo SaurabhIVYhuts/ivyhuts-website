@@ -244,10 +244,30 @@ async function advanceCrawlSide(state, sideKey, availableFlag, callBudget) {
 
         for (const raw of items) bucketItem(state, raw, availableFlag);
         side.fetchedCount += items.length;
-        side.nextPage += 1;
 
-        if (items.length === 0 || (side.expectedTotal != null && side.fetchedCount >= side.expectedTotal)) {
+        // Once Amber has told us the real total (meta.count, captured above —
+        // present on essentially every response, even an anomalous one), that
+        // count is authoritative for "are we done," not "did this particular
+        // page come back empty." A page can legitimately come back empty for
+        // reasons that have nothing to do with having reached the end (a
+        // transient upstream hiccup, a momentarily bad cache entry) — trusting
+        // `items.length === 0` unconditionally let exactly that happen once:
+        // page 1 of the sold-out side came back empty while expectedTotal was
+        // very much nonzero, and the crawl latched `done: true` with
+        // fetchedCount stuck at 0 — a "complete" snapshot that silently
+        // reported zero sold-out inventory across every city. Only fall back
+        // to the empty-page heuristic when we have no count to trust yet.
+        if (side.expectedTotal != null) {
+            side.done = side.fetchedCount >= side.expectedTotal;
+        } else if (items.length === 0) {
             side.done = true;
+        }
+
+        // Don't advance past a page that came back suspiciously empty while
+        // we know there's more to find (expectedTotal not yet reached) — retry
+        // the same page next tick instead of silently skipping it forever.
+        if (items.length > 0 || side.done) {
+            side.nextPage += 1;
         }
     }
     return callsUsed;
