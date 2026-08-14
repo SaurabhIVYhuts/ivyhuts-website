@@ -2,7 +2,7 @@
 // request — from every user, every tab, every deployed instance — goes
 // through fetchAmber() below, which is cache-first, cooldown-aware,
 // stampede-locked and budget-enforced before it ever touches the network.
-const { sharedGet, sharedSet, tryReserveSlot, peekRecentRequestCount, acquireLock, releaseLock, RedisUnavailableError, log } = require("./sharedStore");
+const { sharedGet, sharedSet, tryReserveSlot, reserveSlot, peekRecentRequestCount, acquireLock, releaseLock, RedisUnavailableError, log } = require("./sharedStore");
 
 const PARTNER_ID = "ivy-huts-707a5cdf";
 const BASE_URL = `https://base.amberstudent.com/api/v0/leads/partners/${PARTNER_ID}`;
@@ -13,6 +13,25 @@ const BASE_URL = `https://base.amberstudent.com/api/v0/leads/partners/${PARTNER_
 const RATE_BUDGET_PER_MINUTE = Number(process.env.AMBER_MAX_REQUESTS_PER_MINUTE) || 6;
 const RATE_WINDOW_MS = 60_000;
 const DEFAULT_COOLDOWN_MS = 5 * 60_000; // Amber's documented halt — used whenever it doesn't tell us otherwise
+
+// A small, separate allowance reserved exclusively for the /insight catalog
+// crawl (api/_lib/insightsMarket.js), on top of the RATE_BUDGET_PER_MINUTE
+// pool everyone else shares. The main budget is plain first-come-first-served
+// with no real priority queue underneath — "LOW priority" only changes what
+// happens after losing that race (skip quietly instead of erroring), so on a
+// day with steady real traffic the crawl can lose every single race and make
+// zero progress for as long as that traffic keeps up (confirmed live: stuck
+// at the same page for 15+ minutes straight). This reserve guarantees the
+// crawl a small amount of forward progress every minute regardless of real
+// traffic, without ever taking capacity away from real users — worst-case
+// combined Amber traffic becomes RATE_BUDGET_PER_MINUTE + this value
+// (6 + 2 = 8/min by default), still safely under Amber's documented 10/min
+// hard limit.
+const CRAWL_RESERVED_BUDGET_PER_MINUTE = Number(process.env.AMBER_CRAWL_RESERVED_PER_MINUTE) || 2;
+const CRAWL_RESERVED_KEY = "amber:requests:crawl-reserved";
+function isCrawlSource(source) {
+    return typeof source === "string" && source.startsWith("insights-market-crawl");
+}
 
 // Amber cold responses have been observed taking up to ~13.7s in production —
 // but confirmed Vercel Preview runtime evidence (Milestone 3C) showed a real
@@ -318,14 +337,33 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
         if (!granted) {
             const used = await peekRecentRequestCount(RATE_WINDOW_MS);
             log(`source=${source} priority=${priority} cache=MISS key=${cacheKey} budget=${used}/${RATE_BUDGET_PER_MINUTE} action=BUDGET_EXCEEDED`);
-            if (priority === "LOW") {
+
+            // The shared pool is full. Before giving up, the catalog crawl
+            // (and only the catalog crawl — see isCrawlSource) gets one more
+            // try against its own small reserved allowance, so steady real
+            // traffic can never fully starve it indefinitely (confirmed live:
+            // stuck at the same page for 15+ minutes under normal traffic).
+            // Every other LOW-priority caller (the cache warmer, etc.) still
+            // just skips here exactly as before — this reserve is deliberately
+            // narrow, not a general priority boost.
+            if (priority === "LOW" && isCrawlSource(source)) {
+                const grantedReserved = await reserveSlot(CRAWL_RESERVED_KEY, RATE_WINDOW_MS, CRAWL_RESERVED_BUDGET_PER_MINUTE);
+                if (!grantedReserved) {
+                    if (cached) return { data: cached.data, cacheStatus: "STALE_BUDGET" };
+                    return { data: null, cacheStatus: "SKIPPED_LOW_PRIORITY" };
+                }
+                log(`source=${source} priority=${priority} cache=MISS key=${cacheKey} action=CRAWL_RESERVE_USED`);
+                // Falls through to the real Amber request below, same as a
+                // normal granted slot.
+            } else if (priority === "LOW") {
                 // Background/decorative work must never force the issue —
                 // just skip it and let a future request try again.
                 if (cached) return { data: cached.data, cacheStatus: "STALE_BUDGET" };
                 return { data: null, cacheStatus: "SKIPPED_LOW_PRIORITY" };
+            } else {
+                if (cached) return { data: cached.data, cacheStatus: "STALE_BUDGET" };
+                throw new AmberGatewayError("Amber request budget exhausted for this minute — please retry shortly", 429, null, "budget_exceeded");
             }
-            if (cached) return { data: cached.data, cacheStatus: "STALE_BUDGET" };
-            throw new AmberGatewayError("Amber request budget exhausted for this minute — please retry shortly", 429, null, "budget_exceeded");
         }
 
         const amberUrl = buildAmberUrl(type, params);
