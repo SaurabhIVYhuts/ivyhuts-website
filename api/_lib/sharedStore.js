@@ -139,14 +139,25 @@ async function sharedGet(key) {
     return entry ? entry.value : undefined;
 }
 
+// Uses redisCommandPost (JSON body), not redisCommand (value encoded into
+// the URL path) — a value of any real size (e.g. the /insight catalog
+// crawl's state: hundreds of cities/postcodes, thousands of capped
+// sold-out properties) blows past a URL/header length limit that way,
+// failing with a hard-to-diagnose "Upstash command failed: 431" thrown as
+// RedisUnavailableError. Confirmed live: the crawl was silently completing
+// real Amber fetches every single call and then losing all of that
+// progress at this exact save step, which is why it kept reverting to the
+// same page number no matter how many times it was retried. Likely also
+// affected large Amber listing-page cache writes generally, not just this
+// one caller — POST has no such size constraint either way.
 async function sharedSet(key, value, ttlSeconds) {
     if (REDIS_AVAILABLE) {
         if (ttlSeconds) {
-            await redisCommand("SET", key, JSON.stringify(value), "EX", String(Math.max(1, Math.ceil(ttlSeconds))));
+            await redisCommandPost(["SET", key, JSON.stringify(value), "EX", String(Math.max(1, Math.ceil(ttlSeconds)))]);
         } else {
             // No TTL: used by callers that need a permanent record (e.g. the
             // auth user store) rather than a cache entry.
-            await redisCommand("SET", key, JSON.stringify(value));
+            await redisCommandPost(["SET", key, JSON.stringify(value)]);
         }
         return;
     }
@@ -162,7 +173,7 @@ async function sharedSet(key, value, ttlSeconds) {
 // deleted via sharedDelete.
 async function sharedSetNX(key, value) {
     if (REDIS_AVAILABLE) {
-        const result = await redisCommand("SET", key, JSON.stringify(value), "NX");
+        const result = await redisCommandPost(["SET", key, JSON.stringify(value), "NX"]);
         return result === "OK";
     }
     warnFallbackOnce();
