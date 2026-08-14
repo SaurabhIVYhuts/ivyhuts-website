@@ -20,6 +20,30 @@ const CountryStatSchema = new Schema(
     { _id: false }
 );
 
+const PostcodeStatSchema = new Schema(
+    { postcode: String, city: String, country: String, soldOut: Number, available: Number, total: Number, soldOutShare: Number, rank: Number },
+    { _id: false }
+);
+
+// Also doubles as each city's up-to-4 sample-property list (CityStatSchema's
+// `properties` below) and the top-level full sold-out property list — both
+// come from the exact same bucketItem() records in insightsMarket.js.
+const PropertyStatSchema = new Schema(
+    {
+        id: Schema.Types.Mixed,
+        slug: String,
+        name: String,
+        country: String,
+        city: String,
+        locality: String,
+        pincode: String,
+        available: Boolean,
+        minPrice: Number,
+        currency: String,
+    },
+    { _id: false }
+);
+
 const CityStatSchema = new Schema(
     {
         city: String,
@@ -32,25 +56,17 @@ const CityStatSchema = new Schema(
         minAskingPrice: Number,
         maxAskingPrice: Number,
         currency: String,
-    },
-    { _id: false }
-);
-
-const PostcodeStatSchema = new Schema(
-    { postcode: String, city: String, country: String, soldOut: Number, available: Number, total: Number, soldOutShare: Number, rank: Number },
-    { _id: false }
-);
-
-const PropertyStatSchema = new Schema(
-    {
-        id: Schema.Types.Mixed,
-        slug: String,
-        name: String,
-        country: String,
-        city: String,
-        pincode: String,
-        minPrice: Number,
-        currency: String,
+        // Both of these were previously undeclared, which meant Mongoose's
+        // default strict mode silently dropped them on every save — even
+        // though buildFullBreakdown() always sends them. The frontend
+        // (src/pages/insight/components/sections/MarketSection.js) filters
+        // nearly everything through `city.cached` (Top Countries, Top Demand
+        // Markets, Next-Year Opportunity, Market Share %), so every historical
+        // snapshot rendered as empty/zero across those views despite the
+        // underlying soldOut/available numbers above being fully intact in
+        // the document — confirmed by querying a saved snapshot directly.
+        cached: { type: Boolean, default: true },
+        properties: { type: [PropertyStatSchema], default: [] },
     },
     { _id: false }
 );
