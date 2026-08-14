@@ -14,8 +14,14 @@
 // than crashing) but does NOT provide the cross-user/cross-instance
 // guarantees this whole feature exists for. See the README note this file
 // links back to in the final report for exactly what to configure.
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+// KV_REST_API_URL/KV_REST_API_TOKEN are what Vercel's own "Storage -> KV"
+// product (Marketplace-provisioned Upstash, as opposed to a standalone
+// Upstash account) names these same two values — it's Upstash underneath,
+// same REST API, just a different env var naming convention depending on
+// which of Vercel's provisioning flows created the database. Accept either
+// so this doesn't silently fail closed just because of which flow was used.
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 const REDIS_AVAILABLE = Boolean(UPSTASH_URL && UPSTASH_TOKEN);
 
 // Deliberately unconditional (previously gated behind NODE_ENV !== "production",
