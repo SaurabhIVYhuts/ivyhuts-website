@@ -42,9 +42,22 @@ const CRAWL_LOCK_TTL_MS = 20_000;
 // real sold-out volume is far smaller than this (low thousands at most), but
 // this keeps a single Redis value bounded regardless of catalog growth.
 const SOLD_OUT_PROPERTIES_CAP = 5000;
-// A stale/expired crawl just starts over from page 1 — cheap to redo and
-// keeps the breakdown from drifting too far behind real inventory changes.
-const CRAWL_TTL_SECONDS = 3 * 60 * 60;
+// A stale/expired crawl just starts over from page 1 — cheap to redo, but
+// the TTL clock only resets on a successful advance, and a *completed*
+// crawl is never touched again until it expires. So this value isn't just
+// "how fresh is the data" — it's "how long a finished crawl survives before
+// silently restarting from zero." The 08:00 IST daily digest
+// (api/_lib/insightsDigest.js) refuses to save a snapshot unless the crawl
+// is complete at that exact moment, so the old 3-hour TTL meant completion
+// had to line up with a fixed clock time purely by luck: a full pass takes
+// on the order of an hour once (at 6 pages/tick, every 5 min, shared with
+// every other Amber caller — see advanceCrawl below), which is close enough
+// to 3 hours that the crawl could easily be mid-reset right at 08:00 IST on
+// any given day, not just the day this feature launched. 26 hours (a full
+// day plus headroom) means a crawl that completes at all in a day stays
+// "done" straight through the next day's 08:00 IST digest, decoupling
+// completion from the digest's fixed schedule.
+const CRAWL_TTL_SECONDS = 26 * 60 * 60;
 
 function toNumber(v) {
     if (v == null) return null;
