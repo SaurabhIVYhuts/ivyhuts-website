@@ -82,7 +82,12 @@ function getAddress(raw) {
   const locality = loc.locality?.long_name || raw.city || "";
   const country = loc.country?.long_name || raw.country || "";
   const postcode = loc.postal_code?.long_name || "";
-  const route = loc.route?.long_name || loc.primary || "";
+  // route.long_name (or the loc.primary fallback below it) is meant to be a
+  // proper street line, but for some properties Amber sets it to just the
+  // postcode itself — without this guard that duplicates the postcode into
+  // the address twice (e.g. "45127, Essen, 45127, Germany").
+  let route = loc.route?.long_name || loc.primary || "";
+  if (route === postcode) route = "";
   const parts = [route, locality, postcode, country].filter(Boolean);
   return {
     line: route,
@@ -354,8 +359,14 @@ function getAmenities(raw, limit = 10) {
 
   const add = (name) => {
     const clean = (name || "").trim();
-    if (!clean || seen.has(clean.toLowerCase())) return;
-    seen.add(clean.toLowerCase());
+    if (!clean) return;
+    // Normalize the same way titleCase() does (hyphens/underscores -> space)
+    // before comparing, so e.g. "Wi-Fi" from raw.features and "Wi-Fi" -> "Wi
+    // Fi" from raw.tags (after titleCase mangles the hyphen) are recognized
+    // as the same amenity instead of both surviving as separate chips.
+    const key = clean.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+    if (seen.has(key)) return;
+    seen.add(key);
     out.push(clean);
   };
 

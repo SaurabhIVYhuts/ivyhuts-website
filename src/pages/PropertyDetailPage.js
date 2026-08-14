@@ -148,7 +148,7 @@ export default function PropertyDetailPage() {
   }
 
   const {
-    name, address, images, price, distances, amenityGroups, badges, offerText,
+    name, address, images, price, distances, amenityGroups, badges,
     quickFacts, policyLinks, paymentInfo, roomTypes, rating, reviewSummary, social,
     coordinates, available,
   } = property;
@@ -201,7 +201,6 @@ export default function PropertyDetailPage() {
                   {badges.map((b) => <span key={b} className="pdp-badge">{b}</span>)}
                 </div>
               )}
-              {offerText && <div className="pdp-offer-banner">{offerText}</div>}
               {!available && <div className="pdp-unavailable-banner">This property currently has no available rooms.</div>}
             </header>
 
