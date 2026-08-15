@@ -13,6 +13,15 @@
 // is looked up here, never trusted from the client directly, so a spoofed
 // or stale id can only ever fail to resolve, not silently substitute wrong
 // coordinates into ranking.
+//
+// `accommodationOverride` (optional, per-university): an explicit business
+// rule restricting that university's accommodation results to one or more
+// SPECIFIC, already-known IVYHUTS properties (by Amber slug/canonical_name)
+// — never a generic "nearby search". Currently set for
+// university-of-hertfordshire (Luna Hatfield only). See
+// api/_lib/accommodationIndex.js's getOverrideResidences() and
+// api/student-planner.js for how it's consumed — this file only ever
+// surfaces the field as data, never interprets it.
 "use strict";
 
 const UNIVERSITIES = require("./universities.json");

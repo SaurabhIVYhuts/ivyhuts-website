@@ -13,8 +13,15 @@
   { "id": "newcastle-university", "name": "Newcastle University", "aliases": ["U Newcastle", "University of Newcastle"], "city": "Newcastle Upon Tyne", "country": "United Kingdom", "latitude": 54.9807, "longitude": -1.6153 },
   { "id": "university-of-leicester", "name": "University of Leicester", "aliases": ["Leicester University", "U Leicester"], "city": "Leicester", "country": "United Kingdom", "latitude": 52.6214, "longitude": -1.1244 },
   { "id": "university-of-exeter", "name": "University of Exeter", "aliases": ["Exeter University", "U Exeter"], "city": "Exeter", "country": "United Kingdom", "latitude": 50.7355, "longitude": -3.5330 },
+  { "id": "university-of-derby", "name": "University of Derby", "aliases": ["University of Derby UK", "Derby University", "UoD", "U Derby"], "city": "Derby", "country": "United Kingdom", "latitude": 52.9381, "longitude": -1.4964 },
+  {
+    "id": "university-of-hertfordshire", "name": "University of Hertfordshire", "aliases": ["Herts", "UH", "Uni of Hertfordshire", "University of Herts"],
+    "city": "Hatfield", "country": "United Kingdom", "latitude": 51.7515, "longitude": -0.2393,
+    "accommodationOverride": { "propertySlugs": ["luna-hatfield-1905073461300"] }
+  },
   { "id": "university-of-toronto", "name": "University of Toronto", "aliases": ["U of T", "UofT", "Toronto University"], "city": "Toronto", "country": "Canada", "latitude": 43.6629, "longitude": -79.3957 },
   { "id": "university-of-british-columbia", "name": "University of British Columbia", "aliases": ["UBC"], "city": "Vancouver", "country": "Canada", "latitude": 49.2606, "longitude": -123.2460 },
   { "id": "carleton-university", "name": "Carleton University", "aliases": ["U Carleton"], "city": "Ottawa", "country": "Canada", "latitude": 45.3876, "longitude": -75.6960 },
-  { "id": "university-of-sydney", "name": "University of Sydney", "aliases": ["USyd", "Sydney University"], "city": "Sydney", "country": "Australia", "latitude": -33.8886, "longitude": 151.1873 }
+  { "id": "university-of-sydney", "name": "University of Sydney", "aliases": ["USyd", "Sydney University"], "city": "Sydney", "country": "Australia", "latitude": -33.8886, "longitude": 151.1873 },
+  { "id": "university-of-wollongong-dubai", "name": "University of Wollongong in Dubai (UOWD)", "aliases": ["University of Wollongong Dubai", "University of Wollongong in Dubai", "UOWD", "UOW Dubai"], "city": "Dubai", "country": "United Arab Emirates", "latitude": 25.1022, "longitude": 55.1589 }
 ]

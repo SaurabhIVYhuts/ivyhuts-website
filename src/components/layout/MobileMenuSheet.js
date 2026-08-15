@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  X, Headset, Heart, Search, Mic, Handshake, Building2, Mail, FileText, Lock, ArrowRight,
+  X, Headset, Heart, Search, Mic, Handshake, Building2, Mail, FileText, Lock, ArrowRight, GraduationCap,
 } from "lucide-react";
 import "./MobileMenuSheet.css";
 
@@ -17,6 +17,7 @@ const PRIMARY_ROWS = [
   { label: "Support", href: WA_HREF, external: true, Icon: Headset },
   { label: "Shortlist", to: "/wishlist", Icon: Heart },
   { label: "Find Rooms", to: "/find-rooms", Icon: Search },
+  { label: "University Housing", to: "/university-housing", Icon: GraduationCap },
   { label: "Placement Podcast", to: "/life-abroad", Icon: Mic },
 ];
 const PARTNER_ROWS = [

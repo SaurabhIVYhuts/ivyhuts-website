@@ -1,12 +1,17 @@
 // Student Planner accommodation discovery — the ONLY file that connects the
 // planner to real accommodation data. It never calls Amber directly: every
-// path to Amber goes through fetchListings() (amberGateway.js), so the
-// planner automatically shares the one real global rate budget/cooldown/
-// lock — there is no separate planner quota anywhere in this file.
+// path to Amber goes through fetchListings()/fetchAmber() (amberGateway.js),
+// so the planner automatically shares the one real global rate budget/
+// cooldown/lock — there is no separate planner quota anywhere in this file.
 //
 //   getCityResidences()
 //     -> AccommodationIndexMeta fresh/usable?  -> read AccommodationResidence from Mongo, done (0 Amber calls)
 //     -> missing/expired?                      -> refreshCityIndex() -> fetchListings() (existing gateway)
+//
+//   getOverrideResidences()  (a university's explicit accommodationOverride)
+//     -> fetchAmber({type:"detail", slug})      -> the SAME gateway/cache/
+//        budget path PropertyDetailPage.js already uses for a single
+//        property — no new Amber call type, no Mongo index involved at all.
 //
 // See docs: the write race and freshness-bookkeeping rules below were found
 // and fixed by an explicit design review before implementation — the
@@ -17,7 +22,7 @@
 const { connectToDatabase, MongoNotConfiguredError } = require("./mongodb");
 const AccommodationResidence = require("./models/AccommodationResidence");
 const AccommodationIndexMeta = require("./models/AccommodationIndexMeta");
-const { fetchListings, normalizeCityName } = require("./amberGateway");
+const { fetchListings, fetchAmber, normalizeCityName } = require("./amberGateway");
 const { log } = require("./sharedStore");
 
 // Fresh (<30min) and stale-but-usable (<24h) are behaviorally identical here
@@ -446,6 +451,43 @@ function toOutputShape(doc, matchScore, badge) {
     };
 }
 
+// A university's `accommodationOverride` (see universities.json /
+// universityResolver.js) restricts that university's accommodation results
+// to one or more SPECIFIC, already-known IVYHUTS properties by Amber slug —
+// an explicit business rule, never a ranked/competitive search. Each slug is
+// fetched via fetchAmber's existing type:"detail" (canonical_name) path —
+// the exact same mechanism PropertyDetailPage.js already uses, so this
+// shares that page's own cache entry (amber:detail:<slug>) and introduces
+// zero new Amber call types or Mongo writes. Never throws: a property that
+// fails to fetch is simply dropped, same "never crash the request"
+// philosophy as getCityResidences below; if every slug fails, the result
+// degrades to the same { status: "building", residences: [] } shape.
+async function getOverrideResidences(slugs, { city, university, priority = "MEDIUM", source = "student-planner-override" } = {}) {
+    const normalizedCity = normalizeCityName(city);
+    const fetched = await Promise.all(slugs.map(async (slug) => {
+        try {
+            const result = await fetchAmber({ type: "detail", params: { slug }, priority, source });
+            const item = extractResultArray(result.data)[0];
+            return item ? mapAmberItemToResidence(item, normalizedCity) : null;
+        } catch (err) {
+            log(`[Planner] action=OVERRIDE_FETCH_FAILED slug=${slug} error=${err.message}`);
+            return null;
+        }
+    }));
+    const docs = fetched.filter(Boolean);
+    if (!docs.length) return { status: "building", residences: [] };
+
+    // Real distance when both the university and the property have real
+    // coordinates (same rule attachRankingDistance already enforces for the
+    // ordinary city-search path) — never fabricated.
+    const withDistance = attachRankingDistance(docs, university);
+    // No competitive ranking against other candidates — this is a fixed,
+    // explicit list the business has already decided on, not a search
+    // result, so rankResidences() is deliberately not used here.
+    const residences = withDistance.map((doc) => toOutputShape(doc, 100, "IVYHUTS Recommended"));
+    return { status: "ready", residences };
+}
+
 // The planner's one entry point. Never throws — every failure mode
 // (Mongo not configured, Amber unavailable, city never indexed) degrades to
 // { status: "building", residences: [] } rather than a crash.
@@ -494,6 +536,7 @@ async function getCityResidences(city, { budget, accommodationPreference, priori
 
 module.exports = {
     getCityResidences,
+    getOverrideResidences,
     rankResidences,
     mapAmberItemToResidence,
     parseDistanceKm,

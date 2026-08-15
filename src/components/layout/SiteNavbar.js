@@ -36,6 +36,7 @@ export default function SiteNavbar() {
   const links = [
     { to: "/",               label: "Home" },
     { to: "/find-rooms",     label: "Find Rooms" },
+    { to: "/university-housing", label: "University Housing" },
     { to: "/life-abroad",    label: "Placement Podcast" },
     { to: "/list-your-stay", label: "List Your Stay" },
     { to: "/partner",        label: "Partner with Us" },

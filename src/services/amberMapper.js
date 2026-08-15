@@ -450,6 +450,17 @@ function getSocialProof(raw) {
   };
 }
 
+// Same raw field Amber reports on every listing item (already read the same
+// way, independently, by api/_lib/accommodationIndex.js's
+// mapAmberItemToResidence server-side) — never fabricated, explicit null
+// when absent/invalid so a map component can honestly skip an unplottable
+// property rather than guess a location for it.
+function getCoordinates(raw) {
+  const lat = raw?.location_coordinates?.lat;
+  const lng = raw?.location_coordinates?.lng;
+  return typeof lat === "number" && typeof lng === "number" ? { lat, lng } : null;
+}
+
 export function mapAmberPropertyToListing(raw) {
   if (!raw || typeof raw !== "object") return null;
 
@@ -462,6 +473,7 @@ export function mapAmberPropertyToListing(raw) {
     slug: raw.canonical_name || null,
     name: raw.name || "Student Accommodation",
     address,
+    coordinates: getCoordinates(raw),
     image: getPrimaryImage(raw),
     images: getGalleryImages(raw),
     price: getPrice(raw),

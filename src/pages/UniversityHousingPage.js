@@ -1,0 +1,262 @@
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams, Link } from "react-router-dom";
+import { GraduationCap, MapPin, ArrowRight } from "lucide-react";
+import SiteNavbar from "../components/layout/SiteNavbar";
+import SiteFooter from "../components/layout/SiteFooter";
+import UniversitySearchBox from "../components/universityHousing/UniversitySearchBox";
+import UniversityHousingMap from "../components/universityHousing/UniversityHousingMap";
+import PropertyListPanel from "../components/universityHousing/PropertyListPanel";
+import { resolveCampusUniversityById } from "../lib/campusUniversityResolver";
+import { getProperties, getPropertyBySlug, getCachedCityStats } from "../services/amberApi";
+import { safeListingList } from "../services/amberMapper";
+import { haversineKm, hasValidCoords } from "../lib/geoDistance";
+import "./UniversityHousingPage.css";
+
+const PAGE_LIMIT = 50;
+
+// University -> City -> IVYHUTS properties in that city -> map. This page is
+// deliberately a thin orchestration layer: it owns none of the property data
+// itself. Every listing comes from the SAME existing Amber gateway every
+// other page already uses (getProperties() -> /api/amber -> the one shared
+// rate budget/cooldown/cache — see src/services/amberApi.js's own header),
+// so this page can never become a second, uncoordinated source of Amber
+// traffic. The only genuinely new data here is campusUniversities.json
+// (a small, curated, non-Amber dataset — see src/lib/campusUniversityResolver.js).
+export default function UniversityHousingPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const universityId = searchParams.get("university");
+
+  const university = useMemo(() => resolveCampusUniversityById(universityId), [universityId]);
+
+  const [rawProperties, setRawProperties] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [sortBy, setSortBy] = useState("distance");
+
+  // Selecting a suggestion updates the URL (shareable link, item 17) without
+  // a full page reload — React Router's setSearchParams is a client-side
+  // history push, not a navigation.
+  const selectUniversity = (uni) => setSearchParams({ university: uni.id });
+  const clearUniversity = () => { setSearchParams({}); setRawProperties([]); setTotalCount(null); setSelectedId(null); };
+
+  // A university's `accommodationOverride` (see campusUniversities.json /
+  // campusUniversityResolver.js) is an explicit business rule — this
+  // university's accommodation results must be ONLY these specific
+  // properties, never a generic city-wide search. When present, fetch each
+  // one directly by its known slug via getPropertyBySlug() — the SAME
+  // function/cache PropertyDetailPage.js already uses (mirrors
+  // api/_lib/accommodationIndex.js's getOverrideResidences() on the backend)
+  // — instead of getProperties(city), so the result can never accidentally
+  // include another Hatfield property just because it also appeared on
+  // page 1 of the city listing.
+  const overrideSlugs = university?.accommodationOverride?.propertySlugs;
+  const hasOverride = Array.isArray(overrideSlugs) && overrideSlugs.length > 0;
+
+  // One request (or one small batch, for an override) per university/page —
+  // no request loop, no per-marker fetch, no re-fetch on every render.
+  // Re-selecting a university whose city/property was already fetched this
+  // session costs zero new Amber calls: both getProperties() and
+  // getPropertyBySlug() are backed by amberApi.js's own memory+IndexedDB
+  // cache.
+  useEffect(() => {
+    if (!university) { setRawProperties([]); setTotalCount(null); return; }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setPage(1);
+    setTotalCount(null);
+    setSelectedId(null);
+
+    (async () => {
+      try {
+        if (hasOverride) {
+          const items = await Promise.all(
+            overrideSlugs.map((slug) => getPropertyBySlug(slug, "MEDIUM", "university-housing-override"))
+          );
+          if (cancelled) return;
+          const found = items.filter(Boolean);
+          setRawProperties(found);
+          setTotalCount(found.length);
+          return;
+        }
+        const data = await getProperties(university.city, 1, PAGE_LIMIT, "MEDIUM", "university-housing");
+        if (cancelled) return;
+        setRawProperties(Array.isArray(data) ? data : []);
+        // getProperties() already populated the city-stats cache entry from
+        // this exact same response (see amberApi.js's rememberInventoryData)
+        // — reading it back here is a cache-only lookup, not a second
+        // network request, and gives the true city-wide count for the
+        // "N properties found" line / "Load more" decision (item 10/19).
+        const stats = await getCachedCityStats(university.city);
+        if (!cancelled) setTotalCount(Number.isFinite(stats?.count) ? stats.count : null);
+      } catch (err) {
+        if (cancelled) return;
+        setError(err && err.isRateLimit
+          ? { isRateLimit: true, retryAfterSeconds: err.retryAfterSeconds }
+          : { message: (err && err.message) || String(err) });
+        setRawProperties([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [university, hasOverride, overrideSlugs]);
+
+  const loadMore = useCallback(async () => {
+    if (!university || loadingMore || hasOverride) return; // a fixed override list has no further pages to load
+    const nextPage = page + 1;
+    setLoadingMore(true);
+    try {
+      const data = await getProperties(university.city, nextPage, PAGE_LIMIT, "LOW", "university-housing-load-more");
+      const more = Array.isArray(data) ? data : [];
+      setRawProperties((prev) => {
+        const seen = new Set(prev.map((r) => r?.id ?? r?.canonical_name));
+        const merged = [...prev];
+        more.forEach((r) => { const key = r?.id ?? r?.canonical_name; if (key != null && !seen.has(key)) { seen.add(key); merged.push(r); } });
+        return merged;
+      });
+      setPage(nextPage);
+      if (more.length === 0) setTotalCount(rawProperties.length); // no more pages — the current count is the true total
+    } catch (err) {
+      // A failed "load more" must not lose what's already on screen.
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [university, page, loadingMore, hasOverride, rawProperties.length]);
+
+  // Real distance only when BOTH the university and the property have real,
+  // verified coordinates — never fabricated, never a city-centre guess.
+  const properties = useMemo(() => {
+    const listings = safeListingList(rawProperties);
+    const universityHasCoords = hasValidCoords(university?.latitude, university?.longitude);
+    return listings.map((p) => {
+      const propertyHasCoords = hasValidCoords(p.coordinates?.lat, p.coordinates?.lng);
+      const distanceKm = universityHasCoords && propertyHasCoords
+        ? Math.round(haversineKm(university.latitude, university.longitude, p.coordinates.lat, p.coordinates.lng) * 10) / 10
+        : null;
+      return { ...p, distanceKm };
+    });
+  }, [rawProperties, university]);
+
+  const sortedProperties = useMemo(() => {
+    const sorted = [...properties];
+    if (sortBy === "distance") {
+      sorted.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+    } else if (sortBy === "price_asc") {
+      sorted.sort((a, b) => (a.price.from ?? Infinity) - (b.price.from ?? Infinity));
+    } else if (sortBy === "price_desc") {
+      sorted.sort((a, b) => (b.price.from ?? -Infinity) - (a.price.from ?? -Infinity));
+    }
+    return sorted;
+  }, [properties, sortBy]);
+
+  // Only a real, resolvable university unlocks distance-based sorting — an
+  // unresolved page state has no reference point to sort against.
+  useEffect(() => {
+    if (!university && sortBy === "distance") setSortBy("price_asc");
+  }, [university, sortBy]);
+
+  const hasMore = !hasOverride && rawProperties.length > 0 && rawProperties.length % PAGE_LIMIT === 0 && (totalCount == null || rawProperties.length < totalCount);
+
+  return (
+    <div className="uh-page">
+      <SiteNavbar />
+
+      <main className="uh-main">
+        <div className="uh-hero">
+          <p className="uh-eyebrow">Housing to Hiring</p>
+          <h1 className="uh-hero-title">Find Your Student Home</h1>
+          <p className="uh-hero-sub">Choose your university or school and discover every IVYHUTS property around your new city.</p>
+          <div className="uh-search-wrap">
+            <UniversitySearchBox selected={university} onSelect={selectUniversity} onClear={clearUniversity} autoFocus />
+          </div>
+        </div>
+
+        {!university ? (
+          <div className="uh-empty-state">
+            <GraduationCap size={32} />
+            <p>Search for your university or school above to see accommodation nearby — or browse every city we cover.</p>
+            <Link to="/find-rooms" className="btn btn-secondary">Browse All Cities</Link>
+          </div>
+        ) : (
+          <>
+            <div className="uh-university-info">
+              <div className="uh-university-info-body">
+                <h2>{university.name} <span className="uh-university-info-type">{university.type === "SCHOOL" ? "School" : "University"}</span></h2>
+                <p><MapPin size={14} /> {university.address || `${university.city}, ${university.country}`}</p>
+              </div>
+              <p className="uh-university-info-count">
+                {loading
+                  ? "Searching…"
+                  : error
+                    ? "Unable to load properties right now."
+                    : `${rawProperties.length}${hasMore ? "+" : ""} student propert${rawProperties.length === 1 ? "y" : "ies"} found in ${university.city}`}
+              </p>
+            </div>
+
+            {error && (
+              <div className="uh-error-banner">
+                {error.isRateLimit ? (
+                  <>Amber is briefly limiting requests — please try again in about {Math.ceil(error.retryAfterSeconds / 60)} minute{Math.ceil(error.retryAfterSeconds / 60) === 1 ? "" : "s"}.</>
+                ) : (
+                  <>We couldn't load properties right now. {error.message}</>
+                )}
+              </div>
+            )}
+
+            {loading && (
+              <div className="uh-loading-skeleton" aria-live="polite" aria-busy="true">
+                <div className="uh-loading-skeleton-map" />
+                <div className="uh-loading-skeleton-list">
+                  {Array.from({ length: 4 }).map((_, i) => <div key={i} className="uh-loading-skeleton-row" />)}
+                </div>
+              </div>
+            )}
+
+            {!loading && !error && sortedProperties.length === 0 && (
+              <div className="uh-empty-state">
+                <p>We don't currently have properties in {university.city}.</p>
+                <Link to="/find-rooms" className="btn btn-secondary">Browse Other Cities</Link>
+              </div>
+            )}
+
+            {!loading && !error && sortedProperties.length > 0 && (
+              <div className="uh-split-layout">
+                <PropertyListPanel
+                  properties={sortedProperties}
+                  selectedId={selectedId}
+                  onSelectProperty={setSelectedId}
+                  sortBy={sortBy}
+                  onSortChange={setSortBy}
+                  hasMore={hasMore}
+                  loadingMore={loadingMore}
+                  onLoadMore={loadMore}
+                  university={university}
+                />
+                <UniversityHousingMap
+                  university={university}
+                  properties={sortedProperties}
+                  selectedId={selectedId}
+                  onSelectProperty={setSelectedId}
+                />
+              </div>
+            )}
+
+            <div className="uh-back-link">
+              <Link to="/find-rooms">
+                Looking for a different city? Browse all IVYHUTS destinations <ArrowRight size={14} />
+              </Link>
+            </div>
+          </>
+        )}
+      </main>
+
+      <SiteFooter />
+    </div>
+  );
+}

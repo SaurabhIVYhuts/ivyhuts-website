@@ -37,7 +37,7 @@
 // degree/specialization) so it can reuse Milestone 6's already-computed
 // alreadyHaveSkills/skillsToDevelop directly rather than recomputing skill
 // matching a second time (see that file's own header comment).
-const { getCityResidences } = require("./_lib/accommodationIndex");
+const { getCityResidences, getOverrideResidences } = require("./_lib/accommodationIndex");
 const { resolveUniversityById } = require("./_lib/universityResolver");
 const { getLivingExpenses } = require("./_lib/costOfLiving");
 const { resolveDegreeById, resolveDegreeByName, resolveSpecialization } = require("./_lib/degreeResolver");
@@ -106,11 +106,6 @@ async function handler(req, res) {
 
     const { city, country, universityId, budget, accommodationPreference, priority, source, degreeId, degree, specialization } = req.query;
 
-    if (!city || !String(city).trim()) {
-        res.status(400).json({ ok: false, error: "missing_city" });
-        return;
-    }
-
     // Authoritative server-side resolution — a client-supplied universityId
     // is only ever a lookup key here, never trusted directly for coordinates.
     // Unresolved/absent -> falls back to the exact Milestone 2 city-only path.
@@ -121,22 +116,60 @@ async function handler(req, res) {
     // free-text (unresolved) universities — same trust precedent as
     // resolveUniversityById itself.
     const effectiveCountry = university?.country || (country && String(country).trim()) || null;
+    // Every student-input field is optional (see StudentPlannerPage.js). City
+    // is no longer required: when absent, fall back to the resolved
+    // university's own authoritative city (never a client-supplied city
+    // paired with a mismatched university) before finally giving up on a
+    // location entirely — never guess a city just to have something to send
+    // to Amber.
+    const effectiveCity = (city && String(city).trim()) || (university && university.city) || null;
+
+    // A resolved university's `accommodationOverride` (see
+    // universityResolver.js's own header) is an explicit business rule —
+    // "only ever show these specific properties for this university" — not
+    // a generic nearby-accommodation search. It takes priority over the
+    // normal city-search path whenever present; the university identity
+    // itself (not the raw client-supplied `city`/`country` params) is what's
+    // trusted here, same precedent as `effectiveCountry`/`effectiveCity`
+    // above already preferring the resolved university's own data.
+    const overrideSlugs = university?.accommodationOverride?.propertySlugs;
+    const hasOverride = Array.isArray(overrideSlugs) && overrideSlugs.length > 0;
 
     try {
-        const { status, residences } = await getCityResidences(city, {
-            budget,
-            accommodationPreference,
-            priority: priority === "HIGH" || priority === "LOW" ? priority : "MEDIUM",
-            source: source || "student-planner-page",
-            university: university ? { latitude: university.latitude, longitude: university.longitude } : null,
-        });
+        // No location signal at all -> controlled "no-location" state, zero
+        // Amber attempts (a falsy `effectiveCity` never reaches
+        // getCityResidences, which is the only other path to Amber in this
+        // file besides the override path below).
+        const { status, residences } = hasOverride
+            ? await getOverrideResidences(overrideSlugs, {
+                city: effectiveCity,
+                university: university ? { latitude: university.latitude, longitude: university.longitude } : null,
+                priority: priority === "HIGH" || priority === "LOW" ? priority : "MEDIUM",
+                source: source || "student-planner-page",
+            })
+            : effectiveCity
+            ? await getCityResidences(effectiveCity, {
+                budget,
+                accommodationPreference,
+                priority: priority === "HIGH" || priority === "LOW" ? priority : "MEDIUM",
+                source: source || "student-planner-page",
+                university: university ? { latitude: university.latitude, longitude: university.longitude } : null,
+            })
+            : { status: "no-location", residences: [] };
 
         // Accommodation input for the Living Cost layer: the top-ranked
         // recommended residence's already-normalized monthly price, or null
         // when there is no ready residence / its duration wasn't
         // normalizable — costOfLiving.js never guesses a replacement value.
         const accommodationMonthly = status === "ready" && residences[0] ? residences[0].priceMonthly : null;
-        const livingExpenses = getLivingExpenses({ city, country: effectiveCountry, accommodationMonthly });
+        // getLivingExpenses() always returns a usable (possibly world-default)
+        // row — only worth calling once there is SOME location signal to
+        // ground it in; with neither a city nor a country, an honest `null`
+        // (never a guessed-default estimate) is the correct response (see
+        // LivingExpenses.js's handling of a null livingExpenses prop).
+        const livingExpenses = (effectiveCity || effectiveCountry)
+            ? getLivingExpenses({ city: effectiveCity, country: effectiveCountry, accommodationMonthly })
+            : null;
 
         // Degree & Skills (Milestone 5) — a third, fully independent lookup
         // alongside the two above. Zero Amber, zero Mongo, pure in-process
