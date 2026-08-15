@@ -91,6 +91,7 @@ export default function PropertyDetailPage() {
       ...(context.moveOut ? { moveOut: context.moveOut } : {}),
       ...(context.price != null ? { price: String(context.price) } : {}),
       ...(context.currency ? { currency: context.currency } : {}),
+      ...(context.priceUnit ? { priceUnit: context.priceUnit } : {}),
     });
     navigate(`/contact?${params.toString()}`);
   };

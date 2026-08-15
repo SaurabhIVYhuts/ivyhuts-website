@@ -239,6 +239,12 @@ function mapTenancy(leaf) {
     price,
     originalPrice: original !== null && price !== null && original > price ? original : null,
     currency: currencySymbol(leaf.pricing?.currency),
+    // Same "monthly"/"weekly" -> "month"/"week" normalization as getPrice()
+    // above — this tenancy's actual billing period is NOT always the same
+    // as the room/property-level one (a UK property is usually weekly, a
+    // continental European one is usually monthly), so it must be read per
+    // tenancy rather than assumed.
+    priceDuration: leaf.pricing?.duration ? String(leaf.pricing.duration).replace(/ly$/, "") : "",
   };
 }
 

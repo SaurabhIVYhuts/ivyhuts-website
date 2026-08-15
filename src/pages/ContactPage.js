@@ -23,6 +23,7 @@ export default function ContactPage() {
   const tenancyMoveOut = searchParams.get("moveOut");
   const tenancyPrice = searchParams.get("price");
   const tenancyCurrency = searchParams.get("currency");
+  const tenancyPriceUnit = searchParams.get("priceUnit"); // e.g. "week" or "month" — see RoomTypeCard.js/PropertyDetailPage.js; absent for older/bookmarked links
   const roomId = searchParams.get("room");
   const tenancyId = searchParams.get("tenancy");
 
@@ -80,7 +81,7 @@ export default function ContactPage() {
           ...(tenancyDuration ? { "Duration": tenancyDuration } : {}),
           ...(tenancyMoveIn ? { "Move In": tenancyMoveIn } : {}),
           ...(tenancyMoveOut ? { "Move Out": tenancyMoveOut } : {}),
-          ...(tenancyPrice ? { "Weekly Price": `${tenancyCurrency || ""}${tenancyPrice}` } : {}),
+          ...(tenancyPrice ? { "Price": `${tenancyCurrency || ""}${tenancyPrice}${tenancyPriceUnit ? `/${tenancyPriceUnit}` : ""}` } : {}),
         }),
       });
     } catch (_) {}
@@ -137,7 +138,7 @@ export default function ContactPage() {
       tenancyDuration ? `Duration: ${tenancyDuration}` : null,
       tenancyMoveIn ? `Move In: ${tenancyMoveIn}` : null,
       tenancyMoveOut ? `Move Out: ${tenancyMoveOut}` : null,
-      tenancyPrice ? `Price: ${tenancyCurrency || ""}${tenancyPrice}/week` : null,
+      tenancyPrice ? `Price: ${tenancyCurrency || ""}${tenancyPrice}${tenancyPriceUnit ? `/${tenancyPriceUnit}` : ""}` : null,
     ].filter(Boolean).join("\n");
     const mongoProperty = (inventoryId || propertyName)
       ? { id: inventoryId || null, name: propertyName || null }
@@ -174,7 +175,7 @@ export default function ContactPage() {
                 {(tenancyDuration || tenancyMoveIn) && (
                   <span className="cp-property-context-sub">
                     {[tenancyDuration, tenancyMoveIn ? `from ${tenancyMoveIn}` : null].filter(Boolean).join(" · ")}
-                    {tenancyPrice ? ` · ${tenancyCurrency || ""}${tenancyPrice}/week` : ""}
+                    {tenancyPrice ? ` · ${tenancyCurrency || ""}${tenancyPrice}${tenancyPriceUnit ? `/${tenancyPriceUnit}` : ""}` : ""}
                   </span>
                 )}
               </div>
