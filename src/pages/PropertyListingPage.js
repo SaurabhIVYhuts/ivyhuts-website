@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { getProperties } from "../services/amberApi";
+import { getProperties, getPropertyBySlug } from "../services/amberApi";
 import { safeListingList } from "../services/amberMapper";
 import { addRecentSearch } from "../services/recentActivity";
 import { trackEvent } from "../lib/eventsApi";
 import { DESTINATIONS, findDestination, countryFullName, countryIsoCode } from "../data/destinations";
+import { CURATED_CITY_PROPERTIES } from "../data/curatedCityProperties";
 import { USPS } from "../data/usps";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import SiteFooter from "../components/layout/SiteFooter";
@@ -109,8 +110,22 @@ export default function PropertyListingPage() {
       addRecentSearch(city);
       trackEvent("CITY_SEARCHED", { city, source: "listings-page" });
       try {
-        const data = await getProperties(city);
-        if (!cancelled) setRawProperties(Array.isArray(data) ? data : []);
+        let data = await getProperties(city);
+        data = Array.isArray(data) ? data : [];
+
+        // Amber's own location search doesn't recognize every city it
+        // actually has inventory in (see src/data/curatedCityProperties.js)
+        // — backfill known properties for the handful of cities where
+        // that's confirmed, rather than showing an incorrect empty result.
+        const curatedSlugs = data.length === 0 ? CURATED_CITY_PROPERTIES[city.trim().toLowerCase()] : null;
+        if (curatedSlugs?.length) {
+          const curated = await Promise.all(
+            curatedSlugs.map((slug) => getPropertyBySlug(slug).catch(() => null))
+          );
+          data = curated.filter(Boolean);
+        }
+
+        if (!cancelled) setRawProperties(data);
       } catch (err) {
         if (!cancelled) {
           console.error("PropertyListingPage error:", err);

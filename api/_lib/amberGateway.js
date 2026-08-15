@@ -560,7 +560,17 @@ async function fetchListings(params, priority, source) {
         });
     } catch (err) {
         log(`source=${source} priority=${priority} action=FALLBACK_FAILED_SERVING_PRIMARY error=${err.message}`);
-        return primary;
+        // Must degrade to primary's EMPTY (already city-filtered) result, not
+        // the raw primary response — primary.data is Amber's unfiltered
+        // default page at this point (that's exactly why matchedPrimary came
+        // back empty and we're in this fallback leg at all). Returning it
+        // as-is would silently serve some other city's listings mislabeled
+        // as this one instead of a correct "no results" — this is `matchedPrimary`,
+        // not `primaryItems`, and it's already known to be [] here.
+        return {
+            data: { message: primary.data?.message || "success", data: { result: matchedPrimary, meta: { count: matchedPrimary.length } } },
+            cacheStatus: primary.cacheStatus,
+        };
     }
     const filtered = extractResultArray(fallback.data).filter((item) => matchesCity(item, cityLower));
     return {
