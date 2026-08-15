@@ -321,6 +321,12 @@
   .mobile-stats-carousel .stat-card-icon-badge {
     width: 28px;
     height: 28px;
+    /* The default badge background is just a low-opacity tint of the same
+       accent color as the icon itself (see StatCard.css) — fine on the
+       white desktop card, but against this dark glass-panel mobile card it
+       collapses to near-zero contrast and the icon effectively disappears.
+       An opaque light circle keeps every accent color legible here. */
+    background: rgba(255, 255, 255, 0.9);
   }
   .mobile-stats-carousel .stat-card-icon {
     width: 13px;
