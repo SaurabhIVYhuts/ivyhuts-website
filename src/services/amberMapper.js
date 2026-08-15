@@ -280,6 +280,40 @@ function getRoomLowestAvailablePrice(tenancies, fallbackPrice) {
   return prices.length ? Math.min(...prices) : fallbackPrice;
 }
 
+// Amber's `children` array occasionally contains stale/phantom duplicate
+// room-type entries alongside the real one — same `name`, but with zero
+// tenancy leaves (no actual bookable duration options) and a bogus price
+// (confirmed live: a property whose real "Studio in Premium Residence" is
+// AED1,840/week with 2 tenancies also carried 3 phantom copies of the same
+// name — AED505, $1854, $1854 — each with zero tenancies). Amber's own site
+// only ever renders the real one; without this, every phantom copy became
+// its own mispriced card. Within each same-name group, if at least one
+// entry actually has tenancies, keep only those (drop the tenancy-less
+// phantoms); otherwise there's nothing to prefer, so keep one representative
+// so a genuinely sold-out/unique room type still shows up exactly once.
+function dedupeRoomChildren(children) {
+  const list = Array.isArray(children) ? children.filter(Boolean) : [];
+  const groupHasTenancies = new Map();
+  for (const child of list) {
+    const key = String(child.name || "").trim().toLowerCase();
+    const hasTenancies = Array.isArray(child.children) && child.children.length > 0;
+    if (hasTenancies) groupHasTenancies.set(key, true);
+  }
+  const seenPhantomKey = new Set();
+  const result = [];
+  for (const child of list) {
+    const key = String(child.name || "").trim().toLowerCase();
+    const hasTenancies = Array.isArray(child.children) && child.children.length > 0;
+    if (groupHasTenancies.get(key)) {
+      if (hasTenancies) result.push(child);
+    } else if (!seenPhantomKey.has(key)) {
+      seenPhantomKey.add(key);
+      result.push(child);
+    }
+  }
+  return result;
+}
+
 function mapRoomType(child) {
   if (!child) return null;
   const { about, payment } = splitRoomDescriptionEntries(child.description);
@@ -316,7 +350,7 @@ export function mapAmberPropertyDetails(raw) {
 
   const address = getAddress(raw);
   const { badges, offerText, billsIncluded } = getBadges(raw);
-  const roomTypes = (Array.isArray(raw.children) ? raw.children : []).map(mapRoomType).filter(Boolean);
+  const roomTypes = dedupeRoomChildren(raw.children).map(mapRoomType).filter(Boolean);
 
   // Aggregate unique payment/fee notes found across room types into one property-level list.
   const paymentNotesSeen = new Set();
