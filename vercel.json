@@ -2,7 +2,9 @@
   "functions": {
     "api/amber.js": { "maxDuration": 30 },
     "api/student-planner.js": { "maxDuration": 30 },
-    "api/student-planner-ppt.js": { "maxDuration": 15 }
+    "api/student-planner-ppt.js": { "maxDuration": 15 },
+    "api/insights/advance-crawl.js": { "maxDuration": 30 },
+    "api/insights/daily-digest.js": { "maxDuration": 60 }
   },
   "headers": [
     {
@@ -19,6 +21,14 @@
     {
       "path": "/api/warm-amber-cache",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/insights/advance-crawl",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/insights/daily-digest",
+      "schedule": "30 2 * * *"
     }
   ]
 }

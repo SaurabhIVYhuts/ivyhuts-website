@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import PropertyImageGallery from "./PropertyImageGallery";
 import WishlistHeart from "./WishlistHeart";
+import ShareButton from "./ShareButton";
 
 const AMENITY_LIMIT = 6;
 
@@ -75,6 +76,14 @@ export default function ListingCard({ listing, onEnquire }) {
 
         {wishlistSnapshot && (
           <div className="listing-card-wishlist-row">
+            {slug && (
+              <ShareButton
+                className="share-btn--on-light"
+                url={`${window.location.origin}/property/${encodeURIComponent(slug)}`}
+                title={name}
+                text={`Check out ${name} on IVYhuts`}
+              />
+            )}
             <WishlistHeart property={wishlistSnapshot} className="wishlist-heart-btn--on-light" />
           </div>
         )}

@@ -5,7 +5,10 @@ const PIXEL_ID = process.env.REACT_APP_META_PIXEL_ID;
 
 let initialized = false;
 
-function loadPixelScript() {
+// Exported so formConversionPixel.js (the separate form-submission/Lead
+// pixel) can reuse this same idempotent loader instead of injecting a
+// second copy of the fbq bootstrap script.
+export function loadPixelScript() {
   if (window.fbq) return;
 
   /* eslint-disable */

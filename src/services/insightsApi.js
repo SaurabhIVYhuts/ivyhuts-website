@@ -37,6 +37,18 @@ export function getInsightsMarket(filters) {
     return getJson("/api/insights/market", filters);
 }
 
+// Primary feed for the calendar-driven dashboard — `date: undefined` (or
+// today's date) returns live data; any earlier date returns the frozen
+// stored snapshot for that day. See api/insights/snapshot.js.
+export function getInsightsSnapshot(filters) {
+    return getJson("/api/insights/snapshot", filters);
+}
+
+// Dates with a stored snapshot, for the calendar's availability dots.
+export function getInsightsSnapshotDates(filters) {
+    return getJson("/api/insights/snapshot-dates", filters);
+}
+
 export function getCurrentCustomer() {
     return getJson("/api/customers/me");
 }

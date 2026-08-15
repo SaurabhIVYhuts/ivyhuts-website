@@ -1,8 +1,9 @@
 import React, { useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import "./ListYourStayPage.css";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
+import { trackFormSubmission } from "../lib/formConversionPixel";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 
@@ -107,6 +108,7 @@ function validateStep(step, data) {
 }
 
 export default function ListYourStayPage() {
+  const navigate = useNavigate();
   const formRef = useRef(null);
   const [data,       setData]       = useState(EMPTY);
   const [errors,     setErrors]     = useState({});
@@ -194,8 +196,11 @@ export default function ListYourStayPage() {
       });
     } catch (_) {}
 
-    // Email notification — fire-and-forget, same-origin. Must never block or
-    // affect the success screen: a failed/misconfigured mailer still shows success.
+    // Email notification — the one destination whose result we actually wait
+    // for: it's the existing backend's honest confirmation of success (see
+    // api/enquire.js), and it's what gates the new Lead conversion pixel and
+    // the /thank-you redirect below.
+    let confirmed = false;
     try {
       const enquiryPayload = {
         propertyName: data.propertyName.trim(),
@@ -206,23 +211,31 @@ export default function ListYourStayPage() {
         message: `New host listing submission — ${data.propertyType}, ${data.unitsAvailable.trim()} available, from ${data.currency.trim()}${data.rentFrom.trim()}${data.rentTo ? `-${data.rentTo}` : "+"}/month. Role: ${data.hostRole}. Full details are in the Google Sheet.`,
         websiteSource: "ivyhuts.com/list-your-stay",
       };
-      fetch("/api/enquire", {
+      const res = await fetch("/api/enquire", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(enquiryPayload),
-      })
-        .then((res) => res.json().catch(() => ({})).then((resBody) => ({ ok: res.ok, resBody })))
-        .then(({ ok, resBody }) => {
-          if (ok && resBody.emailSent) {
-            console.log("[ListYourStay] Notification email sent successfully");
-          } else {
-            console.error("[ListYourStay] Notification email failed:", resBody.message || resBody.error || "unknown error");
-          }
-        })
-        .catch((err) => console.error("[ListYourStay] /api/enquire request failed:", err));
-    } catch (_) {}
+      });
+      const resBody = await res.json().catch(() => ({}));
+      confirmed = res.ok && resBody.emailSent === true;
+      if (confirmed) {
+        console.log("[ListYourStay] Notification email sent successfully");
+      } else {
+        console.error("[ListYourStay] Notification email failed:", resBody.message || resBody.error || "unknown error");
+      }
+    } catch (err) {
+      console.error("[ListYourStay] /api/enquire request failed:", err);
+    }
 
-    setStatus("success");
+    if (!confirmed) {
+      setStatus("idle");
+      setErrors({ submit: "Something went wrong. Please try again, or reach us directly at contact@ivyhuts.com." });
+      return;
+    }
+
+    const submissionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    trackFormSubmission(submissionId, "List Your Stay");
+    navigate("/thank-you");
   };
 
   const E = ({ field }) =>
@@ -543,24 +556,7 @@ export default function ListYourStayPage() {
     <div className="lst-page">
       <SiteNavbar />
 
-      <main>{status === "success" ? (
-        <div className="lst-success-full">
-          <svg className="lst-success-icon" viewBox="0 0 72 72" fill="none">
-            <rect x="4" y="4" width="64" height="64" rx="18" stroke="url(#lst-grad)" strokeWidth="2.5"/>
-            <path d="M20 36l11 11 21-21" stroke="#5E3A6B" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <defs><linearGradient id="lst-grad" x1="0" y1="0" x2="72" y2="72" gradientUnits="userSpaceOnUse"><stop stopColor="#5E3A6B"/><stop offset="1" stopColor="#B07898"/></linearGradient></defs>
-          </svg>
-          <h2>Submission Received!</h2>
-          <p>Thank you, <strong>{data.hostName.split(" ")[0]}</strong>! Our team will review your property and reach out to you at <strong>{data.hostEmail}</strong> within 48 hours to verify your identity and complete the listing.</p>
-          <div className="lst-success-steps">
-            <div className="lst-success-step"><span className="lst-step-dot" /> Check your email for our verification request</div>
-            <div className="lst-success-step"><span className="lst-step-dot" /> Have your government ID ready for our team</div>
-            <div className="lst-success-step"><span className="lst-step-dot" /> Prepare property photos to share via WhatsApp</div>
-            <div className="lst-success-step"><span className="lst-step-dot" /> Once verified, your listing goes live on IvyHuts</div>
-          </div>
-          <Link to="/" className="btn btn-secondary">Back to Home</Link>
-        </div>
-      ) : (
+      <main>
         <div className="lst-wizard" ref={formRef}>
 
           {/* Honeypot — hidden from real users, bots fill it */}
@@ -619,7 +615,7 @@ export default function ListYourStayPage() {
           </div>
 
         </div>
-      )}</main>
+      </main>
 
       <SiteFooter />
     </div>

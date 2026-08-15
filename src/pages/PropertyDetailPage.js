@@ -8,6 +8,7 @@ import SiteFooter from "../components/layout/SiteFooter";
 import PropertyGallery from "../components/listing/PropertyGallery";
 import RoomTypeCard from "../components/listing/RoomTypeCard";
 import WishlistHeart from "../components/listing/WishlistHeart";
+import ShareButton from "../components/listing/ShareButton";
 import { trackEvent } from "../lib/eventsApi";
 import "./PropertyDetailPage.css";
 
@@ -90,6 +91,7 @@ export default function PropertyDetailPage() {
       ...(context.moveOut ? { moveOut: context.moveOut } : {}),
       ...(context.price != null ? { price: String(context.price) } : {}),
       ...(context.currency ? { currency: context.currency } : {}),
+      ...(context.priceUnit ? { priceUnit: context.priceUnit } : {}),
     });
     navigate(`/contact?${params.toString()}`);
   };
@@ -147,7 +149,7 @@ export default function PropertyDetailPage() {
   }
 
   const {
-    name, address, images, price, distances, amenityGroups, badges, offerText,
+    name, address, images, price, distances, amenityGroups, badges,
     quickFacts, policyLinks, paymentInfo, roomTypes, rating, reviewSummary, social,
     coordinates, available,
   } = property;
@@ -200,7 +202,6 @@ export default function PropertyDetailPage() {
                   {badges.map((b) => <span key={b} className="pdp-badge">{b}</span>)}
                 </div>
               )}
-              {offerText && <div className="pdp-offer-banner">{offerText}</div>}
               {!available && <div className="pdp-unavailable-banner">This property currently has no available rooms.</div>}
             </header>
 
@@ -335,6 +336,11 @@ export default function PropertyDetailPage() {
             <div className="pdp-sidebar-card">
               <div className="pdp-sidebar-name-row">
                 <div className="pdp-sidebar-name">{name}</div>
+                <ShareButton
+                  className="share-btn--on-light"
+                  title={name}
+                  text={`Check out ${name} on IVYhuts`}
+                />
                 <WishlistHeart
                   className="wishlist-heart-btn--on-light"
                   property={{

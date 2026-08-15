@@ -82,7 +82,12 @@ function getAddress(raw) {
   const locality = loc.locality?.long_name || raw.city || "";
   const country = loc.country?.long_name || raw.country || "";
   const postcode = loc.postal_code?.long_name || "";
-  const route = loc.route?.long_name || loc.primary || "";
+  // route.long_name (or the loc.primary fallback below it) is meant to be a
+  // proper street line, but for some properties Amber sets it to just the
+  // postcode itself — without this guard that duplicates the postcode into
+  // the address twice (e.g. "45127, Essen, 45127, Germany").
+  let route = loc.route?.long_name || loc.primary || "";
+  if (route === postcode) route = "";
   const parts = [route, locality, postcode, country].filter(Boolean);
   return {
     line: route,
@@ -234,6 +239,12 @@ function mapTenancy(leaf) {
     price,
     originalPrice: original !== null && price !== null && original > price ? original : null,
     currency: currencySymbol(leaf.pricing?.currency),
+    // Same "monthly"/"weekly" -> "month"/"week" normalization as getPrice()
+    // above — this tenancy's actual billing period is NOT always the same
+    // as the room/property-level one (a UK property is usually weekly, a
+    // continental European one is usually monthly), so it must be read per
+    // tenancy rather than assumed.
+    priceDuration: leaf.pricing?.duration ? String(leaf.pricing.duration).replace(/ly$/, "") : "",
   };
 }
 
@@ -267,6 +278,40 @@ function getRoomAvailableFrom(tenancies) {
 function getRoomLowestAvailablePrice(tenancies, fallbackPrice) {
   const prices = tenancies.filter((t) => t.available && t.price !== null).map((t) => t.price);
   return prices.length ? Math.min(...prices) : fallbackPrice;
+}
+
+// Amber's `children` array occasionally contains stale/phantom duplicate
+// room-type entries alongside the real one — same `name`, but with zero
+// tenancy leaves (no actual bookable duration options) and a bogus price
+// (confirmed live: a property whose real "Studio in Premium Residence" is
+// AED1,840/week with 2 tenancies also carried 3 phantom copies of the same
+// name — AED505, $1854, $1854 — each with zero tenancies). Amber's own site
+// only ever renders the real one; without this, every phantom copy became
+// its own mispriced card. Within each same-name group, if at least one
+// entry actually has tenancies, keep only those (drop the tenancy-less
+// phantoms); otherwise there's nothing to prefer, so keep one representative
+// so a genuinely sold-out/unique room type still shows up exactly once.
+function dedupeRoomChildren(children) {
+  const list = Array.isArray(children) ? children.filter(Boolean) : [];
+  const groupHasTenancies = new Map();
+  for (const child of list) {
+    const key = String(child.name || "").trim().toLowerCase();
+    const hasTenancies = Array.isArray(child.children) && child.children.length > 0;
+    if (hasTenancies) groupHasTenancies.set(key, true);
+  }
+  const seenPhantomKey = new Set();
+  const result = [];
+  for (const child of list) {
+    const key = String(child.name || "").trim().toLowerCase();
+    const hasTenancies = Array.isArray(child.children) && child.children.length > 0;
+    if (groupHasTenancies.get(key)) {
+      if (hasTenancies) result.push(child);
+    } else if (!seenPhantomKey.has(key)) {
+      seenPhantomKey.add(key);
+      result.push(child);
+    }
+  }
+  return result;
 }
 
 function mapRoomType(child) {
@@ -305,7 +350,7 @@ export function mapAmberPropertyDetails(raw) {
 
   const address = getAddress(raw);
   const { badges, offerText, billsIncluded } = getBadges(raw);
-  const roomTypes = (Array.isArray(raw.children) ? raw.children : []).map(mapRoomType).filter(Boolean);
+  const roomTypes = dedupeRoomChildren(raw.children).map(mapRoomType).filter(Boolean);
 
   // Aggregate unique payment/fee notes found across room types into one property-level list.
   const paymentNotesSeen = new Set();
@@ -354,8 +399,14 @@ function getAmenities(raw, limit = 10) {
 
   const add = (name) => {
     const clean = (name || "").trim();
-    if (!clean || seen.has(clean.toLowerCase())) return;
-    seen.add(clean.toLowerCase());
+    if (!clean) return;
+    // Normalize the same way titleCase() does (hyphens/underscores -> space)
+    // before comparing, so e.g. "Wi-Fi" from raw.features and "Wi-Fi" -> "Wi
+    // Fi" from raw.tags (after titleCase mangles the hyphen) are recognized
+    // as the same amenity instead of both surviving as separate chips.
+    const key = clean.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+    if (seen.has(key)) return;
+    seen.add(key);
     out.push(clean);
   };
 

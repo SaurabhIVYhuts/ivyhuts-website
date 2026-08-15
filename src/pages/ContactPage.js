@@ -1,17 +1,19 @@
 import React, { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom"; // eslint-disable-line no-unused-vars
+import { Link, useNavigate, useSearchParams } from "react-router-dom"; // eslint-disable-line no-unused-vars
 import "./ContactPage.css";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import { socialLinks } from "../config/socialLinks";
 import { SOCIAL_ICONS } from "../components/icons/SocialIcons";
 import { submitEnquiryToMongo } from "../lib/enquiryApi";
+import { trackFormSubmission } from "../lib/formConversionPixel";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 
 let lastSubmit = 0;
 
 export default function ContactPage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inventoryId = searchParams.get("inventory");
   const propertyName = searchParams.get("property");
@@ -21,6 +23,7 @@ export default function ContactPage() {
   const tenancyMoveOut = searchParams.get("moveOut");
   const tenancyPrice = searchParams.get("price");
   const tenancyCurrency = searchParams.get("currency");
+  const tenancyPriceUnit = searchParams.get("priceUnit"); // e.g. "week" or "month" — see RoomTypeCard.js/PropertyDetailPage.js; absent for older/bookmarked links
   const roomId = searchParams.get("room");
   const tenancyId = searchParams.get("tenancy");
 
@@ -78,13 +81,17 @@ export default function ContactPage() {
           ...(tenancyDuration ? { "Duration": tenancyDuration } : {}),
           ...(tenancyMoveIn ? { "Move In": tenancyMoveIn } : {}),
           ...(tenancyMoveOut ? { "Move Out": tenancyMoveOut } : {}),
-          ...(tenancyPrice ? { "Weekly Price": `${tenancyCurrency || ""}${tenancyPrice}` } : {}),
+          ...(tenancyPrice ? { "Price": `${tenancyCurrency || ""}${tenancyPrice}${tenancyPriceUnit ? `/${tenancyPriceUnit}` : ""}` } : {}),
         }),
       });
     } catch (_) {}
 
-    // Email notification — fire-and-forget, same-origin. Must never block or
-    // affect the success screen: a failed/misconfigured mailer still shows success.
+    // Email notification — the one destination whose result we actually wait
+    // for: it's the existing backend's honest confirmation of success (see
+    // api/enquire.js), and it's what gates the new Lead conversion pixel and
+    // the /thank-you redirect below. Must never fire either of those on a
+    // frontend-only "request initiated" basis.
+    let confirmed = false;
     try {
       const enquiryPayload = {
         propertyName: propertyName || undefined,
@@ -95,28 +102,35 @@ export default function ContactPage() {
         message: `Subject: ${subjectDefault || "General Enquiry"}\n\n${form.message.trim() || "N/A"}`,
         websiteSource: "ivyhuts.com/contact",
       };
-      fetch("/api/enquire", {
+      const res = await fetch("/api/enquire", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(enquiryPayload),
-      })
-        .then((res) => res.json().catch(() => ({})).then((resBody) => ({ ok: res.ok, resBody })))
-        .then(({ ok, resBody }) => {
-          if (ok && resBody.emailSent) {
-            console.log("[Contact] Notification email sent successfully");
-          } else {
-            console.error("[Contact] Notification email failed:", resBody.message || resBody.error || "unknown error");
-          }
-        })
-        .catch((err) => console.error("[Contact] /api/enquire request failed:", err));
-    } catch (_) {}
+      });
+      const resBody = await res.json().catch(() => ({}));
+      confirmed = res.ok && resBody.emailSent === true;
+      if (confirmed) {
+        console.log("[Contact] Notification email sent successfully");
+      } else {
+        console.error("[Contact] Notification email failed:", resBody.message || resBody.error || "unknown error");
+      }
+    } catch (err) {
+      console.error("[Contact] /api/enquire request failed:", err);
+    }
+
+    if (!confirmed) {
+      setStatus("idle");
+      setErrors({ submit: "Something went wrong. Please try again, or reach us directly at contact@ivyhuts.com." });
+      return;
+    }
 
     // MongoDB capture (Milestone 3) — additional, non-blocking destination
-    // alongside Sheets/email above; never affects the success screen below.
-    // This form no longer collects an email address (removed in the latest
-    // homepage/UI pass) — that's fine: Enquiry.contact.email is intentionally
-    // optional (see api/_lib/models/Enquiry.js), so omitting it here still
-    // captures the enquiry successfully with just name + phone.
+    // alongside Sheets/email above; fired only once the enquiry email above
+    // is itself confirmed. This form no longer collects an email address
+    // (removed in the latest homepage/UI pass) — that's fine:
+    // Enquiry.contact.email is intentionally optional (see
+    // api/_lib/models/Enquiry.js), so omitting it here still captures the
+    // enquiry successfully with just name + phone.
     const mongoMessage = [
       `Subject: ${subjectDefault || "General Enquiry"}`,
       form.message.trim(),
@@ -124,7 +138,7 @@ export default function ContactPage() {
       tenancyDuration ? `Duration: ${tenancyDuration}` : null,
       tenancyMoveIn ? `Move In: ${tenancyMoveIn}` : null,
       tenancyMoveOut ? `Move Out: ${tenancyMoveOut}` : null,
-      tenancyPrice ? `Price: ${tenancyCurrency || ""}${tenancyPrice}/week` : null,
+      tenancyPrice ? `Price: ${tenancyCurrency || ""}${tenancyPrice}${tenancyPriceUnit ? `/${tenancyPriceUnit}` : ""}` : null,
     ].filter(Boolean).join("\n");
     const mongoProperty = (inventoryId || propertyName)
       ? { id: inventoryId || null, name: propertyName || null }
@@ -139,7 +153,9 @@ export default function ContactPage() {
       source: "contact",
     }, "Contact");
 
-    setStatus("success");
+    const submissionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    trackFormSubmission(submissionId, "Contact Us");
+    navigate("/thank-you");
   };
 
   return (
@@ -159,7 +175,7 @@ export default function ContactPage() {
                 {(tenancyDuration || tenancyMoveIn) && (
                   <span className="cp-property-context-sub">
                     {[tenancyDuration, tenancyMoveIn ? `from ${tenancyMoveIn}` : null].filter(Boolean).join(" · ")}
-                    {tenancyPrice ? ` · ${tenancyCurrency || ""}${tenancyPrice}/week` : ""}
+                    {tenancyPrice ? ` · ${tenancyCurrency || ""}${tenancyPrice}${tenancyPriceUnit ? `/${tenancyPriceUnit}` : ""}` : ""}
                   </span>
                 )}
               </div>
@@ -211,20 +227,6 @@ export default function ContactPage() {
         </div>
 
         <div className="cp-form-col">
-          {status === "success" ? (
-            <div className="cp-success">
-              <svg className="cp-success-icon" viewBox="0 0 56 56" fill="none">
-                <circle cx="28" cy="28" r="26" stroke="url(#cp-grad)" strokeWidth="2.5"/>
-                <path d="M16 28l8 8 16-16" stroke="#5E3A6B" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                <defs><linearGradient id="cp-grad" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse"><stop stopColor="#5E3A6B"/><stop offset="1" stopColor="#B07898"/></linearGradient></defs>
-              </svg>
-              <h2>Message Sent!</h2>
-              <p>Thanks for reaching out. We will get back to you at <strong>{form.phone}</strong> within 24 hours.</p>
-              <button className="btn btn-secondary" onClick={() => { setStatus("idle"); setForm({ name: "", phone: "", message: "" }); }}>
-                Send Another Message
-              </button>
-            </div>
-          ) : (
             <form className="cp-form" onSubmit={handleSubmit} noValidate>
               <input type="text" name="website" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} style={{ display: "none" }} tabIndex={-1} autoComplete="off" aria-hidden="true" />
               <h2 className="cp-form-title">Send us a message</h2>
@@ -253,7 +255,6 @@ export default function ContactPage() {
                 {status === "sending" ? "Sending..." : "Send Message"}
               </button>
             </form>
-          )}
         </div>
       </div></main>
 

@@ -848,6 +848,7 @@
 .listing-card-wishlist-row {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 .listing-card-meta-row {
@@ -1102,7 +1103,8 @@
     right: 12px;
     z-index: 5;
   }
-  .listing-card-wishlist-row .wishlist-heart-btn {
+  .listing-card-wishlist-row .wishlist-heart-btn,
+  .listing-card-wishlist-row .share-btn {
     width: 44px;
     height: 44px;
     background: rgba(255, 255, 255, 0.92);

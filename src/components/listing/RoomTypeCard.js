@@ -13,6 +13,7 @@ function TenancyRow({ tenancy, room, onEnquire }) {
       moveOut: tenancy.availableTo,
       price: tenancy.price,
       currency: tenancy.currency,
+      priceUnit: tenancy.priceDuration,
     });
   };
 
@@ -41,7 +42,7 @@ function TenancyRow({ tenancy, room, onEnquire }) {
             <span className="room-tenancy-original">{tenancy.currency}{tenancy.originalPrice}</span>
           )}
           {tenancy.price !== null ? (
-            <>{tenancy.currency}{tenancy.price}<span className="room-tenancy-unit">/week</span></>
+            <>{tenancy.currency}{tenancy.price}{tenancy.priceDuration && <span className="room-tenancy-unit">/{tenancy.priceDuration}</span>}</>
           ) : (
             "Price on request"
           )}

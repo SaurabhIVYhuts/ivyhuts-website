@@ -847,6 +847,66 @@ a { text-decoration: none; }
   background: #EDD5E3;
 }
 
+.share-btn-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.share-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--brand-purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  backdrop-filter: blur(4px);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.share-btn:hover {
+  background: rgba(255, 255, 255, 0.98);
+  transform: scale(1.06);
+}
+
+/* Variant for placement on a solid white card (e.g. the property detail
+   sidebar) instead of overlaid on an image — mirrors .wishlist-heart-btn--on-light. */
+.share-btn--on-light {
+  background: #F3ECF1;
+  flex-shrink: 0;
+}
+
+.share-btn--on-light:hover {
+  background: #EDD5E3;
+}
+
+.share-btn-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--brand-purple-deep, #3A2442);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(58, 36, 66, 0.25);
+  pointer-events: none;
+  z-index: 20;
+  animation: share-tooltip-in 0.15s ease;
+}
+
+@keyframes share-tooltip-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(3px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 .listing-gallery-nav {
   position: absolute;
   top: 50%;
@@ -1874,7 +1934,7 @@ a.footer-social-icon:hover {
     height: 34px;
     padding: 5px;
   }
-  .wishlist-heart-btn {
+  .wishlist-heart-btn, .share-btn {
     box-sizing: content-box;
     width: 30px;
     height: 30px;
@@ -2356,6 +2416,21 @@ a.footer-social-icon:hover {
   z-index: 10;
 }
 .chp-floating-heart .wishlist-heart-btn {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-radius: 50%;
+  padding: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chp-floating-share {
+  position: absolute;
+  top: 8px;
+  right: 46px;
+  z-index: 10;
+}
+.chp-floating-share .share-btn {
   background: rgba(255, 255, 255, 0.9) !important;
   border-radius: 50%;
   padding: 6px;

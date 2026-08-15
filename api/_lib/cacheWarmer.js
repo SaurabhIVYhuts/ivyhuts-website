@@ -44,6 +44,7 @@ const WARM_TARGET_CITIES = [
     "Newcastle Upon Tyne",
     "Leicester",
     "Exeter",
+    "Guildford",
 ];
 
 // At most this many candidates are actually refreshed (i.e. reach

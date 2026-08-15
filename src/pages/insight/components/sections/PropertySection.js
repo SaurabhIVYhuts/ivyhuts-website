@@ -13,8 +13,26 @@ const COLUMNS = [
   { key: "minPrice", label: "Asking Price" },
 ];
 
-function flattenProperties(cities) {
-  return cities.filter((c) => c.cached).flatMap((c) => c.properties);
+// Sold-out properties come from market.properties — the crawl's full,
+// uncapped sold-out list (api/_lib/insightsMarket.js's bucketItem), not a
+// per-city sample. Available properties are still only ever the existing
+// up-to-4-per-city samples (cities[].properties never sampled that deeply
+// for available inventory — a full available list isn't kept, since this
+// system's focus is sold-out market intelligence). The two are merged and
+// de-duplicated so nothing previously visible here disappears.
+function flattenProperties(market) {
+  const citySamples = (market.cities || []).filter((c) => c.cached).flatMap((c) => c.properties);
+  const fullSoldOut = market.properties || [];
+  if (fullSoldOut.length === 0) return citySamples;
+  const seen = new Set();
+  const merged = [];
+  for (const p of [...fullSoldOut, ...citySamples]) {
+    const key = p.id ?? p.slug ?? `${p.name}-${p.city}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(p);
+  }
+  return merged;
 }
 
 export default function PropertySection({ market, loading, error, onRetry, onResetFilters }) {
@@ -22,7 +40,7 @@ export default function PropertySection({ market, loading, error, onRetry, onRes
   const [sortKey, setSortKey] = useState("city");
   const [sortDir, setSortDir] = useState("asc");
 
-  const properties = useMemo(() => (market ? flattenProperties(market.cities) : []), [market]);
+  const properties = useMemo(() => (market ? flattenProperties(market) : []), [market]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -64,9 +82,9 @@ export default function PropertySection({ market, loading, error, onRetry, onRes
       <div className="insight-section-intro">
         <h2>Property Performance</h2>
         <p>
-          Up to 4 representative properties per market — a sample from Amber's full catalog crawl, not the complete
-          listing. Sold %, average booked price and revenue columns are omitted here — IVYHUTS does not currently
-          capture unit-level booking/transaction data.
+          Every sold-out property Amber's full catalog crawl has counted, plus up to 4 representative available
+          properties per market. Sold %, average booked price and revenue columns are omitted here — IVYHUTS does not
+          currently capture unit-level booking/transaction data.
         </p>
       </div>
 

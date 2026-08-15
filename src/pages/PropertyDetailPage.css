@@ -239,16 +239,6 @@
   color: #5E3A6B;
 }
 
-.pdp-offer-banner {
-  background: linear-gradient(135deg, rgba(196, 122, 138, 0.14), rgba(176, 120, 152, 0.14));
-  color: #B05E72;
-  font-weight: 600;
-  font-size: 0.88rem;
-  padding: 10px 14px;
-  border-radius: 12px;
-  margin-bottom: 10px;
-}
-
 .pdp-unavailable-banner {
   background: #FCEBEE;
   color: #B00020;
