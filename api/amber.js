@@ -14,6 +14,7 @@ const { mapAmberItemToResidence, persistResidences, extractResultArray } = requi
 const AccommodationResidence = require("./_lib/models/AccommodationResidence");
 const { connectToDatabase, MongoNotConfiguredError } = require("./_lib/mongodb");
 const { withTimeout } = require("./_lib/withTimeout");
+const { growSearchDataFromRealTraffic } = require("./_lib/insightsMarket");
 
 const VALID_TYPES = new Set(["listings", "detail", "citystats", "inventorystats"]);
 const VALID_PRIORITIES = new Set(["HIGH", "MEDIUM", "LOW"]);
@@ -180,6 +181,12 @@ module.exports = async (req, res) => {
         // information, since the upsert is idempotent on unchanged data anyway.
         if ((type === "listings" || type === "detail") && result.cacheStatus === "MISS") {
             await withTimeout(indexOnRead(type, city, result.data), INDEX_ON_READ_TIMEOUT_MS, undefined);
+            // Independent of indexOnRead's Mongo connection (pure Redis, so it
+            // still runs even when Mongo is down/not configured) — grows the
+            // search-facing country/city dataset from this same real response,
+            // never touches the crawl's own dashboard-facing state. See
+            // insightsMarket.js's growSearchDataFromRealTraffic for why.
+            await withTimeout(growSearchDataFromRealTraffic(extractResultArray(result.data)), INDEX_ON_READ_TIMEOUT_MS, undefined);
         }
 
         // Cache at the edge/CDN too for a short window — extra protection for

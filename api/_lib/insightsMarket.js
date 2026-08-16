@@ -249,6 +249,96 @@ function loadSearchData() {
     return sharedGet(SEARCH_DATA_KEY);
 }
 
+// Grows LOCATION_INDEX_KEY/SEARCH_DATA_KEY incrementally from REAL traffic —
+// any real listings/detail Amber response the site already fetches for
+// other reasons (a user browsing a city, viewing a property) — instead of
+// waiting for the crawl's next full pass. A country/city genuinely in
+// Amber's catalog that the crawl's LAST completed pass didn't discover
+// (confirmed live: Darwin, Australia — 2 real properties, added to Amber's
+// catalog after the crawl's last pass finished and the crawl then sat idle)
+// becomes searchable the first time ANY real request happens to surface it.
+//
+// Captures BOTH `location.locality` (fine-grained, e.g. "Casuarina") AND
+// `location.district` (the broader city/metro name, e.g. "City of Darwin")
+// as separate real city entries — confirmed live that Amber's own address
+// hierarchy splits these two levels, and a search for "Darwin" only matches
+// district ("City of Darwin" / "Darwin Municipality"), never locality alone.
+// Both are used completely verbatim, exactly as Amber sent them — never
+// cleaned/parsed/renamed ("City of Darwin" is NOT rewritten to "Darwin"),
+// since guessing at that transformation risks being wrong for some other
+// district's naming convention. matchRank's existing word-boundary tier
+// already ranks "darwin" as a strong (not just substring) match against
+// "city of darwin" without any special-casing needed here.
+//
+// Deliberately does NOT touch insights:marketCrawl:v2 (the full crawl
+// state the /insight market-intelligence dashboard depends on) — that
+// key's per-property counts are only accurate as a single coherent full
+// pass, so incrementally poking new cities into it here would silently
+// corrupt its numbers. This function only ever touches the two small
+// search-facing summaries, which have no such "one coherent pass" constraint
+// — a duplicate-safe union is exactly what they need. Same growth
+// philosophy already proven for universities (accommodationIndex.js's
+// getNearbyUniversities), applied here to countries/cities instead. Zero
+// new Amber calls: only ever reads items a response already fetched for a
+// different reason (see api/amber.js's indexOnRead, which is what calls this).
+function realCityNamesFor(item) {
+    const names = new Set();
+    const locality = item?.location?.locality?.long_name;
+    const district = item?.location?.district?.long_name;
+    if (locality) names.add(locality);
+    if (district) names.add(district);
+    return Array.from(names);
+}
+
+async function growSearchDataFromRealTraffic(items) {
+    if (!items || !items.length) return;
+    try {
+        const [locationIndex, searchData] = await Promise.all([loadLocationIndex(), loadSearchData()]);
+        if (!locationIndex && !searchData) return; // nothing to grow yet — the crawl's first tick creates the base
+
+        let locationChanged = false;
+        let searchDataChanged = false;
+        const locCountries = locationIndex ? [...locationIndex.countries] : null;
+        const locCities = locationIndex ? [...locationIndex.cities] : null;
+        const locCountrySet = locationIndex ? new Set(locCountries.map((c) => c.name)) : null;
+        const locCityKeySet = locationIndex ? new Set(locCities.map((c) => `${c.name}|${c.country}`)) : null;
+
+        const sdCountries = searchData ? [...searchData.countries] : null;
+        const sdCities = searchData ? [...searchData.cities] : null;
+        const sdCountrySet = searchData ? new Set(sdCountries.map((c) => c.name)) : null;
+        const sdCityKeySet = searchData ? new Set(sdCities.map((c) => `${c.name}|${c.country}`)) : null;
+
+        for (const item of items) {
+            const country = item?.location?.country?.long_name;
+            if (!country) continue;
+            for (const city of realCityNamesFor(item)) {
+                if (!city || city === "Unknown") continue;
+                const cityKey = `${city}|${country}`;
+
+                if (locationIndex) {
+                    if (!locCountrySet.has(country)) { locCountries.push({ name: country, cityCount: 0 }); locCountrySet.add(country); locationChanged = true; }
+                    if (!locCityKeySet.has(cityKey)) { locCities.push({ name: city, country }); locCityKeySet.add(cityKey); locationChanged = true; }
+                }
+                if (searchData) {
+                    if (!sdCountrySet.has(country)) { sdCountries.push({ name: country, slug: slugify(country), aliases: countryAliases(country), cityCount: 0 }); sdCountrySet.add(country); searchDataChanged = true; }
+                    if (!sdCityKeySet.has(cityKey)) { sdCities.push({ name: city, country, slug: slugify(city), aliases: [] }); sdCityKeySet.add(cityKey); searchDataChanged = true; }
+                }
+            }
+        }
+
+        if (locationChanged) {
+            for (const c of locCountries) c.cityCount = locCities.filter((ct) => ct.country === c.name).length;
+            await sharedSet(LOCATION_INDEX_KEY, { countries: locCountries, cities: locCities, updatedAt: Date.now() }, LOCATION_INDEX_TTL_SECONDS);
+        }
+        if (searchDataChanged) {
+            for (const c of sdCountries) c.cityCount = sdCities.filter((ct) => ct.country === c.name).length;
+            await sharedSet(SEARCH_DATA_KEY, { ...searchData, countries: sdCountries, cities: sdCities, updatedAt: Date.now() }, SEARCH_DATA_TTL_SECONDS);
+        }
+    } catch (err) {
+        log(`[insightsMarket] action=GROW_SEARCH_DATA_FAILED error=${err.message}`);
+    }
+}
+
 function toNumber(v) {
     if (v == null) return null;
     const n = typeof v === "number" ? v : Number(String(v).replace(/[^0-9.-]/g, ""));
@@ -715,4 +805,7 @@ module.exports = {
     // universities dataset the Global Search's client-side index loads once
     // (see SEARCH_DATA_KEY's own comment).
     loadSearchData, buildSearchData, saveSearchData,
+    // Exported for api/amber.js's indexOnRead — grows the same search
+    // dataset from real traffic between crawl passes (see its own header).
+    growSearchDataFromRealTraffic,
 };
