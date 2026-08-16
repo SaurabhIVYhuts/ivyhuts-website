@@ -20,6 +20,18 @@
     "accommodationOverride": { "propertySlugs": ["luna-hatfield-1905073461300"] }
   },
   { "id": "university-of-bristol", "name": "University of Bristol", "type": "UNIVERSITY", "aliases": ["Bristol University", "UoB", "U Bristol"], "city": "Bristol", "country": "United Kingdom", "latitude": 51.4585, "longitude": -2.6030 },
+  {
+    "id": "st-georges-university-of-london",
+    "name": "St George's University of London",
+    "type": "UNIVERSITY",
+    "aliases": ["St George's, University of London", "St Georges University of London", "St George's", "SGUL", "St Georges"],
+    "city": "London",
+    "country": "United Kingdom",
+    "address": "Cranmer Terrace, Tooting, London, SW17 0RE",
+    "latitude": 51.4264,
+    "longitude": -0.1758,
+    "_note": "Address as specified (Cranmer Terrace, Tooting, SW17 0RE); coordinates cross-checked against OpenStreetMap Nominatim's own amenity=university point for this campus (51.4264330, -0.1758360) and independently corroborated by geocoding the Cranmer Terrace street address itself (~51.428, -0.176, same immediate area). Deliberately the TOOTING campus, not Islington: St George's, University of London merged with City, University of London in 2024 to form 'City St George's, University of London', and Nominatim now has a SECOND, differently-branded point for the former City campus on Ashby Street, Clerkenwell, Islington EC1V 0ED (~51.5277, -0.1036) — a genuinely different location. The address given here pins this record unambiguously to the Tooting medical-school site."
+  },
   { "id": "university-college-dublin", "name": "University College Dublin", "type": "UNIVERSITY", "aliases": ["UCD", "UCD Dublin"], "city": "Dublin", "country": "Ireland", "latitude": 53.3065, "longitude": -6.2218 },
   { "id": "trinity-college-dublin", "name": "Trinity College Dublin", "type": "UNIVERSITY", "aliases": ["TCD", "Trinity Dublin"], "city": "Dublin", "country": "Ireland", "latitude": 53.3438, "longitude": -6.2546 },
   {
@@ -38,5 +50,17 @@
   { "id": "university-of-british-columbia", "name": "University of British Columbia", "type": "UNIVERSITY", "aliases": ["UBC"], "city": "Vancouver", "country": "Canada", "latitude": 49.2606, "longitude": -123.2460 },
   { "id": "carleton-university", "name": "Carleton University", "type": "UNIVERSITY", "aliases": ["U Carleton"], "city": "Ottawa", "country": "Canada", "latitude": 45.3876, "longitude": -75.6960 },
   { "id": "university-of-sydney", "name": "University of Sydney", "type": "UNIVERSITY", "aliases": ["USyd", "Sydney University"], "city": "Sydney", "country": "Australia", "latitude": -33.8886, "longitude": 151.1873 },
-  { "id": "university-of-wollongong-dubai", "name": "University of Wollongong in Dubai (UOWD)", "type": "UNIVERSITY", "aliases": ["University of Wollongong Dubai", "University of Wollongong in Dubai", "UOWD", "UOW Dubai"], "city": "Dubai", "country": "United Arab Emirates", "latitude": 25.1022, "longitude": 55.1589 }
+  { "id": "university-of-wollongong-dubai", "name": "University of Wollongong in Dubai (UOWD)", "type": "UNIVERSITY", "aliases": ["University of Wollongong Dubai", "University of Wollongong in Dubai", "UOWD", "UOW Dubai"], "city": "Dubai", "country": "United Arab Emirates", "latitude": 25.1022, "longitude": 55.1589 },
+  {
+    "id": "campus-velbert-heiligenhaus",
+    "name": "Campus Velbert/Heiligenhaus",
+    "type": "UNIVERSITY",
+    "aliases": ["Campus Velbert Heiligenhaus", "Hochschule Bochum Campus Velbert/Heiligenhaus", "Hochschule Bochum Campus V/H", "Campus V/H", "CVH"],
+    "city": "Heiligenhaus",
+    "country": "Germany",
+    "address": "Kettwiger Straße 20, 42579 Heiligenhaus, Germany",
+    "latitude": 51.3274305,
+    "longitude": 6.9677006,
+    "_note": "External campus of Hochschule Bochum (Bochum University of Applied Sciences), located in Heiligenhaus, North Rhine-Westphalia — NOT in Bochum city itself, which is a separate location roughly 30km away. Coordinates are the official Google Maps location supplied directly by the product team (not independently re-geocoded), kept at full given precision rather than rounded, since they were provided as the authoritative campus coordinates."
+  }
 ]
