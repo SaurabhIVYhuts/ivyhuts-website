@@ -30,8 +30,10 @@ import "./PropertyListingPage.css";
 const PropertyMap = React.lazy(() => import("../components/map/PropertyMap"));
 
 // A hand-picked spread across regions so the shortcut row isn't UK-heavy —
-// every name here must exist in DESTINATIONS.
-const POPULAR_CITY_NAMES = ["London", "New York", "Toronto", "Sydney", "Dublin", "Amsterdam", "Berlin", "Tokyo"];
+// every name here must exist in DESTINATIONS. Amsterdam/Tokyo swapped for
+// Barcelona/Singapore when Netherlands/Japan were removed from DESTINATIONS
+// for having zero real inventory (see destinations.js's own header comment).
+const POPULAR_CITY_NAMES = ["London", "New York", "Toronto", "Sydney", "Dublin", "Berlin", "Barcelona", "Singapore"];
 
 const BASE_SORT_OPTIONS = [
   { value: "recommended", label: "Recommended" },

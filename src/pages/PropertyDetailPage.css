@@ -333,32 +333,69 @@
 
 .pdp-nearby-item:last-child { border-bottom: none; }
 
-/* ── AMENITIES ── */
+/* ── AMENITIES ──
+   Structured like distinct labeled sections rather than one undifferentiated
+   list — each group gets its own divider (instead of relying on gap alone
+   to separate them) and a wider grid so related amenities read as an
+   organized set, not a loose pile. */
 .pdp-amenity-groups {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
 }
 
+.pdp-amenity-group {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border-brand);
+}
+
+.pdp-amenity-group:first-child { padding-top: 0; }
+.pdp-amenity-group:last-child { padding-bottom: 0; border-bottom: none; }
+
 .pdp-amenity-group h3 {
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  font-weight: 700;
   color: #5E3A6B;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 
 .pdp-amenity-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 22px;
+  row-gap: 18px;
 }
 
 .pdp-amenity-item {
-  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.85rem;
   font-weight: 600;
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: rgba(94, 58, 107, 0.06);
+  color: #3A2442;
+  line-height: 1.25;
+}
+
+/* Icon sits in a soft rounded "chip" rather than floating bare next to the
+   text — a small treatment that reads as considerably more designed/premium
+   even where the icon itself falls back to a generic match. */
+.pdp-amenity-icon-chip {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(94, 58, 107, 0.08);
   color: #5E3A6B;
+}
+
+@media (max-width: 900px) {
+  .pdp-amenity-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  .pdp-amenity-items { grid-template-columns: 1fr; }
 }
 
 /* ── ROOM TYPES ── */
