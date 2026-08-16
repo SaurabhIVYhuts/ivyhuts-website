@@ -258,9 +258,33 @@ function mapTenancy(leaf) {
   };
 }
 
-// Available tenancies first (stable sort preserves Amber's own ordering within each group).
+// Available tenancies first, cheapest-first within that group (by
+// weekly-equivalent price — see weeklyEquivalentPrice below for why raw
+// amounts across different lease durations aren't directly comparable).
+// RoomTypeCard.js only ever shows the first TENANCY_PREVIEW of this array by
+// default — confirmed live against a real property (Amber id 3302773,
+// "136-138 New Walk, Leicester"): its room type carries 4 real available
+// tenancies (£196/51wk, £188/51wk, £185/51wk, £204/44wk) in THAT raw order
+// from Amber, none of it price-sorted. The room's displayed "From" price
+// (getRoomLowestAvailablePrice, computed over the FULL tenancy list) already
+// correctly showed the true minimum, £185 — but the old availability-only
+// sort left it as tenancy #3, invisible in the default 2-row preview behind
+// "View more tenancies" while two pricier options (£196, £188) showed
+// instead. The number was never wrong; it just never appeared anywhere the
+// preview showed, which reads exactly like a bug. Sorting the available
+// group by price means the visible preview and the "From" price it sits
+// under can never disagree again.
 function sortTenancies(tenancies) {
-  return [...tenancies].sort((a, b) => (a.available === b.available ? 0 : a.available ? -1 : 1));
+  return [...tenancies].sort((a, b) => {
+    if (a.available !== b.available) return a.available ? -1 : 1;
+    if (!a.available) return 0; // unavailable tenancies: relative order doesn't matter, none are ever priced/shown as "from"
+    const aw = a.price !== null ? weeklyEquivalentPrice(a.price, a.priceDuration) : null;
+    const bw = b.price !== null ? weeklyEquivalentPrice(b.price, b.priceDuration) : null;
+    if (aw != null && bw != null) return aw - bw;
+    if (aw != null) return -1; // a comparable-duration tenancy ranks ahead of an unrankable one
+    if (bw != null) return 1;
+    return (a.price ?? Infinity) - (b.price ?? Infinity); // both unrankable durations — last-resort raw compare
+  });
 }
 
 // A room is available if any of its real tenancies are — never just a raw flag,
@@ -283,11 +307,27 @@ function getRoomAvailableFrom(tenancies) {
   return dated[0].t.availableFrom;
 }
 
-// Cheapest price among AVAILABLE tenancies — falls back to the room-level
-// pricing aggregate only when there's no usable tenancy data at all.
-function getRoomLowestAvailablePrice(tenancies, fallbackPrice) {
+// Cheapest price among AVAILABLE tenancies — falls back to the room's OWN
+// availability-aware aggregate (pricing.min_available_price) only when
+// there's no usable per-tenancy price data at all (a sparse room with zero
+// nested tenancy children but a raw `available: true` flag, or tenancies
+// present but none with a valid price). Deliberately does NOT fall back
+// further to getPrice()'s `from` (pricing.min_price) — that field is
+// documented (see getPrice()'s own header comment) as availability-UNAWARE
+// and confirmed live to be able to equal a completely SOLD OUT room's price,
+// with an explicit warning that every caller must go through this
+// availability-aware path rather than trust it directly. This exact function
+// feeds selectCheapestAvailableRoomType() -> deriveDisplayPricing(), i.e. the
+// literal number shown to a customer as this property's bookable price under
+// the site's Lowest Price Guarantee — a wrong number here is a real, costly
+// promise, not just a display glitch, so this returns null (never shown,
+// property/room correctly falls out of pricing contention) rather than ever
+// guessing from an availability-unaware aggregate.
+function getRoomLowestAvailablePrice(tenancies, child) {
   const prices = tenancies.filter((t) => t.available && t.price !== null).map((t) => t.price);
-  return prices.length ? Math.min(...prices) : fallbackPrice;
+  if (prices.length) return Math.min(...prices);
+  const pricing = child?.pricing || {};
+  return toNumber(pricing.min_available_price ?? pricing.available_price);
 }
 
 // Cross-duration comparison ONLY — never used for display (a room's actual
@@ -444,7 +484,7 @@ function mapRoomType(child) {
     bedroomCount: toNumber(child.meta?.bedroom_count),
     bathroomCount: toNumber(child.meta?.bathroom_count),
     sizeSqm: toNumber(child.meta?.area) || null,
-    price: { ...roomPricing, from: getRoomLowestAvailablePrice(tenancies, roomPricing.from) },
+    price: { ...roomPricing, from: getRoomLowestAvailablePrice(tenancies, child) },
     image: getPrimaryImage(child),
     images: getGalleryImages(child, 6),
     available,
