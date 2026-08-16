@@ -98,6 +98,16 @@ function getAddress(raw) {
   };
 }
 
+// NOTE on `from`: this is Amber's raw, availability-UNAWARE aggregate
+// minimum (pricing.min_price) — confirmed live against real Amber data that
+// it can and does equal a completely SOLD OUT room type's price (e.g. a
+// real Manchester property returned pricing.min_price:186 matching a room
+// with 0 tenancies and available:false, while pricing.min_available_price
+// was 215, matching the actual cheapest bookable room). getPrice() is kept
+// as-is for its OTHER fields (to/original/deposit/currency/duration, which
+// aren't availability-sensitive) — every caller that needs an accurate,
+// availability-aware "from" price must go through normalizeResidencePricing()
+// below instead of trusting this function's own `from` value directly.
 function getPrice(raw) {
   const pricing = raw.pricing || {};
   const from = toNumber(pricing.min_price ?? pricing.available_price ?? pricing.price);
@@ -280,6 +290,106 @@ function getRoomLowestAvailablePrice(tenancies, fallbackPrice) {
   return prices.length ? Math.min(...prices) : fallbackPrice;
 }
 
+// Cross-duration comparison ONLY — never used for display (a room's actual
+// billing period is always shown as-is; see mapRoomType()/getPrice()). Same
+// constant/scope as api/_lib/accommodationIndex.js's own computePriceWeekly
+// (one normalization decision shared by the Planner and every frontend
+// consumer, not two that could disagree): null for anything not confidently
+// week/month (term/semester/academic year/etc.) rather than a guessed
+// conversion — per this codebase's standing rule of redistributing/skipping
+// an unusable factor instead of fabricating one.
+const WEEKS_PER_MONTH = 52 / 12;
+export function weeklyEquivalentPrice(amount, duration) {
+  if (!Number.isFinite(amount)) return null;
+  if (duration === "week") return amount;
+  if (duration === "month") return amount / WEEKS_PER_MONTH;
+  return null;
+}
+
+// THE single authoritative "which room type is this property's displayed
+// price" decision (item 11 of the pricing-accuracy fix) — every consumer
+// (listing card, property detail sidebar, map popup, sort comparator) goes
+// through this one function or normalizeResidencePricing() below, never a
+// second competing implementation. Operates on an ALREADY-mapped roomTypes
+// array (mapRoomType() output — `available`/`price.from` already correctly
+// derived from real tenancy data, see isRoomAvailable()/
+// getRoomLowestAvailablePrice() above), so a room whose price is null (no
+// valid pricing data) or that's sold out is never eligible regardless of
+// how cheap its raw number looks. Returns null when nothing qualifies —
+// callers treat that as "every room type is sold out or unpriced",
+// never a silent fallback to a sold-out room's price.
+export function selectCheapestAvailableRoomType(roomTypes) {
+  const candidates = (Array.isArray(roomTypes) ? roomTypes : [])
+    .filter((rt) => rt && rt.available === true && Number.isFinite(rt.price?.from))
+    .map((rt) => ({ id: rt.id, name: rt.name, amount: rt.price.from, currency: rt.price.currency, duration: rt.price.duration || "week" }));
+  if (!candidates.length) return null;
+
+  candidates.sort((a, b) => {
+    const aw = weeklyEquivalentPrice(a.amount, a.duration);
+    const bw = weeklyEquivalentPrice(b.amount, b.duration);
+    if (aw != null && bw != null) return aw - bw; // normal case: comparable durations, compare fairly
+    if (aw != null) return -1; // a comparable-duration room ranks ahead of an unrankable one (e.g. "term")
+    if (bw != null) return 1;
+    return a.amount - b.amount; // both unrankable (e.g. both "term") — last-resort raw compare; same property, same currency in every real example seen
+  });
+  return candidates[0];
+}
+
+// Builds the mapped room-type array once — shared by every caller below so
+// the SAME dedupe/parse logic (and therefore the same availability/price
+// per room) is used everywhere, never a second parallel parser.
+function buildRoomTypes(raw) {
+  return Array.isArray(raw?.children) ? dedupeRoomChildren(raw.children).map(mapRoomType).filter(Boolean) : [];
+}
+
+// Turns a `selectCheapestAvailableRoomType` result (or the no-room-data
+// fallback) into the shared { isSoldOut, displayPrice, selectedRoomType }
+// shape every consumer reads.
+function deriveDisplayPricing(roomTypes, raw) {
+  if (roomTypes.length > 0) {
+    const selected = selectCheapestAvailableRoomType(roomTypes);
+    if (!selected) {
+      // Real per-room-type data exists and every single one is sold out
+      // (or has no valid price) — this IS confidently "sold out", not an
+      // ambiguous/missing-data case.
+      return { isSoldOut: true, displayPrice: null, selectedRoomType: null };
+    }
+    return {
+      isSoldOut: false,
+      displayPrice: { amount: selected.amount, currency: selected.currency, duration: selected.duration },
+      selectedRoomType: { id: selected.id, name: selected.name, availability: "available" },
+    };
+  }
+
+  // No room-type breakdown at all (older/sparse item shape) — there is no
+  // authoritative per-room signal to check, so per item 6 ("do not fabricate
+  // availability"), only mark sold out on POSITIVE evidence (the property's
+  // own top-level `available` flag being explicitly false), never infer it
+  // from absent data. Otherwise fall back to Amber's own availability-aware
+  // aggregate field when present (min_available_price — confirmed live to
+  // exclude sold-out rooms, see this file's getPrice() comment), only
+  // falling further back to the raw, availability-UNAWARE min_price as the
+  // last resort this codebase already used before this fix.
+  if (raw?.available === false) return { isSoldOut: true, displayPrice: null, selectedRoomType: null };
+  const pricing = raw?.pricing || {};
+  const amount = toNumber(pricing.min_available_price ?? pricing.available_price ?? pricing.min_price ?? pricing.price);
+  if (!Number.isFinite(amount)) return { isSoldOut: false, displayPrice: null, selectedRoomType: null };
+  return {
+    isSoldOut: false,
+    displayPrice: { amount, currency: currencySymbol(pricing.currency), duration: pricing.duration ? String(pricing.duration).replace(/ly$/, "") : "week" },
+    selectedRoomType: null,
+  };
+}
+
+// Public entry point for callers that only have a raw Amber item (not an
+// already-mapped roomTypes array) — e.g. mapAmberPropertyToListing below.
+// Recommended shape (pricing-accuracy fix, item 12):
+//   { propertyId, isSoldOut, displayPrice: {amount,currency,duration}|null, selectedRoomType: {id,name,availability}|null }
+export function normalizeResidencePricing(raw) {
+  const propertyId = raw?.id ?? raw?.inventory_id ?? raw?._id ?? null;
+  return { propertyId, ...deriveDisplayPricing(buildRoomTypes(raw), raw) };
+}
+
 // Amber's `children` array occasionally contains stale/phantom duplicate
 // room-type entries alongside the real one — same `name`, but with zero
 // tenancy leaves (no actual bookable duration options) and a bogus price
@@ -351,6 +461,13 @@ export function mapAmberPropertyDetails(raw) {
   const address = getAddress(raw);
   const { badges, offerText, billsIncluded } = getBadges(raw);
   const roomTypes = dedupeRoomChildren(raw.children).map(mapRoomType).filter(Boolean);
+  // The SAME cheapest-available-room decision the listing card uses (see
+  // mapAmberPropertyToListing below) — computed from this page's own
+  // already-built roomTypes (no duplicate parsing), so the property-detail
+  // sidebar/sticky-bar price can never disagree with the card that linked
+  // here (pricing-accuracy fix, item 15).
+  const pricing = deriveDisplayPricing(roomTypes, raw);
+  const basePrice = getPrice(raw);
 
   // Aggregate unique payment/fee notes found across room types into one property-level list.
   const paymentNotesSeen = new Set();
@@ -376,7 +493,14 @@ export function mapAmberPropertyDetails(raw) {
     coordinates,
     image: getPrimaryImage(raw),
     images: getGalleryImages(raw, 24),
-    price: getPrice(raw),
+    // `from`/`currency`/`duration` come from the availability-aware
+    // selection above; `to`/`original`/`deposit` are unaffected by
+    // availability and keep basePrice's own values.
+    price: pricing.displayPrice
+      ? { ...basePrice, from: pricing.displayPrice.amount, currency: pricing.displayPrice.currency, duration: pricing.displayPrice.duration }
+      : { ...basePrice, from: null },
+    isSoldOut: pricing.isSoldOut,
+    selectedRoomType: pricing.selectedRoomType,
     distances: getDistances(raw, 8),
     amenityGroups: getAmenityGroups(raw),
     badges,
@@ -518,6 +642,12 @@ export function mapAmberPropertyToListing(raw) {
   const id = raw.id ?? raw.inventory_id ?? raw._id ?? null;
   const address = getAddress(raw);
   const { badges, offerText, billsIncluded } = getBadges(raw);
+  // Same cheapest-available-room derivation mapAmberPropertyDetails uses —
+  // via the shared buildRoomTypes()/deriveDisplayPricing() helpers, so a
+  // listing card can never show a different "from" price than the detail
+  // page it links to (pricing-accuracy fix, items 11/15).
+  const pricing = deriveDisplayPricing(buildRoomTypes(raw), raw);
+  const basePrice = getPrice(raw);
 
   return {
     id,
@@ -527,7 +657,16 @@ export function mapAmberPropertyToListing(raw) {
     coordinates: getCoordinates(raw),
     image: getPrimaryImage(raw),
     images: getGalleryImages(raw),
-    price: getPrice(raw),
+    price: pricing.displayPrice
+      ? { ...basePrice, from: pricing.displayPrice.amount, currency: pricing.displayPrice.currency, duration: pricing.displayPrice.duration }
+      : { ...basePrice, from: null },
+    // Weekly-equivalent of the displayed price, for cross-duration-safe
+    // sort/rank comparisons ONLY (item 18/24) — never shown to the student;
+    // the card always renders the original displayPrice amount+duration.
+    // null whenever displayPrice itself is null/unrankable (never guessed).
+    priceWeekly: pricing.displayPrice ? weeklyEquivalentPrice(pricing.displayPrice.amount, pricing.displayPrice.duration) : null,
+    isSoldOut: pricing.isSoldOut,
+    selectedRoomType: pricing.selectedRoomType,
     distances: getDistances(raw),
     amenities: getAmenities(raw),
     badges,

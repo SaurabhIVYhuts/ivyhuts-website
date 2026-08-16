@@ -106,7 +106,11 @@ export default function UniversityHousingMap({ university, properties, selectedI
                 <strong>{p.name}</strong>
                 <span>{p.address?.locality || university?.city}</span>
                 <span className="uh-map-popup-row">
-                  {p.price?.from != null && <>{p.price.currency}{p.price.from}{p.price.duration ? `/${p.price.duration}` : ""}</>}
+                  {p.isSoldOut ? (
+                    <span className="uh-map-popup-soldout">Sold Out</span>
+                  ) : (
+                    p.price?.from != null && <>{p.price.currency}{p.price.from}{p.price.duration ? `/${p.price.duration}` : ""}</>
+                  )}
                   {p.rating?.overall != null && (
                     <span className="uh-map-popup-rating"><Star size={12} fill="currentColor" /> {p.rating.overall}</span>
                   )}

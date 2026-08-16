@@ -130,6 +130,7 @@
 .uh-property-row-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .uh-property-row-image-placeholder { width: 100%; height: 100%; background: var(--border-soft); }
 .uh-property-row-badge { position: absolute; top: 4px; left: 4px; background: var(--brand-purple); color: #fff; font-size: 0.6rem; font-weight: 700; padding: 2px 6px; border-radius: var(--radius-full); }
+.uh-property-row-badge--soldout { background: #9B3A3A; }
 .uh-property-row-heart { position: absolute; top: 2px; right: 2px; }
 .uh-property-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .uh-property-row-name { margin: 0; font-size: 0.88rem; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -137,6 +138,7 @@
 .uh-property-row-distance { margin: 0; font-size: 0.74rem; color: var(--brand-purple); font-weight: 600; }
 .uh-property-row-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
 .uh-property-row-price { font-size: 0.84rem; font-weight: 800; color: var(--ink); }
+.uh-property-row-price--soldout { color: #9B3A3A; text-transform: uppercase; letter-spacing: 0.3px; }
 .uh-property-row-duration { font-size: 0.7rem; font-weight: 500; color: var(--ink-faint); }
 .uh-property-row-rating { display: flex; align-items: center; gap: 3px; font-size: 0.78rem; color: var(--brand-gold-deep); font-weight: 700; }
 .uh-property-row-view { margin-top: 4px; align-self: flex-start; padding: 5px 12px !important; font-size: 0.74rem !important; }
@@ -158,6 +160,7 @@
   border-radius: var(--radius-full); padding: 1px 7px;
 }
 .uh-map-popup-row { display: flex; align-items: center; gap: 8px; color: var(--ink-softer); }
+.uh-map-popup-soldout { color: #9B3A3A; font-weight: 700; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.3px; }
 .uh-map-popup-rating { display: flex; align-items: center; gap: 3px; color: var(--brand-gold-deep); font-weight: 700; }
 .uh-map-popup-image { width: 100%; height: 90px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 2px; }
 .uh-map-popup-actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; }

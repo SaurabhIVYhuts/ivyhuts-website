@@ -151,7 +151,7 @@ export default function PropertyDetailPage() {
   const {
     name, address, images, price, distances, amenityGroups, badges,
     quickFacts, policyLinks, paymentInfo, roomTypes, rating, reviewSummary, social,
-    coordinates, available,
+    coordinates, available, isSoldOut,
   } = property;
 
   const paymentFacts = quickFacts.filter((f) => PAYMENT_FACT_LABELS.includes(f.label));
@@ -353,7 +353,9 @@ export default function PropertyDetailPage() {
                   }}
                 />
               </div>
-              {price.from !== null ? (
+              {isSoldOut ? (
+                <div className="pdp-sidebar-price-label pdp-sidebar-price-label--soldout">Sold Out</div>
+              ) : price.from !== null ? (
                 <div className="pdp-sidebar-price">
                   <span className="pdp-sidebar-price-label">From</span>
                   <div>
@@ -392,7 +394,9 @@ export default function PropertyDetailPage() {
           .mobile-only — see PropertyDetailPage.css). */}
       <div className="pdp-sticky-bar mobile-only">
         <div className="pdp-sticky-bar-price">
-          {price.from !== null ? (
+          {isSoldOut ? (
+            <span className="pdp-sticky-bar-price-label pdp-sticky-bar-price-label--soldout">Sold Out</span>
+          ) : price.from !== null ? (
             <>
               <span className="pdp-sticky-bar-price-label">From</span>
               <strong>

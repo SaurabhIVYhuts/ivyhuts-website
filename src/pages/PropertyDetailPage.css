@@ -751,6 +751,7 @@
 }
 
 .pdp-sidebar-price-label { font-size: 0.78rem; color: #6B4E5E; }
+.pdp-sidebar-price-label--soldout { font-size: 1.05rem; font-weight: 700; color: #9B3A3A; text-transform: uppercase; letter-spacing: 0.3px; }
 
 .pdp-sidebar-price strong { font-size: 1.35rem; color: #3A2442; }
 
@@ -897,6 +898,13 @@
   .pdp-sticky-bar-price-label {
     font-size: 0.72rem;
     color: var(--ink-soft);
+  }
+  .pdp-sticky-bar-price-label--soldout {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #9B3A3A;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
   }
   .pdp-sticky-bar-price strong {
     font-size: 1.15rem;

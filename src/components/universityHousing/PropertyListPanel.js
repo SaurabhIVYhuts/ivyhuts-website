@@ -13,7 +13,7 @@ import WishlistHeart from "../listing/WishlistHeart";
 // behavior to every other card in the app) and the existing
 // /property/:slug route (no second property-detail implementation).
 function PropertyRow({ property, active, onSelect }) {
-  const { id, name, address, image, price, rating, badges, slug, distanceKm } = property;
+  const { id, name, address, image, price, rating, badges, slug, distanceKm, isSoldOut } = property;
 
   const wishlistSnapshot = id != null ? {
     propertyId: String(id),
@@ -36,7 +36,9 @@ function PropertyRow({ property, active, onSelect }) {
     >
       <div className="uh-property-row-image">
         {image ? <img src={image} alt={name} loading="lazy" /> : <div className="uh-property-row-image-placeholder" />}
-        {badges?.[0] && <span className="uh-property-row-badge">{badges[0]}</span>}
+        {isSoldOut
+          ? <span className="uh-property-row-badge uh-property-row-badge--soldout">Sold Out</span>
+          : badges?.[0] && <span className="uh-property-row-badge">{badges[0]}</span>}
         {wishlistSnapshot && (
           <div className="uh-property-row-heart"><WishlistHeart property={wishlistSnapshot} /></div>
         )}
@@ -46,8 +48,12 @@ function PropertyRow({ property, active, onSelect }) {
         <p className="uh-property-row-location"><MapPin size={12} /> {address?.locality || "—"}</p>
         {distanceKm != null && <p className="uh-property-row-distance">{distanceKm} km away</p>}
         <div className="uh-property-row-footer">
-          <span className="uh-property-row-price">
-            {price?.from != null ? <>From {price.currency}{price.from}{price.duration ? <span className="uh-property-row-duration">/{price.duration}</span> : null}</> : "Price on request"}
+          <span className={`uh-property-row-price${isSoldOut ? " uh-property-row-price--soldout" : ""}`}>
+            {isSoldOut
+              ? "Sold Out"
+              : price?.from != null
+                ? <>From {price.currency}{price.from}{price.duration ? <span className="uh-property-row-duration">/{price.duration}</span> : null}</>
+                : "Price on request"}
           </span>
           {rating?.overall != null && <span className="uh-property-row-rating"><Star size={12} fill="currentColor" /> {rating.overall}</span>}
         </div>
