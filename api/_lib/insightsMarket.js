@@ -209,6 +209,21 @@ function countryAliases(fullName) {
     return [];
 }
 
+// The /insight dashboard's country dropdown (src/data/destinations.js) sends
+// curated short codes ("UK", "USA", "UAE") — the same codes COUNTRY_FULL_NAMES
+// already maps to Amber's real full country name. Every real record this
+// file buckets by (state.countries, stored snapshot country/city fields) uses
+// that full name, since it comes straight from Amber's own
+// location.country.long_name (see normalizeItem above) — never the curated
+// short code. Resolving here means every country-filter comparison in this
+// file compares like with like instead of "UK" !== "United Kingdom" silently
+// matching zero rows. A country with no curated code (crawl-only) passes
+// through unchanged.
+function resolveCountryFilter(country) {
+    if (!country) return country;
+    return COUNTRY_FULL_NAMES[country] || country;
+}
+
 // Pure — builds the complete {countries, cities, universities} dataset from
 // an already-loaded crawl state plus the university sources above. Countries/
 // cities reuse buildLocationIndex's own derivation (same real crawl data, so
@@ -644,13 +659,14 @@ function computeMedian(sortedNums) {
 // properties[]/pricing{} — existing consumers of the original fields are
 // unaffected by the additions.
 function buildFullBreakdown(state, siteWide, { country, city } = {}) {
+    const countryFilter = resolveCountryFilter(country);
     const cities = [];
     const countryTotals = {};
     let totalSoldOut = 0;
     let totalAvailable = 0;
 
     for (const [countryName, countryBucket] of Object.entries(state.countries)) {
-        if (country && countryName !== country) continue;
+        if (countryFilter && countryName !== countryFilter) continue;
         let countrySoldOut = 0;
         let countryAvailable = 0;
         for (const [cityName, cityBucket] of Object.entries(countryBucket.cities)) {
@@ -695,7 +711,7 @@ function buildFullBreakdown(state, siteWide, { country, city } = {}) {
     // Postcodes ranked by sold-out count — only real postal-code data,
     // capped to the top 100 (a management dashboard table, not a full dump).
     const postcodes = Object.values(state.postcodes || {})
-        .filter((p) => (!country || p.country === country) && (!city || p.city === city))
+        .filter((p) => (!countryFilter || p.country === countryFilter) && (!city || p.city === city))
         .sort((a, b) => b.soldOut - a.soldOut)
         .slice(0, 100)
         .map((p, i) => ({
@@ -713,7 +729,7 @@ function buildFullBreakdown(state, siteWide, { country, city } = {}) {
     // Intelligence / "strongest sold-out presence" section), filtered the
     // same way as everything else above.
     const properties = (state.soldOutProperties || [])
-        .filter((p) => (!country || p.country === country) && (!city || p.city === city))
+        .filter((p) => (!countryFilter || p.country === countryFilter) && (!city || p.city === city))
         .sort((a, b) => (b.minPrice ?? -1) - (a.minPrice ?? -1));
 
     // Pricing intelligence — average/median/min/max ASKING price of
@@ -795,8 +811,81 @@ async function getMarketIntelligence({ country, city } = {}) {
     return buildFullBreakdown(state, siteWide, { country, city });
 }
 
+// Re-filters an ALREADY-BUILT flat breakdown by country/city — the
+// {cities, countries, postcodes, properties} shape buildFullBreakdown()
+// returns above, which api/_lib/models/InsightSnapshot.js stores verbatim.
+// A stored historical snapshot is a frozen document with every real
+// country/city/postcode/property already broken out (not a curated list),
+// so narrowing it to one country/city is pure in-memory array work — no
+// Amber call, which is the whole reason a snapshot is stored in the first
+// place. api/insights/snapshot.js calls this for date < today so the
+// country/city dropdowns work on historical dates the same way they do live,
+// instead of the filters being silently dropped for every date but today.
+// totalSoldOut/totalAvailable and countries[]/postcodes[]' soldOutShare/rank
+// are recomputed from the filtered subset (mirrors buildFullBreakdown's own
+// derivation) so a filtered view's percentages/ranks stay internally
+// consistent rather than referencing the unfiltered total. The absolute
+// siteWide-derived headline figures (totalInventory/soldOutInventory/
+// soldOutPercentage) are deliberately left untouched — same as live mode,
+// where those are the site-wide reconciled totals, not a filter-scoped
+// count (see buildFullBreakdown's own comment on that field).
+function filterBreakdown(breakdown, { country, city } = {}) {
+    const countryFilter = resolveCountryFilter(country);
+    if (!countryFilter && !city) return breakdown;
+
+    const matches = (row) => (!countryFilter || row.country === countryFilter) && (!city || row.city === city);
+    const cities = (breakdown.cities || []).filter(matches);
+    const properties = (breakdown.properties || []).filter(matches);
+
+    let totalSoldOut = 0;
+    let totalAvailable = 0;
+    const countryTotals = {};
+    for (const c of cities) {
+        totalSoldOut += c.soldOut || 0;
+        totalAvailable += c.available || 0;
+        const t = countryTotals[c.country] || { soldOut: 0, available: 0 };
+        t.soldOut += c.soldOut || 0;
+        t.available += c.available || 0;
+        countryTotals[c.country] = t;
+    }
+
+    const countries = Object.entries(countryTotals)
+        .map(([name, t]) => ({
+            country: name,
+            soldOut: t.soldOut,
+            available: t.available,
+            total: t.soldOut + t.available,
+            soldOutShare: totalSoldOut ? t.soldOut / totalSoldOut : null,
+        }))
+        .sort((a, b) => b.soldOut - a.soldOut)
+        .map((c, i) => ({ ...c, rank: i + 1 }));
+
+    const postcodes = (breakdown.postcodes || [])
+        .filter(matches)
+        .sort((a, b) => b.soldOut - a.soldOut)
+        .map((p, i) => ({ ...p, soldOutShare: totalSoldOut ? p.soldOut / totalSoldOut : null, rank: i + 1 }));
+
+    return {
+        ...breakdown,
+        cities,
+        countries,
+        postcodes,
+        properties,
+        totalSoldOut,
+        totalAvailable,
+        coverage: breakdown.coverage
+            ? { ...breakdown.coverage, citiesWithData: cities.length, totalCities: cities.length, itemsCounted: totalSoldOut + totalAvailable }
+            : breakdown.coverage,
+    };
+}
+
 module.exports = {
     getMarketIntelligence, buildFullBreakdown, loadCrawlState, advanceCrawl,
+    // Exported for api/insights/snapshot.js — applies the same country/city
+    // filtering to a stored historical snapshot's already-flat breakdown
+    // (see filterBreakdown's own comment above for why no Amber call is
+    // needed to do this).
+    filterBreakdown, resolveCountryFilter,
     // Exported for api/_lib/searchIndex.js's comprehensive country/city
     // search — see LOCATION_INDEX_KEY's own comment for why this is a
     // separate, much smaller artifact than loadCrawlState()'s full blob.
