@@ -14,7 +14,14 @@ function CityCard({ city, compact = false }) {
         aria-label={`View student accommodation in ${city.name}, ${countryName}`}
       >
         <div className="city-card-image">
-          <img src={city.image} alt={`${city.name}, ${countryName}`} loading="lazy" />
+          {city.image && (
+            <img
+              src={city.image}
+              alt={`${city.name}, ${countryName}`}
+              loading="lazy"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
+          )}
           <div className="city-card-overlay">
             <h3>{city.name}</h3>
             <p>
