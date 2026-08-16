@@ -29,9 +29,14 @@
 // `crawlProgress.complete` is true, so the full ~87-page catalog (at the
 // 6-requests/minute shared budget) finishes in a few minutes without ever
 // bursting Amber or blocking a single request on the whole crawl.
-const { sharedGet, sharedSet, acquireLock, releaseLock } = require("./sharedStore");
-const { fetchListings, RATE_BUDGET_PER_MINUTE } = require("./amberGateway");
+const { sharedGet, sharedSet, acquireLock, releaseLock, log } = require("./sharedStore");
+const { fetchListings, RATE_BUDGET_PER_MINUTE, normalizeCityName } = require("./amberGateway");
 const { getInventoryStats } = require("./inventoryStats");
+const { connectToDatabase } = require("./mongodb");
+const { mapAmberItemToResidence, persistResidencesRaw } = require("./accommodationIndex");
+const AccommodationResidence = require("./models/AccommodationResidence");
+const CAMPUS_UNIVERSITIES = require("./campusUniversities.json");
+const COUNTRY_FULL_NAMES = require("./countryFullNames.json");
 
 const PAGE_LIMIT = 50; // Amber's own max items per page
 const PAGES_PER_ADVANCE = RATE_BUDGET_PER_MINUTE; // at most one full shared budget window's worth of page fetches per call
@@ -58,6 +63,191 @@ const SOLD_OUT_PROPERTIES_CAP = 5000;
 // "done" straight through the next day's 08:00 IST digest, decoupling
 // completion from the digest's fixed schedule.
 const CRAWL_TTL_SECONDS = 26 * 60 * 60;
+
+// A tiny, purpose-built summary derived from `state.countries` — every real
+// country/city the full crawl has discovered so far, and NOTHING else (no
+// per-city price stats, no samples, no the full sold-out property list —
+// those stay in CRAWL_KEY's ~900KB blob). This is what api/_lib/searchIndex.js
+// reads for comprehensive country/city coverage: a global search request
+// must never pay the cost of fetching/parsing the full crawl-state blob just
+// to answer "does this city exist" — confirmed live to take ~1-1.5s for the
+// full blob vs. this summary, which is two orders of magnitude smaller
+// (roughly a few hundred country/city name pairs, well under the crawl's own
+// nearly-1MB size). Kept as its OWN shared-store key (not derived on read
+// from CRAWL_KEY) so a cold /api/search request only ever pays for a small,
+// fast Redis GET, never the large one.
+const LOCATION_INDEX_KEY = "search:locationIndex:v1";
+const LOCATION_INDEX_TTL_SECONDS = CRAWL_TTL_SECONDS;
+
+// Pure — takes an already-loaded crawl state, returns the small summary.
+// Exported separately from saveLocationIndex so a caller (or a test) can
+// inspect the derivation without needing write access to the shared store.
+function buildLocationIndex(state) {
+    const countries = [];
+    const cities = [];
+    for (const [countryName, bucket] of Object.entries(state?.countries || {})) {
+        const countryTotal = (bucket.soldOut || 0) + (bucket.available || 0);
+        if (countryTotal <= 0) continue;
+        const cityNames = Object.keys(bucket.cities || {});
+        countries.push({ name: countryName, cityCount: cityNames.length });
+        for (const cityName of cityNames) {
+            const cityBucket = bucket.cities[cityName];
+            const cityTotal = (cityBucket.soldOut || 0) + (cityBucket.available || 0);
+            // "Unknown" is Amber's own placeholder for a missing locality —
+            // real inventory, but not a real, nameable city, so it would only
+            // ever confuse a location search rather than help one.
+            if (cityTotal <= 0 || !cityName || cityName === "Unknown") continue;
+            cities.push({ name: cityName, country: countryName });
+        }
+    }
+    return { countries, cities, updatedAt: Date.now() };
+}
+
+// Writes the summary — called every time advanceCrawl() runs (see below),
+// on the SAME cadence as the existing 5-minute cron, so if the crawl
+// discovers a new country/city on some future pass, the search-facing
+// summary picks it up automatically within one cron tick, with zero
+// additional Amber calls (this only re-reads/re-derives state the crawl
+// already fetched — no network call to Amber of its own). Best-effort: a
+// failure here must never break the crawl itself, only leave the search
+// summary stale until the next tick retries.
+async function saveLocationIndex(state) {
+    try {
+        const summary = buildLocationIndex(state);
+        await sharedSet(LOCATION_INDEX_KEY, summary, LOCATION_INDEX_TTL_SECONDS);
+    } catch (err) {
+        log(`[insightsMarket] action=LOCATION_INDEX_SAVE_FAILED error=${err.message}`);
+    }
+}
+
+// What api/_lib/searchIndex.js actually reads — small and fast, or null if
+// the crawl has never completed a tick since this summary existed (falls
+// back to curated-only coverage until the next cron tick populates it).
+function loadLocationIndex() {
+    return sharedGet(LOCATION_INDEX_KEY);
+}
+
+// ── Complete search dataset (countries + cities + universities), for the
+// property-search-out-of-scope Global Search phase. Conceptually the
+// "search-data.json" the product spec describes — physically a shared-store
+// key (SEARCH_DATA_KEY below), not a file on disk, because Vercel serverless
+// functions have no persistent/writable filesystem across invocations; the
+// shared store IS this project's existing mechanism for "a generated
+// artifact the crawl produces and other requests read" (see LOCATION_INDEX_KEY
+// above, or amber:invstats:aggregate). api/search-data.js serves this key's
+// contents as real JSON over HTTP, which is what the frontend actually
+// fetches — so from the browser's point of view it IS a JSON document, just
+// backed by Redis instead of a static file, and kept up to date by the
+// existing crawl cron instead of a build step. ──
+const SEARCH_DATA_KEY = "search:searchData:v1";
+const SEARCH_DATA_TTL_SECONDS = CRAWL_TTL_SECONDS;
+
+function slugify(str) {
+    return String(str || "")
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
+// Every REAL university/college name in the inventory: the curated,
+// hand-verified campusUniversities.json (real coordinates/aliases) PLUS
+// every DISTINCT name extracted from properties' own nearby-place data (see
+// accommodationIndex.js's getNearbyUniversities — same free-text signal
+// PropertyListingPage.js's University/Area filter already trusts). This is
+// a background/generation-time read of AccommodationResidence (as part of
+// the crawl's own lifecycle, same as LOCATION_INDEX_KEY above), NOT a
+// per-keystroke property query — the live /api/search-data endpoint only
+// ever reads the already-computed result of this function, never runs it
+// itself. Never fabricates: an extracted entry is exactly the string Amber's
+// own data reported, nothing invented. Best-effort — a Mongo failure here
+// just means the university list stays curated-only until the next tick.
+async function buildSearchDataUniversities() {
+    const universities = [];
+    const seen = new Set();
+    for (const u of CAMPUS_UNIVERSITIES) {
+        const key = String(u.name).trim().toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        universities.push({
+            name: u.name, city: u.city || null, country: u.country || null,
+            slug: slugify(u.name), aliases: u.aliases || [], curated: true,
+        });
+    }
+    try {
+        await connectToDatabase();
+        const rows = await AccommodationResidence.aggregate([
+            { $match: { nearbyUniversities: { $exists: true, $ne: [] } } },
+            { $unwind: "$nearbyUniversities" },
+            { $group: { _id: "$nearbyUniversities", city: { $first: "$city" }, country: { $first: "$country" } } },
+        ]);
+        for (const row of rows) {
+            const key = String(row._id).trim().toLowerCase();
+            if (seen.has(key)) continue; // already represented by a curated, hand-verified record
+            seen.add(key);
+            universities.push({
+                name: row._id, city: row.city || null, country: row.country || null,
+                slug: slugify(row._id), aliases: [], curated: false,
+            });
+        }
+    } catch (err) {
+        log(`[insightsMarket] action=SEARCH_DATA_UNIVERSITIES_FAILED error=${err.message}`);
+    }
+    return universities;
+}
+
+// Real, known abbreviations for the handful of curated countries whose
+// short code genuinely differs from their full name (UK, USA, UAE) — these
+// are the SAME codes destinations.json/searchIndex.js already treat as
+// equivalent to the full name, surfaced here as an explicit alias rather
+// than invented. A crawl-only country with no curated equivalent gets no
+// alias (nothing to draw one from without guessing).
+function countryAliases(fullName) {
+    for (const [code, full] of Object.entries(COUNTRY_FULL_NAMES)) {
+        if (full === fullName && code !== fullName) return [code];
+    }
+    return [];
+}
+
+// Pure — builds the complete {countries, cities, universities} dataset from
+// an already-loaded crawl state plus the university sources above. Countries/
+// cities reuse buildLocationIndex's own derivation (same real crawl data, so
+// there is exactly one place that decides "what counts as a real discovered
+// city") — this just adds the slug/alias fields the frontend dataset shape
+// needs on top.
+async function buildSearchData(state) {
+    const location = buildLocationIndex(state);
+    const countries = location.countries.map((c) => ({
+        name: c.name, slug: slugify(c.name), aliases: countryAliases(c.name), cityCount: c.cityCount,
+    }));
+    const cities = location.cities.map((c) => ({
+        name: c.name, country: c.country, slug: slugify(c.name), aliases: [],
+    }));
+    const universities = await buildSearchDataUniversities();
+    return { countries, cities, universities, updatedAt: Date.now() };
+}
+
+// Called every time advanceCrawl() runs (see below) — same cadence/failure
+// philosophy as saveLocationIndex above: never breaks the crawl itself, just
+// leaves the dataset stale (or, on the very first tick after this code
+// deploys, absent — api/search-data.js has its own curated-only fallback for
+// exactly that gap) until the next tick retries.
+async function saveSearchData(state) {
+    try {
+        const data = await buildSearchData(state);
+        await sharedSet(SEARCH_DATA_KEY, data, SEARCH_DATA_TTL_SECONDS);
+    } catch (err) {
+        log(`[insightsMarket] action=SEARCH_DATA_SAVE_FAILED error=${err.message}`);
+    }
+}
+
+// What api/search-data.js actually serves — small (countries + cities +
+// universities only, no per-city price stats or sold-out property lists)
+// and pre-computed, so the endpoint itself never touches Amber, Mongo, or
+// the full crawl blob at request time.
+function loadSearchData() {
+    return sharedGet(SEARCH_DATA_KEY);
+}
 
 function toNumber(v) {
     if (v == null) return null;
@@ -220,6 +410,34 @@ function bucketItem(state, raw, available) {
     }
 }
 
+// Writes every item this crawl page fetched into the SAME AccommodationResidence
+// mirror api/amber.js's index-on-read hook and the Student Planner already
+// populate/query (api/_lib/accommodationIndex.js). This is what makes the
+// global search index (api/_lib/searchIndex.js) eventually cover Amber's
+// ENTIRE catalog rather than only properties a real user has opened —
+// reusing this cron-driven, already-budget-safe crawl (see this file's
+// header) means ZERO additional Amber traffic: this crawl fetches every one
+// of these items on its existing schedule regardless of whether search
+// indexing exists at all. Never allowed to slow down or fail the crawl
+// itself — Mongo being unconfigured or briefly unreachable just leaves this
+// page's items un-indexed until the crawl's next pass revisits them.
+async function persistCrawlItemsToSearchIndex(items) {
+    if (!items.length) return;
+    try {
+        await connectToDatabase();
+    } catch (err) {
+        return; // not configured, or briefly unreachable — search index just stays as-is
+    }
+    try {
+        const mapped = items
+            .map((raw) => mapAmberItemToResidence(raw, normalizeCityName(raw?.location?.locality?.long_name)))
+            .filter((doc) => doc && doc.city);
+        if (mapped.length) await persistResidencesRaw(mapped);
+    } catch (err) {
+        // Best-effort — a search-index write failure must never break the crawl.
+    }
+}
+
 // Advances one side of the crawl (sold-out or available) by up to
 // `callBudget` real page fetches. Stops early (leaving `done: false`) on any
 // error/skip so the next advance call just resumes from the same page — a
@@ -243,6 +461,7 @@ async function advanceCrawlSide(state, sideKey, availableFlag, callBudget) {
         if (side.expectedTotal == null && metaCount != null) side.expectedTotal = metaCount;
 
         for (const raw of items) bucketItem(state, raw, availableFlag);
+        await persistCrawlItemsToSearchIndex(items);
         side.fetchedCount += items.length;
 
         // Once Amber has told us the real total (meta.count, captured above —
@@ -289,11 +508,26 @@ async function advanceCrawl() {
     }
     try {
         const state = await loadCrawlState();
-        if (state.soldOut.done && state.available.done) return state; // nothing left to do
+        if (state.soldOut.done && state.available.done) {
+            // Nothing left to fetch, but still keep the lightweight
+            // search-facing summaries (see LOCATION_INDEX_KEY/SEARCH_DATA_KEY
+            // above) fresh on every tick — cheap (no Amber call, just
+            // re-deriving from state already in hand, plus one Mongo
+            // aggregate for universities) and is what lets a newly-deployed
+            // reader of these summaries see real data within one cron tick
+            // instead of waiting up to CRAWL_TTL_SECONDS for the crawl to restart.
+            await saveLocationIndex(state);
+            await saveSearchData(state);
+            return state;
+        }
 
         const usedSoldOut = await advanceCrawlSide(state, "soldOut", false, Math.ceil(PAGES_PER_ADVANCE / 2));
         const usedAvailable = await advanceCrawlSide(state, "available", true, PAGES_PER_ADVANCE - usedSoldOut);
-        if (usedSoldOut + usedAvailable > 0) await saveCrawlState(state);
+        if (usedSoldOut + usedAvailable > 0) {
+            await saveCrawlState(state);
+            await saveLocationIndex(state);
+            await saveSearchData(state);
+        }
         return state;
     } finally {
         await releaseLock(CRAWL_LOCK_KEY, lockToken);
@@ -471,4 +705,14 @@ async function getMarketIntelligence({ country, city } = {}) {
     return buildFullBreakdown(state, siteWide, { country, city });
 }
 
-module.exports = { getMarketIntelligence, buildFullBreakdown, loadCrawlState, advanceCrawl };
+module.exports = {
+    getMarketIntelligence, buildFullBreakdown, loadCrawlState, advanceCrawl,
+    // Exported for api/_lib/searchIndex.js's comprehensive country/city
+    // search — see LOCATION_INDEX_KEY's own comment for why this is a
+    // separate, much smaller artifact than loadCrawlState()'s full blob.
+    loadLocationIndex, buildLocationIndex, saveLocationIndex,
+    // Exported for api/search-data.js — the complete countries/cities/
+    // universities dataset the Global Search's client-side index loads once
+    // (see SEARCH_DATA_KEY's own comment).
+    loadSearchData, buildSearchData, saveSearchData,
+};

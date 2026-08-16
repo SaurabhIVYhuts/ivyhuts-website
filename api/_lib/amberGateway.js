@@ -82,6 +82,41 @@ const LOCK_POLL_INTERVALS_MS = [300, 500, 800, 1200, 1800, 2500];
 
 const COOLDOWN_KEY = "amber:cooldownUntil";
 
+// ── Local in-memory shadow cache — VALUES ONLY, never lock/budget state. ──
+// A safety net for when Redis is *configured* but flaky/unreachable at a
+// given moment (RedisUnavailableError) — a different case from
+// REDIS_AVAILABLE===false (sharedStore.js's own separate, already-safe
+// fallback for "not configured at all"). Without this, one failed cache
+// WRITE guaranteed the very next request for that same key would ALSO miss:
+// cache miss -> Amber -> write fails -> next request -> miss again -> Amber
+// again -> ... — for every request, defeating caching entirely and burning
+// through the shared per-minute Amber budget on pure repeats of the same
+// city. (Confirmed live: CACHE_WRITE_FAILED_REDIS_UNAVAILABLE logged
+// repeatedly for the same handful of cities, each one a real upstream call.)
+//
+// Deliberately NOT used for acquireLock/tryReserveSlot — see fetchAmber()'s
+// own comment below for why falling back to memory for THOSE in a real
+// multi-instance deployment would multiply Amber traffic instead of
+// preventing it. A slightly-stale cached VALUE served from one instance's
+// local memory instead of Redis's shared copy carries no such risk — it's
+// the same "serve stale, never fabricate" tradeoff this file already makes
+// everywhere else, just also covering the "Redis itself is the failure"
+// case, not only "Amber is the failure."
+const SHADOW_CACHE_MAX_ENTRIES = 500;
+const shadowCache = new Map(); // cacheKey -> { data, cachedAt }
+
+function shadowCacheGet(key) {
+    return shadowCache.get(key);
+}
+
+function shadowCacheSet(key, entry) {
+    shadowCache.delete(key); // re-insert at the end for simple LRU-ish ordering
+    shadowCache.set(key, entry);
+    if (shadowCache.size > SHADOW_CACHE_MAX_ENTRIES) {
+        shadowCache.delete(shadowCache.keys().next().value); // evict oldest
+    }
+}
+
 // Server-side retention per data type. maxAgeSeconds is the number that
 // actually matters for correctness: it must be >= the matching client-side
 // staleMs in src/services/amberApi.js's CLIENT_TTL, with a buffer, or the
@@ -243,7 +278,33 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
     // share ONE upstream time budget instead of each getting an independent
     // full timeout — see fetchListings' own comment for why.
     const deadline = deadlineAt || Date.now() + AMBER_FETCH_TIMEOUT_MS;
-    const cached = await sharedGet(cacheKey);
+    // This read was previously unguarded — any Redis hiccup here (not just on
+    // the write below) threw straight out of fetchAmberInner as a raw,
+    // uncaught RedisUnavailableError, skipping every one of the graceful
+    // stale/degraded paths below entirely. Falls back to the local shadow
+    // cache (see its own header comment) instead of treating a flaky READ as
+    // fatal.
+    let cached;
+    try {
+        cached = await sharedGet(cacheKey);
+    } catch (err) {
+        if (!(err instanceof RedisUnavailableError)) throw err;
+        cached = undefined;
+        log(`source=${source} priority=${priority} key=${cacheKey} action=CACHE_READ_FAILED_REDIS_UNAVAILABLE`);
+    }
+    // Also consult the shadow when Redis GET *succeeded* but came back
+    // empty — the exact shape of the bug this whole shadow cache exists for
+    // is "the WRITE silently failed" (see CACHE_WRITE_FAILED_REDIS_UNAVAILABLE
+    // below), which looks identical to a real cache miss from here unless we
+    // check: Redis has nothing not because nothing was ever fetched, but
+    // because it couldn't hold onto what THIS instance already fetched once.
+    if (!cached) {
+        const shadow = shadowCacheGet(cacheKey);
+        if (shadow) {
+            cached = shadow;
+            log(`source=${source} priority=${priority} key=${cacheKey} action=CACHE_READ_SHADOW_FALLBACK`);
+        }
+    }
 
     if (cached && isFresh(cached, ttl.freshSeconds)) {
         log(`source=${source} priority=${priority} cache=HIT key=${cacheKey}`);
@@ -388,15 +449,22 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
             throw err;
         }
         console.log(`[AMBER] event=AMBER_SUCCESS type=${type} city=${params.city || "-"} durationMs=${Date.now() - amberStartedAt} source=${source}`);
+        const freshEntry = { data: json, cachedAt: Date.now() };
         try {
-            await sharedSet(cacheKey, { data: json, cachedAt: Date.now() }, ttl.maxAgeSeconds);
+            await sharedSet(cacheKey, freshEntry, ttl.maxAgeSeconds);
         } catch (err) {
             if (!(err instanceof RedisUnavailableError)) throw err;
             // We have a perfectly good fresh result in hand — Redis merely
-            // failed to *persist* it. Still return it to this caller; we just
-            // won't benefit other instances/requests until Redis recovers.
+            // failed to *persist* it. Still return it to this caller; the
+            // shadow-cache write just below is what keeps the NEXT request
+            // for this same key from also missing and re-hitting Amber.
             log(`source=${source} priority=${priority} key=${cacheKey} action=CACHE_WRITE_FAILED_REDIS_UNAVAILABLE`);
         }
+        // Always populated, regardless of whether the Redis write above
+        // succeeded — keeps this instance's shadow warm so a LATER Redis
+        // hiccup (on some future request) still has a good local fallback,
+        // not just the one that happened to coincide with an outage.
+        shadowCacheSet(cacheKey, freshEntry);
 
         // Reuse: a full listings page already contains everything a separate
         // citystats call would need (Amber's inventories endpoint returns the

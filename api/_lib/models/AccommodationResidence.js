@@ -48,6 +48,17 @@ const AccommodationResidenceSchema = new Schema(
         rating: { type: Number, default: null }, // 0-5, averaged from Amber's review categories
         roomType: { type: String, default: null },
         distanceToCentreKm: { type: Number, default: null }, // Amber-reported, parsed
+        // Real, Amber-reported "nearby place" names (raw.meta.distances[].place)
+        // that look like a university/college — same free-text signal
+        // PropertyListingPage.js's own "University / Area" proximity filter
+        // already trusts (UNIVERSITY_RE). NOT a fabricated or curated list:
+        // extracted verbatim from data Amber already sent for this exact
+        // property. This is what lets api/_lib/searchIndex.js's global search
+        // cover every real university/college actually present in the
+        // inventory, not just the ~26 entries hand-curated in
+        // campusUniversities.json — see accommodationIndex.js's
+        // getNearbyUniversities() for the extraction itself.
+        nearbyUniversities: { type: [String], default: [] },
         available: { type: Boolean, default: true },
     },
     { timestamps: true }
@@ -59,5 +70,36 @@ const AccommodationResidenceSchema = new Schema(
 AccommodationResidenceSchema.index({ source: 1, propertyId: 1 }, { unique: true });
 // Query pattern: "residences for city X" — the only lookup this milestone does.
 AccommodationResidenceSchema.index({ city: 1 });
+// Query pattern: "residences for country X" — used by the global search
+// index (api/_lib/searchIndex.js) to back a country search with real
+// properties, same normalized-field convention as the city index above.
+AccommodationResidenceSchema.index({ country: 1 });
+// Free-text property-name search, used by api/_lib/searchIndex.js's global
+// search autocomplete. propertyName weighted highest since a property-name
+// query should out-rank an incidental city/country substring match. This
+// collection is populated two ways: opportunistically ("index-on-read" — see
+// api/amber.js) from every real listings/detail response the site already
+// fetches, AND comprehensively by api/_lib/insightsMarket.js's existing
+// full-catalog crawl (see its own header) — so coverage grows toward the
+// complete Amber catalog over that crawl's normal cycle, not just from real
+// traffic. Kept as a text index rather than the sole lookup mechanism —
+// searchIndex.js's actual property search still uses a plain regex (see its
+// own header comment on why: partial-word matches like "LST Vent" ->
+// "LST Venti House" that $text's word-tokenized search would miss).
+AccommodationResidenceSchema.index(
+  { propertyName: "text", city: "text", country: "text" },
+  { weights: { propertyName: 10, city: 4, country: 2 }, name: "search_text" }
+);
+// Plain (non-text) indexes on the exact fields a lookup-by-identity query
+// would use — cheap at this collection's size (low thousands of documents,
+// well within a single index page), but future-proofs against needing a
+// collection scan if a caller ever queries by exact propertyName or slug
+// instead of the regex/aggregate patterns this file already uses.
+AccommodationResidenceSchema.index({ propertyName: 1 });
+AccommodationResidenceSchema.index({ slug: 1 });
+// Backs api/_lib/searchIndex.js's comprehensive (not curated-only) university
+// list — a $unwind + $group aggregation over this field to get every
+// distinct real nearby-university name in the inventory.
+AccommodationResidenceSchema.index({ nearbyUniversities: 1 });
 
 module.exports = mongoose.models.AccommodationResidence || mongoose.model("AccommodationResidence", AccommodationResidenceSchema);

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { useWishlist } from "../../context/WishlistContext";
 import MobileMenuSheet from "./MobileMenuSheet";
+import GlobalSearchBar from "../search/GlobalSearchBar";
 
 const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHuts! I'm looking for student accommodation abroad. Can you help?")}`;
 
@@ -15,10 +16,8 @@ const WA_SVG = (
 
 export default function SiteNavbar() {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const { isAuthenticated } = useWishlist();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -45,31 +44,6 @@ export default function SiteNavbar() {
 
   const close = () => setMenuOpen(false);
 
-  const submitSearch = (e) => {
-    e.preventDefault();
-    const clean = searchValue.trim();
-    if (!clean) return;
-    navigate(`/properties?city=${encodeURIComponent(clean)}`);
-  };
-
-  const searchForm = (className) => (
-    <form className={className} role="search" onSubmit={submitSearch}>
-      <input
-        type="text"
-        value={searchValue}
-        onChange={(e) => setSearchValue(e.target.value)}
-        placeholder="Search by city, university or property"
-        aria-label="Search by city, university or property"
-      />
-      <button type="submit" aria-label="Search">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="11" cy="11" r="7" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-      </button>
-    </form>
-  );
-
   return (
     <>
       <nav className={`navbar${scrolled ? " navbar-scrolled" : ""}`}>
@@ -79,7 +53,13 @@ export default function SiteNavbar() {
           </Link>
         </div>
 
-        {showSearch && searchForm("navbar-search-form navbar-search-desktop")}
+        {showSearch && (
+          <GlobalSearchBar
+            className="gsb-form--navbar navbar-search-desktop"
+            placeholder="Search by city, university or property"
+            mobilePlaceholder="Search"
+          />
+        )}
 
         {/* Desktop nav */}
         <div className="nav-links">
@@ -119,7 +99,11 @@ export default function SiteNavbar() {
 
       {showSearch && (
         <div className="navbar-search-mobile-wrap">
-          {searchForm("navbar-search-form navbar-search-mobile")}
+          <GlobalSearchBar
+            className="gsb-form--navbar navbar-search-mobile"
+            placeholder="Search by city, university or property"
+            mobilePlaceholder="Search by city, university or property"
+          />
         </div>
       )}
 

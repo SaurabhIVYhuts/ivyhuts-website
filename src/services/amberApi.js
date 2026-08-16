@@ -316,6 +316,25 @@ export async function getProperties(city, page = 1, limit = 50, priority = "MEDI
     return extractArray(json);
 }
 
+// Amber has no "search by country" endpoint — only fetch-by-city. A country
+// search is therefore a bounded fan-out of the exact same getProperties()
+// call every other page already uses, one per city, each independently
+// cached/deduped by the gateway. `maxCities` caps the fan-out (the caller
+// passes a handful of that country's curated cities, see
+// src/data/destinations.js) so panning to a big country can never itself
+// spike the shared Amber budget; LOW priority means the gateway will skip
+// any of these outright rather than let them compete with a real single-city
+// page a user is waiting on. Returns one entry per requested city (even an
+// empty one) so the caller can tell "no inventory in this city yet" apart
+// from "never asked".
+export async function getPropertiesForCountry(cities, maxCities = 6, source = "country-search") {
+    const targets = (cities || []).slice(0, maxCities);
+    const results = await Promise.all(
+        targets.map((city) => getProperties(city, 1, 50, "LOW", source).catch(() => []))
+    );
+    return targets.map((city, i) => ({ city, items: Array.isArray(results[i]) ? results[i] : [] }));
+}
+
 export async function getPropertyBySlug(slug, priority = "HIGH", source = "property-detail") {
     if (!slug) return null;
     const summaryKey = listingSummaryCacheKey(slug);

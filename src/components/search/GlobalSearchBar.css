@@ -1,0 +1,338 @@
+/* Universal IVYHUTS search bar — visual parity with the homepage hero search
+   it replaces (same pill shape / gradient button / shadow language), plus a
+   new grouped, icon-led autocomplete dropdown. Self-contained so this
+   component can be dropped onto any page without pulling in page-specific CSS. */
+
+.gsb-form {
+  display: flex;
+  gap: 10px;
+  margin: 38px 0 16px;
+  max-width: 680px;
+  position: relative;
+}
+
+.gsb-input-wrap {
+  position: relative;
+  /* :focus-within below applies a `transform`, which creates a new stacking
+     context — without an explicit z-index here, that context has no
+     defined stacking order of its own, so on the homepage hero it loses to
+     HeroJourneyStrip's `.hero-journey-flow` (also transformed, and later in
+     the DOM) regardless of .gsb-dropdown's own z-index:60, which only
+     matters WITHIN this context. Confirmed live: real mouse clicks on a
+     dropdown item landed on the journey strip's text underneath instead —
+     keyboard selection (Enter on a highlighted item) was unaffected, which
+     is why this went uncaught through every prior verification pass in this
+     project (all script/API-based, none exercised an actual pointer click).
+     An explicit z-index here fixes the STACKING ORDER outside this context,
+     independent of whether :focus-within's transform is currently active. */
+  z-index: 20;
+  flex: 1;
+  border-radius: var(--radius-full);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.gsb-input-wrap:hover { border-color: rgba(255, 255, 255, 0.3); }
+
+.gsb-input-wrap:focus-within {
+  box-shadow: 0 0 0 3px rgba(245, 217, 120, 0.45), 0 12px 28px rgba(0, 0, 0, 0.26);
+  border-color: rgba(245, 217, 120, 0.5);
+  transform: translateY(-1px);
+}
+
+.gsb-icon-search {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #A68E9B;
+  pointer-events: none;
+}
+
+.gsb-input {
+  width: 100%;
+  padding: 18px 34px 18px 40px;
+  border-radius: var(--radius-full);
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.96rem;
+  color: var(--brand-purple-deep);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.gsb-input::placeholder { color: #A68E9B; }
+
+.gsb-clear {
+  position: absolute;
+  right: 34px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(94, 58, 107, 0.1);
+  color: #6B4E5E;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.gsb-clear:hover { background: rgba(94, 58, 107, 0.18); color: var(--brand-purple-deep); }
+
+.gsb-spinner {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--brand-rose);
+  animation: gsb-spin 0.8s linear infinite;
+}
+
+@keyframes gsb-spin { to { transform: translateY(-50%) rotate(360deg); } }
+
+.gsb-submit-btn {
+  padding: 18px 26px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: linear-gradient(135deg, var(--brand-puce) 0%, var(--brand-puce-deep) 100%);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gsb-submit-btn:hover,
+.gsb-submit-btn:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(196, 122, 138, 0.4);
+}
+
+.gsb-submit-icon { display: none; }
+
+@media (min-width: 769px) {
+  .gsb-form .mobile-only-input { display: none !important; }
+}
+
+/* ── DROPDOWN ── */
+.gsb-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 14px 32px rgba(58, 36, 66, 0.18);
+  z-index: 60;
+  overflow: hidden;
+}
+
+.gsb-dropdown-scroll {
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.gsb-group + .gsb-group { margin-top: 4px; border-top: 1px solid rgba(94, 58, 107, 0.08); padding-top: 4px; }
+
+.gsb-group-label {
+  padding: 6px 10px 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-rose);
+}
+
+.gsb-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--brand-purple-deep);
+  cursor: pointer;
+}
+
+.gsb-item:hover,
+.gsb-item--active { background: rgba(94, 58, 107, 0.08); }
+
+.gsb-item-icon { color: var(--brand-rose); flex-shrink: 0; }
+
+.gsb-item-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.gsb-item-sublabel {
+  flex-shrink: 0;
+  font-size: 0.76rem;
+  color: #9A8290;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gsb-empty {
+  padding: 16px 14px;
+  font-size: 0.86rem;
+  color: #7A6570;
+}
+
+/* Only the Properties group ever shows this — cities/universities/countries
+   are pure static data and render instantly, never a loading state. */
+.gsb-item--pending {
+  cursor: default;
+  color: #9A8290;
+  font-style: italic;
+  font-size: 0.86rem;
+}
+.gsb-item--pending:hover { background: none; }
+
+/* ── NAVBAR VARIANT — compact, inline pill for SiteNavbar (every page except
+   the homepage, which keeps the big hero search above). Same component,
+   same entity-aware search/navigation logic — only the chrome changes.
+   Compound `.gsb-form.gsb-form--navbar` selectors (not bare
+   `.gsb-form--navbar`) are used wherever this would otherwise collide with
+   the base `.gsb-form` mobile rule further down at equal specificity —
+   guarantees this variant wins regardless of source order. ── */
+.gsb-form.gsb-form--navbar {
+  flex: 1;
+  max-width: 420px;
+  margin: 0 20px;
+  gap: 6px;
+}
+
+.gsb-form--navbar .gsb-input-wrap {
+  border-radius: 999px;
+  box-shadow: none;
+  border: 1.5px solid rgba(94, 58, 107, 0.14);
+  background: #FBF4F8;
+  transition: border-color 0.15s ease;
+}
+
+.gsb-form--navbar .gsb-input-wrap:hover { border-color: rgba(94, 58, 107, 0.14); }
+
+.gsb-form--navbar .gsb-input-wrap:focus-within {
+  box-shadow: none;
+  border-color: #B07898;
+  transform: none;
+}
+
+.gsb-form--navbar .gsb-icon-search { display: none; }
+
+.gsb-form--navbar .gsb-input {
+  padding: 9px 34px 9px 16px;
+  font-size: 0.85rem;
+  background: transparent;
+  color: #3A2442;
+}
+
+.gsb-form--navbar .gsb-clear { right: 8px; }
+.gsb-form--navbar .gsb-spinner { right: 34px; }
+
+.gsb-form--navbar .gsb-submit-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  background: #5E3A6B;
+  justify-content: center;
+  box-shadow: none;
+}
+
+.gsb-form--navbar .gsb-submit-btn:hover,
+.gsb-form--navbar .gsb-submit-btn:focus-visible {
+  transform: none;
+  box-shadow: none;
+  background: #4a2f56;
+}
+
+.gsb-form--navbar .gsb-submit-text { display: none; }
+.gsb-form--navbar .gsb-submit-icon { display: block; }
+
+@media (max-width: 768px) {
+  .gsb-form.gsb-form--navbar {
+    order: unset;
+    margin: 0;
+    max-width: none;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+  }
+  .gsb-form--navbar .gsb-input-wrap { background: #FBF4F8; }
+  .gsb-form--navbar .gsb-input { color: #3A2442; font-weight: 400; }
+  .gsb-form--navbar .gsb-input.mobile-only-input::placeholder { color: #A68E9B; font-weight: 400; }
+  .gsb-form--navbar .gsb-submit-btn { width: 34px; height: 34px; }
+}
+
+/* ── MOBILE ── */
+@media (max-width: 768px) {
+  .gsb-form .desktop-only-icon,
+  .gsb-form .desktop-only-input { display: none !important; }
+
+  .gsb-form {
+    order: -1;
+    margin: 0 0 16px;
+    flex-direction: row;
+    align-items: center;
+    background: #fff;
+    border-radius: 50px;
+    padding: 5px;
+    gap: 0;
+    max-width: 100%;
+  }
+
+  .gsb-input-wrap {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    flex: 1;
+  }
+
+  .gsb-input {
+    background: transparent;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #333;
+    flex: 1;
+    box-shadow: none;
+  }
+
+  .gsb-input.mobile-only-input::placeholder { color: #333; font-weight: 600; }
+
+  .gsb-submit-btn {
+    background: linear-gradient(135deg, var(--brand-puce) 0%, var(--brand-puce-deep) 100%);
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    justify-content: center;
+    min-width: unset;
+    box-shadow: none;
+    flex-shrink: 0;
+  }
+
+  .gsb-submit-text { display: none; }
+  .gsb-submit-icon { display: block; color: #fff; }
+
+  .gsb-dropdown { left: -5px; right: -5px; top: calc(100% + 4px); }
+}

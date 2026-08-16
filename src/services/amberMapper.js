@@ -512,6 +512,46 @@ function getCoordinates(raw) {
   return typeof lat === "number" && typeof lng === "number" ? { lat, lng } : null;
 }
 
+const MONTH_LABELS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+// Lightweight tenancy scan — deliberately NOT a full mapRoomType() pass (that
+// builds full room/tenancy objects with images/descriptions for the detail
+// page; here we only need two small option lists for the Move-in Month /
+// Stay Duration filters). Reads the same raw `children[].children[]`
+// tenancy shape mapRoomType() does. If a listings response ever omits this
+// nested tenancy data (unconfirmed either way — Amber's listings endpoint
+// payload is large enough that it may or may not include it), these simply
+// return empty arrays and the corresponding filter doesn't render, same
+// "only show what the data actually supports" rule every other filter here
+// already follows.
+function getMoveInOptions(raw) {
+  const rooms = Array.isArray(raw.children) ? raw.children : [];
+  const months = new Set();
+  for (const room of rooms) {
+    const tenancies = Array.isArray(room?.children) ? room.children : [];
+    for (const t of tenancies) {
+      if (t?.available !== true) continue;
+      const d = parseAmberDate(t?.available_from);
+      if (d) months.add(`${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`);
+    }
+  }
+  return Array.from(months).sort((a, b) => new Date(a) - new Date(b));
+}
+
+function getStayDurationOptions(raw) {
+  const rooms = Array.isArray(raw.children) ? raw.children : [];
+  const durations = new Set();
+  for (const room of rooms) {
+    const tenancies = Array.isArray(room?.children) ? room.children : [];
+    for (const t of tenancies) {
+      const value = t?.meta?.lease_duration;
+      const unit = t?.meta?.lease_duration_unit;
+      if (value != null && unit) durations.add(`${value} ${unit}${Number(value) === 1 ? "" : "s"}`);
+    }
+  }
+  return Array.from(durations).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+}
+
 export function mapAmberPropertyToListing(raw) {
   if (!raw || typeof raw !== "object") return null;
 
@@ -534,6 +574,8 @@ export function mapAmberPropertyToListing(raw) {
     offerText,
     billsIncluded,
     rooms: getRooms(raw),
+    moveInOptions: getMoveInOptions(raw),
+    stayDurationOptions: getStayDurationOptions(raw),
     rating: getRating(raw),
     social: getSocialProof(raw),
     available: raw.available !== false,

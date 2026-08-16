@@ -8,11 +8,66 @@
 // lock, rate budget) lives in ./_lib/amberGateway.js so it can be unit
 // tested directly with plain Node, without needing a live Vercel/HTTP
 // round-trip.
-const { fetchAmber, fetchListings, AmberGatewayError } = require("./_lib/amberGateway");
+const { fetchAmber, fetchListings, normalizeCityName, AmberGatewayError } = require("./_lib/amberGateway");
 const { getInventoryStats } = require("./_lib/inventoryStats");
+const { mapAmberItemToResidence, persistResidences, extractResultArray } = require("./_lib/accommodationIndex");
+const { connectToDatabase, MongoNotConfiguredError } = require("./_lib/mongodb");
+const { withTimeout } = require("./_lib/withTimeout");
 
 const VALID_TYPES = new Set(["listings", "detail", "citystats", "inventorystats"]);
 const VALID_PRIORITIES = new Set(["HIGH", "MEDIUM", "LOW"]);
+
+// connectToDatabase() (api/_lib/mongodb.js) uses a 10-SECOND
+// serverSelectionTimeoutMS — correct for features that need Mongo, fatal
+// here: without a hard bound, a slow/unreachable/misconfigured Mongo would
+// make EVERY /api/amber listings/detail request (i.e. the entire find-rooms
+// page) hang for up to 10s on a write that's purely opportunistic. This is
+// what actually gives indexOnRead() its "never slow down the primary
+// response" property — the earlier version of this file awaited it
+// unbounded and only assumed that was safe.
+const INDEX_ON_READ_TIMEOUT_MS = 1200;
+
+// "Index-on-read": every real listings/detail response this gateway already
+// serves opportunistically upserts into the same AccommodationResidence
+// mirror the Student Planner uses (api/_lib/accommodationIndex.js), so the
+// global search endpoint (api/search.js) can find real properties by name
+// without a dedicated crawler — coverage grows from real site traffic
+// instead. Reuses the exact mapper/upsert the planner already relies on, so
+// this can never diverge into a second "how we normalize a residence" story.
+//
+// Must be AWAITED (not truly fire-and-forget) before the response is sent —
+// a Vercel serverless invocation isn't guaranteed to keep running after
+// res.json() returns, same reason amberApi.js's own header notes the server
+// "intentionally doesn't" do post-response background work. Every failure
+// mode (Mongo not configured, a write error) is swallowed, and the caller
+// wraps this whole call in withTimeout() — so neither a real error nor a
+// slow/hanging Mongo connection can ever delay the primary Amber response
+// the user is actually waiting on.
+async function indexOnRead(type, city, rawJson) {
+    try {
+        await connectToDatabase();
+    } catch (err) {
+        if (err instanceof MongoNotConfiguredError) return; // search index simply stays empty — not an error
+        return;
+    }
+    try {
+        if (type === "listings") {
+            const normalizedCity = normalizeCityName(city);
+            if (!normalizedCity) return;
+            const items = extractResultArray(rawJson);
+            const mapped = items.map((item) => mapAmberItemToResidence(item, normalizedCity)).filter(Boolean);
+            if (mapped.length) await persistResidences(normalizedCity, mapped);
+        } else if (type === "detail") {
+            const item = extractResultArray(rawJson)[0];
+            if (!item) return;
+            const normalizedCity = normalizeCityName(item?.location?.locality?.long_name || city);
+            const mapped = mapAmberItemToResidence(item, normalizedCity);
+            if (mapped) await persistResidences(normalizedCity, [mapped]);
+        }
+    } catch (err) {
+        console.log(`[SEARCH_INDEX] action=INDEX_ON_READ_FAILED type=${type} city=${city || "-"} error=${err.message}`);
+    }
+}
 
 module.exports = async (req, res) => {
     if (req.method !== "GET") {
@@ -39,6 +94,15 @@ module.exports = async (req, res) => {
             : type === "listings"
             ? await fetchListings({ city, page, limit }, p, s)
             : await fetchAmber({ type, params: { city, slug, page, limit }, priority: p, source: s });
+
+        // Only index on a genuine upstream fetch (cacheStatus "MISS") — same
+        // guard accommodationIndex.js's own refreshCityIndex() already uses for
+        // exactly this reason: re-upserting identical data on every cache HIT
+        // for a busy city would be pure wasted Mongo load with zero new
+        // information, since the upsert is idempotent on unchanged data anyway.
+        if ((type === "listings" || type === "detail") && result.cacheStatus === "MISS") {
+            await withTimeout(indexOnRead(type, city, result.data), INDEX_ON_READ_TIMEOUT_MS, undefined);
+        }
 
         // Cache at the edge/CDN too for a short window — extra protection for
         // the "many users hit this at once" case with near-zero cost, on top

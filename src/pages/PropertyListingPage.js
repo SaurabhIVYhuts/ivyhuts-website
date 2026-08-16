@@ -1,38 +1,49 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { getProperties, getPropertyBySlug } from "../services/amberApi";
+import { getProperties, getPropertyBySlug, getPropertiesForCountry } from "../services/amberApi";
 import { safeListingList } from "../services/amberMapper";
 import { addRecentSearch } from "../services/recentActivity";
 import { trackEvent } from "../lib/eventsApi";
 import { DESTINATIONS, findDestination, countryFullName, countryIsoCode } from "../data/destinations";
 import { CURATED_CITY_PROPERTIES } from "../data/curatedCityProperties";
 import { USPS } from "../data/usps";
+import { resolveCampusUniversityByNameOrId } from "../lib/campusUniversityResolver";
+import { haversineKm, hasValidCoords } from "../lib/geoDistance";
+import useFilterState from "../hooks/useFilterState";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import SiteFooter from "../components/layout/SiteFooter";
 import TrustStrip from "../components/layout/TrustStrip";
 import ListingCard from "../components/listing/ListingCard";
 import CompactPropertyCard from "../components/listing/CompactPropertyCard";
 import CityCard from "../components/cards/CityCard";
+import PriceRangeSlider from "../components/filters/PriceRangeSlider";
+import MobileFilterSheet from "../components/filters/MobileFilterSheet";
+import MapListingRow from "../components/map/MapListingRow";
 import "./PropertyListingPage.css";
 
-const EMPTY_FILTERS = {
-  query: "", minPrice: "", maxPrice: "", roomType: "", billsOnly: false,
-  university: "", amenities: [], sortBy: "recommended",
-};
+// Leaflet + the clustering plugin are a genuinely large dependency (tens of
+// KB gzipped) that only matters once someone actually opens map view —
+// PropertyListingPage itself is EAGERLY imported by App.js (unlike most
+// other pages), so importing PropertyMap normally here would ship that
+// weight on every single page load, including the homepage. Lazy-loaded
+// instead, so it's fetched only when `view === "map"` first renders it.
+const PropertyMap = React.lazy(() => import("../components/map/PropertyMap"));
 
 // A hand-picked spread across regions so the shortcut row isn't UK-heavy —
 // every name here must exist in DESTINATIONS.
 const POPULAR_CITY_NAMES = ["London", "New York", "Toronto", "Sydney", "Dublin", "Amsterdam", "Berlin", "Tokyo"];
 
-const SORT_OPTIONS = [
+const BASE_SORT_OPTIONS = [
   { value: "recommended", label: "Recommended" },
   { value: "price_asc", label: "Price: Low to High" },
   { value: "price_desc", label: "Price: High to Low" },
   { value: "rating_desc", label: "Rating: High to Low" },
 ];
+const DISTANCE_SORT_OPTION = { value: "distance", label: "Distance from University" };
 
 const UNIVERSITY_RE = /university|college/i;
 const AMENITY_OPTION_LIMIT = 16;
+const COUNTRY_SEARCH_MAX_CITIES = 6;
 
 /* ── SMALL INLINE ICONS (match the stroke-icon style used in the trust strip) ── */
 const FilterIcon = () => (
@@ -50,11 +61,44 @@ const ListViewIcon = () => (
 const GridViewIcon = () => (
   <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.5"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.5"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.5"/><rect x="11" y="11" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.5"/></svg>
 );
+const MapViewIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" width="15" height="15"><path d="M7 3.5L3 5v11.5l4-1.5 6 1.5 4-1.5V4l-4 1.5-6-1.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M7 3.5v11.5M13 5v11.5" stroke="currentColor" strokeWidth="1.5"/></svg>
+);
+
 export default function PropertyListingPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const city = searchParams.get("city");
   const countryParam = searchParams.get("country");
+  const universityParam = searchParams.get("university");
+  const propertyParam = searchParams.get("property");
   const navigate = useNavigate();
+
+  const { filters, setFilter, toggleAmenity, clearFilters } = useFilterState(searchParams, setSearchParams);
+
+  const resolvedUniversity = useMemo(() => resolveCampusUniversityByNameOrId(universityParam), [universityParam]);
+
+  // A search-bar `?property=` that didn't resolve to one exact slug (see
+  // GlobalSearchBar/searchNavigation.js — an exact match goes straight to
+  // /property/:slug instead) needs one lookup against the same search index
+  // to find which city to load. Deliberately its own tiny effect, not part
+  // of the main data-load effect below, so a slow/failed resolution never
+  // blocks the (much more common) city/university/country paths.
+  const [propertyResolution, setPropertyResolution] = useState(null);
+  useEffect(() => {
+    if (!propertyParam || city) { setPropertyResolution(null); return; }
+    let cancelled = false;
+    setPropertyResolution({ status: "loading" });
+    fetch(`/api/search?q=${encodeURIComponent(propertyParam)}&limit=5`)
+      .then((r) => r.json())
+      .then((body) => {
+        if (cancelled) return;
+        const match = body?.data?.properties?.[0];
+        if (match?.value?.city) setPropertyResolution({ status: "resolved", slug: match.slug, city: match.value.city, name: match.label });
+        else setPropertyResolution({ status: "not_found" });
+      })
+      .catch(() => { if (!cancelled) setPropertyResolution({ status: "not_found" }); });
+    return () => { cancelled = true; };
+  }, [propertyParam, city]);
 
   // Grouped once from the static destinations list — no API call needed to
   // show "which countries/cities can I browse", only fetch real inventory
@@ -88,44 +132,137 @@ export default function PropertyListingPage() {
   const [rawProperties, setRawProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [view, setView] = useState("list");
   const [descExpanded, setDescExpanded] = useState(false);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [mobileSheetSection, setMobileSheetSection] = useState(null);
+  const [mapSelectedId, setMapSelectedId] = useState(null);
+  const [mapBoundsFilter, setMapBoundsFilter] = useState(null);
+  const mapCardRefs = useRef({});
+
+  // List/Grid/Map is URL-synced (?view=) so refresh/back-forward/share all
+  // preserve it, same reasoning as the filter state above — "list" is the
+  // implicit default and never appears in the URL, keeping ordinary links clean.
+  const viewParam = searchParams.get("view");
+  const view = viewParam === "map" || viewParam === "grid" ? viewParam : "list";
+  function setView(next) {
+    setSearchParams((prev) => {
+      const next2 = new URLSearchParams(prev);
+      if (next === "list") next2.delete("view");
+      else next2.set("view", next);
+      return next2;
+    }, { replace: true });
+  }
+
+  // A bare country (no city/university/property) is a BROWSE affordance —
+  // it should render instantly from the static destinations list, same as
+  // the plain landing page, not gate on a network fetch. Real inventory for
+  // that country still loads (see countryProperties below), just
+  // progressively underneath the instant city picker rather than blocking
+  // on it — a multi-city fan-out (getPropertiesForCountry) is inherently
+  // slower than a single-city fetch, and making the whole page wait on it
+  // was exactly what made "click a country" feel like a broken redirect.
+  const isCountryBrowse = Boolean(countryParam && !city && !universityParam && !propertyParam);
+  const hasActiveSearch = Boolean(city || universityParam || propertyParam);
+
+  const [countryProperties, setCountryProperties] = useState([]);
+  const [countryPropertiesLoading, setCountryPropertiesLoading] = useState(false);
+  const [countryPropertiesError, setCountryPropertiesError] = useState(false);
+  const [countryPropertiesRequested, setCountryPropertiesRequested] = useState(false);
+
+  // Deliberately OPT-IN, not automatic on page load — a country page fans
+  // out to several cities at once (see getPropertiesForCountry), which is
+  // several real Amber requests. Auto-firing that on every country-browse
+  // visit was real, unwanted Amber traffic for content the user may not
+  // even scroll to; a click is an explicit signal they actually want it.
+  // Resets whenever the country itself changes, so switching countries
+  // doesn't show a stale country's properties or need a second click.
+  useEffect(() => { setCountryPropertiesRequested(false); setCountryProperties([]); setCountryPropertiesError(false); }, [countryParam]);
 
   useEffect(() => {
-    // No city selected yet — the user is on the country/city browse step,
-    // not a listing view, so there's nothing to fetch.
-    if (!city) {
+    if (!isCountryBrowse || !countryPropertiesRequested) return;
+    let cancelled = false;
+    trackEvent("COUNTRY_SEARCHED", { country: countryParam, source: "listings-page" });
+    setCountryPropertiesLoading(true);
+    setCountryPropertiesError(false);
+    const cityNames = DESTINATIONS.filter((d) => d.country === countryParam).map((d) => d.name);
+    getPropertiesForCountry(cityNames, COUNTRY_SEARCH_MAX_CITIES, "listings-country")
+      .then((breakdown) => {
+        if (cancelled) return;
+        setCountryProperties(safeListingList(breakdown.flatMap((b) => b.items)));
+      })
+      .catch(() => { if (!cancelled) setCountryPropertiesError(true); })
+      .finally(() => { if (!cancelled) setCountryPropertiesLoading(false); });
+    return () => { cancelled = true; };
+  }, [isCountryBrowse, countryParam, countryPropertiesRequested]);
+
+  useEffect(() => {
+    if (!hasActiveSearch) {
       setLoading(false);
       setError(null);
       setRawProperties([]);
       return;
     }
 
+    // A `?property=` search waits on the separate resolution effect above —
+    // bail out without touching `loading` at all (rather than flipping it
+    // true-then-false and back) so the skeleton doesn't flicker while that
+    // lookup is still in flight; this effect re-runs once propertyResolution
+    // actually changes.
+    if (propertyParam && !city && (!propertyResolution || propertyResolution.status === "loading")) {
+      return;
+    }
+
     let cancelled = false;
+    setMapBoundsFilter(null);
+    setMapSelectedId(null);
 
     async function load() {
       setLoading(true);
       setError(null);
-      addRecentSearch(city);
-      trackEvent("CITY_SEARCHED", { city, source: "listings-page" });
       try {
-        let data = await getProperties(city);
-        data = Array.isArray(data) ? data : [];
+        if (city) {
+          addRecentSearch(city);
+          trackEvent("CITY_SEARCHED", { city, source: "listings-page" });
+          let data = await getProperties(city);
+          data = Array.isArray(data) ? data : [];
 
-        // Amber's own location search doesn't recognize every city it
-        // actually has inventory in (see src/data/curatedCityProperties.js)
-        // — backfill known properties for the handful of cities where
-        // that's confirmed, rather than showing an incorrect empty result.
-        const curatedSlugs = data.length === 0 ? CURATED_CITY_PROPERTIES[city.trim().toLowerCase()] : null;
-        if (curatedSlugs?.length) {
-          const curated = await Promise.all(
-            curatedSlugs.map((slug) => getPropertyBySlug(slug).catch(() => null))
-          );
-          data = curated.filter(Boolean);
+          // Amber's own location search doesn't recognize every city it
+          // actually has inventory in (see src/data/curatedCityProperties.js)
+          // — backfill known properties for the handful of cities where
+          // that's confirmed, rather than showing an incorrect empty result.
+          const curatedSlugs = data.length === 0 ? CURATED_CITY_PROPERTIES[city.trim().toLowerCase()] : null;
+          if (curatedSlugs?.length) {
+            const curated = await Promise.all(curatedSlugs.map((slug) => getPropertyBySlug(slug).catch(() => null)));
+            data = curated.filter(Boolean);
+          }
+          if (!cancelled) setRawProperties(data);
+        } else if (universityParam) {
+          if (!resolvedUniversity) {
+            if (!cancelled) { setRawProperties([]); setError({ message: `We don't recognize "${universityParam}" yet — try its full name, or browse by city instead.` }); }
+            return;
+          }
+          trackEvent("UNIVERSITY_SEARCHED", { university: resolvedUniversity.id, source: "listings-page" });
+          // A university's accommodationOverride restricts its results to
+          // specific known properties — same explicit business rule
+          // UniversityHousingPage.js already enforces, reused here rather
+          // than reimplemented so the two pages can never disagree about
+          // which properties a university with an override should show.
+          const overrideSlugs = resolvedUniversity?.accommodationOverride?.propertySlugs;
+          if (Array.isArray(overrideSlugs) && overrideSlugs.length) {
+            const items = await Promise.all(overrideSlugs.map((slug) => getPropertyBySlug(slug, "MEDIUM", "listings-university-override").catch(() => null)));
+            if (!cancelled) setRawProperties(items.filter(Boolean));
+          } else {
+            const data = await getProperties(resolvedUniversity.city, 1, 50, "MEDIUM", "listings-university");
+            if (!cancelled) setRawProperties(Array.isArray(data) ? data : []);
+          }
+        } else if (propertyParam) {
+          // The guard above this function already ensures propertyResolution
+          // is settled (resolved or not_found) by the time we get here.
+          if (propertyResolution.status !== "resolved") { if (!cancelled) setRawProperties([]); return; }
+          trackEvent("PROPERTY_SEARCHED", { property: propertyParam, source: "listings-page" });
+          const data = await getProperties(propertyResolution.city, 1, 50, "MEDIUM", "listings-property");
+          if (!cancelled) setRawProperties(Array.isArray(data) ? data : []);
         }
-
-        if (!cancelled) setRawProperties(data);
       } catch (err) {
         if (!cancelled) {
           console.error("PropertyListingPage error:", err);
@@ -143,9 +280,24 @@ export default function PropertyListingPage() {
 
     load();
     return () => { cancelled = true; };
-  }, [city]);
+  }, [city, universityParam, resolvedUniversity, propertyParam, propertyResolution, hasActiveSearch]);
 
-  const listings = useMemo(() => safeListingList(rawProperties), [rawProperties]);
+  const baseListings = useMemo(() => safeListingList(rawProperties), [rawProperties]);
+
+  // Real distance only when the resolved university has real coordinates —
+  // never fabricated (same rule UniversityHousingPage/UniversityHousingMap
+  // already enforce), and only computed when a university context is
+  // actually active (a plain city/country search has no reference point).
+  const listings = useMemo(() => {
+    if (!resolvedUniversity || !hasValidCoords(resolvedUniversity.latitude, resolvedUniversity.longitude)) return baseListings;
+    return baseListings.map((l) => {
+      const propertyHasCoords = hasValidCoords(l.coordinates?.lat, l.coordinates?.lng);
+      const distanceKm = propertyHasCoords
+        ? Math.round(haversineKm(resolvedUniversity.latitude, resolvedUniversity.longitude, l.coordinates.lat, l.coordinates.lng) * 10) / 10
+        : null;
+      return { ...l, distanceKm };
+    });
+  }, [baseListings, resolvedUniversity]);
 
   const roomTypeOptions = useMemo(() => {
     const set = new Set();
@@ -154,7 +306,7 @@ export default function PropertyListingPage() {
   }, [listings]);
 
   // Derived from each property's real nearby-places data — not hardcoded.
-  const universityOptions = useMemo(() => {
+  const nearOptions = useMemo(() => {
     const set = new Set();
     listings.forEach((l) => l.distances.nearby.forEach((d) => {
       if (UNIVERSITY_RE.test(d.place)) set.add(d.place);
@@ -173,16 +325,55 @@ export default function PropertyListingPage() {
       .map(([name]) => name);
   }, [listings]);
 
+  const moveInOptions = useMemo(() => {
+    const set = new Set();
+    listings.forEach((l) => (l.moveInOptions || []).forEach((m) => set.add(m)));
+    return Array.from(set).sort((a, b) => new Date(a) - new Date(b));
+  }, [listings]);
+
+  const stayDurationOptions = useMemo(() => {
+    const set = new Set();
+    listings.forEach((l) => (l.stayDurationOptions || []).forEach((d) => set.add(d)));
+    return Array.from(set).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+  }, [listings]);
+
+  const priceBounds = useMemo(() => {
+    const prices = listings.map((l) => l.price.from).filter((p) => Number.isFinite(p));
+    if (!prices.length) return { min: 0, max: 1000 };
+    return { min: Math.floor(Math.min(...prices)), max: Math.ceil(Math.max(...prices)) };
+  }, [listings]);
+  const priceCurrency = useMemo(() => listings.find((l) => l.price.currency)?.price.currency || "£", [listings]);
+  const priceDuration = useMemo(() => listings.find((l) => l.price.duration)?.price.duration || "week", [listings]);
+
+  const sortOptions = useMemo(
+    () => (resolvedUniversity && hasValidCoords(resolvedUniversity.latitude, resolvedUniversity.longitude)
+      ? [...BASE_SORT_OPTIONS, DISTANCE_SORT_OPTION]
+      : BASE_SORT_OPTIONS),
+    [resolvedUniversity]
+  );
+
   const destination = useMemo(() => findDestination(city), [city]);
+
+  const pageContext = useMemo(() => {
+    if (city) return { title: `Student Accommodation in ${city}`, breadcrumbLabel: city };
+    if (universityParam) {
+      return resolvedUniversity
+        ? { title: `Student Accommodation near ${resolvedUniversity.name}`, breadcrumbLabel: resolvedUniversity.name }
+        : { title: "Student Accommodation", breadcrumbLabel: universityParam };
+    }
+    if (propertyParam) return { title: `Results for "${propertyParam}"`, breadcrumbLabel: propertyParam };
+    return null;
+  }, [city, universityParam, resolvedUniversity, propertyParam]);
 
   const filtersActive =
     filters.query || filters.minPrice || filters.maxPrice || filters.roomType ||
-    filters.billsOnly || filters.university || filters.amenities.length > 0 ||
-    filters.sortBy !== "recommended";
+    filters.billsOnly || filters.near || filters.amenities.length > 0 ||
+    filters.moveInMonth || filters.stayDuration || filters.sortBy !== "recommended";
 
   const advancedFilterCount =
     (filters.minPrice ? 1 : 0) + (filters.maxPrice ? 1 : 0) + (filters.roomType ? 1 : 0) +
-    (filters.university ? 1 : 0) + (filters.amenities.length > 0 ? 1 : 0);
+    (filters.near ? 1 : 0) + (filters.amenities.length > 0 ? 1 : 0) +
+    (filters.moveInMonth ? 1 : 0) + (filters.stayDuration ? 1 : 0);
 
   const filteredListings = useMemo(() => {
     const q = (filters.query || "").toLowerCase().trim();
@@ -198,29 +389,52 @@ export default function PropertyListingPage() {
 
       const roomTypeOk = !filters.roomType || l.rooms.types.includes(filters.roomType);
       const billsOk = !filters.billsOnly || l.billsIncluded;
-      const universityOk = !filters.university || l.distances.nearby.some((d) => d.place === filters.university);
+      const nearOk = !filters.near || l.distances.nearby.some((d) => d.place === filters.near);
       const amenitiesOk = filters.amenities.every((a) => (l.amenities.all || []).includes(a));
+      const moveInOk = !filters.moveInMonth || (l.moveInOptions || []).includes(filters.moveInMonth);
+      const stayDurationOk = !filters.stayDuration || (l.stayDurationOptions || []).includes(filters.stayDuration);
 
-      return textMatch && minOk && maxOk && roomTypeOk && billsOk && universityOk && amenitiesOk;
+      return textMatch && minOk && maxOk && roomTypeOk && billsOk && nearOk && amenitiesOk && moveInOk && stayDurationOk;
     });
 
     const sorted = [...filtered];
     if (filters.sortBy === "price_asc") sorted.sort((a, b) => (a.price.from ?? Infinity) - (b.price.from ?? Infinity));
     else if (filters.sortBy === "price_desc") sorted.sort((a, b) => (b.price.from ?? -Infinity) - (a.price.from ?? -Infinity));
     else if (filters.sortBy === "rating_desc") sorted.sort((a, b) => (b.rating?.overall ?? -1) - (a.rating?.overall ?? -1));
+    else if (filters.sortBy === "distance") sorted.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+
+    // Priority ranking (spec): an exact resolved property match floats to
+    // the top regardless of sort — this IS the search result the user asked
+    // for, everything else is context around it. A stable sort leaves every
+    // other relative ordering untouched.
+    if (propertyParam && propertyResolution?.status === "resolved" && propertyResolution.slug) {
+      sorted.sort((a, b) => (a.slug === propertyResolution.slug ? -1 : 0) - (b.slug === propertyResolution.slug ? -1 : 0));
+    }
     return sorted;
-  }, [listings, filters]);
+  }, [listings, filters, propertyParam, propertyResolution]);
 
-  const setFilter = (key) => (value) => setFilters((prev) => ({ ...prev, [key]: value }));
+  // "Search this area" (map view only) narrows the already-fetched result
+  // set to the map's current visible bounds — see PropertyMap's own header
+  // comment for why this is a client-side bounds filter rather than a new
+  // geo-radius Amber query (Amber has no such endpoint).
+  const boundsFilteredListings = useMemo(() => {
+    if (!mapBoundsFilter) return filteredListings;
+    return filteredListings.filter((l) => hasValidCoords(l.coordinates?.lat, l.coordinates?.lng) && mapBoundsFilter.contains([l.coordinates.lat, l.coordinates.lng]));
+  }, [filteredListings, mapBoundsFilter]);
 
-  const toggleAmenity = (amenity) => {
-    setFilters((prev) => ({
-      ...prev,
-      amenities: prev.amenities.includes(amenity)
-        ? prev.amenities.filter((a) => a !== amenity)
-        : [...prev.amenities, amenity],
-    }));
-  };
+  // Marker click -> scroll the matching list card into view (list<->map
+  // two-way sync, the other half — highlighting itself is the active-icon/
+  // active-wrapper styling applied where each is rendered below).
+  useEffect(() => {
+    if (view !== "map" || mapSelectedId == null) return;
+    const el = mapCardRefs.current[mapSelectedId];
+    el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [mapSelectedId, view]);
+
+  const mapAnchor = useMemo(() => {
+    if (!resolvedUniversity || !hasValidCoords(resolvedUniversity.latitude, resolvedUniversity.longitude)) return null;
+    return { lat: resolvedUniversity.latitude, lng: resolvedUniversity.longitude, label: resolvedUniversity.name };
+  }, [resolvedUniversity]);
 
   const handleEnquire = (listing) => {
     const params = new URLSearchParams({ inventory: listing.id, property: listing.name });
@@ -229,13 +443,18 @@ export default function PropertyListingPage() {
 
   const closeDetails = (e) => e.target.closest("details")?.removeAttribute("open");
 
+  function openMobileSheet(section) {
+    setMobileSheetSection(section);
+    setMobileSheetOpen(true);
+  }
+
   return (
     <div className="properties-page-wrap">
       <div className="desktop-only">
         <SiteNavbar />
       </div>
 
-      {!city && !countryParam && (
+      {!hasActiveSearch && !isCountryBrowse && (
         <div className="destination-browser">
           <div className="destination-browser-header">
             <p className="section-eyebrow">Find Rooms</p>
@@ -324,14 +543,12 @@ export default function PropertyListingPage() {
           )}
         </div>
       )}
-      {!city && !countryParam && <TrustStrip />}
+      {!hasActiveSearch && !isCountryBrowse && <TrustStrip />}
 
-      {!city && countryParam && (
-        <div className="destination-browser">
+      {isCountryBrowse && (
+        <div className="destination-browser country-browse">
           <nav aria-label="Breadcrumb" className="listings-breadcrumb">
             <Link to="/">Home</Link>
-            <span>/</span>
-            <Link to={{ search: "" }}>Find Rooms</Link>
             <span>/</span>
             <span aria-current="page">{countryFullName(countryParam)}</span>
           </nav>
@@ -339,6 +556,7 @@ export default function PropertyListingPage() {
             <p className="section-eyebrow">{countryFullName(countryParam)}</p>
             <h1>Choose a city in {countryFullName(countryParam)}</h1>
           </div>
+
           {citiesInCountry.length > 0 ? (
             <ul className="country-cities-grid">
               {citiesInCountry.map((c) => <CityCard key={c.name} city={c} compact />)}
@@ -346,15 +564,44 @@ export default function PropertyListingPage() {
           ) : (
             <div className="listings-empty">
               <p>We don't have cities listed for this country yet.</p>
-              <Link to={{ search: "" }} className="toolbar-clear-btn">Back to all countries</Link>
+              <Link to="/properties" className="toolbar-clear-btn">Back to all countries</Link>
             </div>
           )}
+
+          {/* Opt-in, not automatic — a country search fans out to several
+              cities at once (see getPropertiesForCountry), which is several
+              real Amber requests. This only fires on an explicit click, never
+              just because the page loaded. */}
+          <div className="country-properties-preview">
+            <h3>Student accommodation across {countryFullName(countryParam)}</h3>
+            {!countryPropertiesRequested && (
+              <button type="button" className="btn btn-secondary" onClick={() => setCountryPropertiesRequested(true)}>
+                Show properties across {countryFullName(countryParam)}
+              </button>
+            )}
+            {countryPropertiesRequested && countryPropertiesLoading && (
+              <div className="listings-map-loading">Loading properties…</div>
+            )}
+            {countryPropertiesRequested && !countryPropertiesLoading && countryPropertiesError && (
+              <div className="listings-error"><strong>We couldn't load properties right now.</strong> Try a specific city above instead.</div>
+            )}
+            {countryPropertiesRequested && !countryPropertiesLoading && !countryPropertiesError && countryProperties.length === 0 && (
+              <p className="listings-empty-hint">No properties found yet for this country's covered cities.</p>
+            )}
+            {countryPropertiesRequested && !countryPropertiesLoading && !countryPropertiesError && countryProperties.length > 0 && (
+              <div className="listings-grid-view">
+                {countryProperties.map((listing) => (
+                  <CompactPropertyCard key={listing.id} listing={listing} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {city && (
+      {hasActiveSearch && (
       <div className="listings-page">
-        
+
         {/* MOBILE HEADER & FILTER PILLS */}
         <div className="mobile-only mobile-listings-header-wrap">
           <div className="mobile-listings-header">
@@ -363,18 +610,21 @@ export default function PropertyListingPage() {
             </button>
             <div className="mobile-search-box">
               <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><circle cx="9" cy="9" r="6.2" stroke="currentColor" strokeWidth="1.8" /><path d="M13.6 13.6L17.5 17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
-              <input type="text" readOnly value={`${city}, ${destination ? countryFullName(destination.country) : ""}`} />
-              <button type="button" className="mobile-search-clear">×</button>
+              <input type="text" readOnly value={pageContext?.breadcrumbLabel || ""} />
+              <button type="button" className="mobile-search-clear" onClick={() => navigate("/properties")}>×</button>
             </div>
-            <button type="button" className="mobile-filter-btn" onClick={() => setDescExpanded(true)}>
+            <button type="button" className="mobile-filter-btn" onClick={() => openMobileSheet(null)}>
               <FilterIcon />
             </button>
           </div>
           <div className="mobile-filter-pills">
-            <button type="button" className="pill-btn">Price</button>
-            <button type="button" className="pill-btn">Room Type</button>
-            <button type="button" className="pill-btn">Amenities</button>
-            <button type="button" className="pill-btn">More Filters</button>
+            <button type="button" className="pill-btn" onClick={() => openMobileSheet("price")}>Price</button>
+            <button type="button" className="pill-btn" onClick={() => openMobileSheet("roomType")}>Room Type</button>
+            <button type="button" className="pill-btn" onClick={() => openMobileSheet("amenities")}>Amenities</button>
+            <button type="button" className="pill-btn" onClick={() => openMobileSheet(null)}>More Filters</button>
+            <button type="button" className={`pill-btn${view === "map" ? " active" : ""}`} onClick={() => setView(view === "map" ? "list" : "map")}>
+              <MapViewIcon /> Map
+            </button>
           </div>
         </div>
 
@@ -393,23 +643,46 @@ export default function PropertyListingPage() {
             <div className="toolbar-panel">
               <div className="toolbar-panel-group">
                 <span className="toolbar-panel-label">Budget</span>
-                <div className="toolbar-panel-row">
-                  <input
-                    aria-label="Minimum price"
-                    placeholder="Min £"
-                    inputMode="numeric"
-                    value={filters.minPrice}
-                    onChange={(e) => setFilter("minPrice")(e.target.value.replace(/[^0-9]/g, ""))}
-                  />
-                  <input
-                    aria-label="Maximum price"
-                    placeholder="Max £"
-                    inputMode="numeric"
-                    value={filters.maxPrice}
-                    onChange={(e) => setFilter("maxPrice")(e.target.value.replace(/[^0-9]/g, ""))}
-                  />
-                </div>
+                <PriceRangeSlider
+                  min={priceBounds.min}
+                  max={priceBounds.max}
+                  valueMin={filters.minPrice ? Number(filters.minPrice) : null}
+                  valueMax={filters.maxPrice ? Number(filters.maxPrice) : null}
+                  currency={priceCurrency}
+                  duration={priceDuration}
+                  onChange={({ min, max }) => { setFilter("minPrice")(min); setFilter("maxPrice")(max); }}
+                />
               </div>
+
+              {nearOptions.length > 0 && (
+                <div className="toolbar-panel-group">
+                  <span className="toolbar-panel-label">University / Area</span>
+                  <select value={filters.near} onChange={(e) => setFilter("near")(e.target.value)}>
+                    <option value="">Anywhere</option>
+                    {nearOptions.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {moveInOptions.length > 0 && (
+                <div className="toolbar-panel-group">
+                  <span className="toolbar-panel-label">Move-in Month</span>
+                  <select value={filters.moveInMonth} onChange={(e) => setFilter("moveInMonth")(e.target.value)}>
+                    <option value="">Any</option>
+                    {moveInOptions.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {stayDurationOptions.length > 0 && (
+                <div className="toolbar-panel-group">
+                  <span className="toolbar-panel-label">Stay Duration</span>
+                  <select value={filters.stayDuration} onChange={(e) => setFilter("stayDuration")(e.target.value)}>
+                    <option value="">Any</option>
+                    {stayDurationOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+              )}
 
               {roomTypeOptions.length > 0 && (
                 <div className="toolbar-panel-group">
@@ -417,16 +690,6 @@ export default function PropertyListingPage() {
                   <select value={filters.roomType} onChange={(e) => setFilter("roomType")(e.target.value)}>
                     <option value="">All room types</option>
                     {roomTypeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-              )}
-
-              {universityOptions.length > 0 && (
-                <div className="toolbar-panel-group">
-                  <span className="toolbar-panel-label">University</span>
-                  <select value={filters.university} onChange={(e) => setFilter("university")(e.target.value)}>
-                    <option value="">All universities</option>
-                    {universityOptions.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
               )}
@@ -450,9 +713,9 @@ export default function PropertyListingPage() {
           </details>
 
           <details className="toolbar-dropdown">
-            <summary><SortIcon /> Sort: {SORT_OPTIONS.find((o) => o.value === filters.sortBy)?.label}</summary>
+            <summary><SortIcon /> Sort: {sortOptions.find((o) => o.value === filters.sortBy)?.label || "Recommended"}</summary>
             <div className="toolbar-panel toolbar-sort-panel">
-              {SORT_OPTIONS.map((o) => (
+              {sortOptions.map((o) => (
                 <button
                   key={o.value}
                   type="button"
@@ -471,7 +734,7 @@ export default function PropertyListingPage() {
           </label>
 
           {filtersActive && (
-            <button type="button" className="toolbar-clear-btn" onClick={() => setFilters(EMPTY_FILTERS)}>
+            <button type="button" className="toolbar-clear-btn" onClick={clearFilters}>
               Clear All
             </button>
           )}
@@ -480,21 +743,21 @@ export default function PropertyListingPage() {
         {/* BREADCRUMB */}
         <nav aria-label="Breadcrumb" className="listings-breadcrumb">
           <Link to="/">Home</Link>
-          {destination && <><span>/</span><span>{countryFullName(destination.country)}</span></>}
+          {city && destination && <><span>/</span><span>{countryFullName(destination.country)}</span></>}
           <span>/</span>
-          <span aria-current="page">{city || "All"}</span>
+          <span aria-current="page">{pageContext?.breadcrumbLabel || "All"}</span>
         </nav>
 
         {/* TITLE + COUNT + DESCRIPTION + VIEW TOGGLE */}
         <div className="listings-title-row">
           <div className="listings-title-col">
             <h1>
-              Student Accommodation in {city || "All Cities"}
+              {pageContext?.title || "Student Accommodation"}
               <span className="listings-count">
                 {loading ? " — searching…" : ` | ${filteredListings.length} propert${filteredListings.length === 1 ? "y" : "ies"}`}
               </span>
             </h1>
-            {destination?.description && (
+            {city && destination?.description && (
               <p className={`listings-city-desc${descExpanded ? "" : " clamped"}`}>
                 {destination.description}{" "}
                 <button type="button" className="listings-desc-toggle" onClick={() => setDescExpanded((s) => !s)}>
@@ -504,16 +767,84 @@ export default function PropertyListingPage() {
             )}
           </div>
 
-          <div className="view-toggle" role="group" aria-label="Switch between list and grid view">
+          <div className="view-toggle" role="group" aria-label="Switch between list, grid and map view">
             <button type="button" aria-pressed={view === "list"} className={view === "list" ? "active" : ""} onClick={() => setView("list")}>
               <ListViewIcon /> List
             </button>
             <button type="button" aria-pressed={view === "grid"} className={view === "grid" ? "active" : ""} onClick={() => setView("grid")}>
               <GridViewIcon /> Grid
             </button>
+            <button type="button" aria-pressed={view === "map"} className={view === "map" ? "active" : ""} onClick={() => setView("map")}>
+              <MapViewIcon /> Map
+            </button>
           </div>
         </div>
 
+        {view === "map" && (
+          <div className="listings-map-layout">
+            {error && (
+              <div className="listings-error">
+                {error.isRateLimit ? (
+                  <>
+                    <strong>We're fetching too fast.</strong> Amber is briefly limiting requests —
+                    please try again in about {Math.ceil(error.retryAfterSeconds / 60)} minute
+                    {Math.ceil(error.retryAfterSeconds / 60) === 1 ? "" : "s"}.
+                  </>
+                ) : (
+                  <><strong>We couldn't load properties right now.</strong> {error.message}</>
+                )}
+              </div>
+            )}
+            {loading ? (
+              <div className="listings-map-loading" aria-live="polite" aria-busy="true">Loading map…</div>
+            ) : !error && (
+              <>
+                <div className="listings-map-list">
+                  {/* Only shown once bounds-filtered — otherwise it would just
+                      repeat the count the title row above already states. */}
+                  {mapBoundsFilter && (
+                    <div className="listings-map-list-count">
+                      {boundsFilteredListings.length} propert{boundsFilteredListings.length === 1 ? "y" : "ies"} in this area
+                    </div>
+                  )}
+                  {boundsFilteredListings.length === 0 ? (
+                    <div className="listings-empty">
+                      <p>No stays found</p>
+                      <p className="listings-empty-hint">Nothing matches your filters in this area.</p>
+                      {mapBoundsFilter && (
+                        <button type="button" className="toolbar-clear-btn" onClick={() => setMapBoundsFilter(null)}>Reset map area</button>
+                      )}
+                    </div>
+                  ) : boundsFilteredListings.map((listing) => (
+                    <div key={listing.id} ref={(el) => { mapCardRefs.current[listing.id] = el; }}>
+                      <MapListingRow
+                        listing={listing}
+                        active={String(listing.id) === String(mapSelectedId)}
+                        onSelect={setMapSelectedId}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="listings-map-panel">
+                  <Suspense fallback={<div className="listings-map-loading">Loading map…</div>}>
+                    <PropertyMap
+                      anchor={mapAnchor}
+                      properties={boundsFilteredListings}
+                      selectedId={mapSelectedId}
+                      onSelectProperty={setMapSelectedId}
+                      onSearchThisArea={(bounds) => setMapBoundsFilter(bounds)}
+                    />
+                  </Suspense>
+                  <button type="button" className="listings-map-close mobile-only" onClick={() => setView("list")}>
+                    Close Map
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {view !== "map" && (
         <div className="listings-layout">
           <div className="listings-main">
             {error && (
@@ -573,54 +904,32 @@ export default function PropertyListingPage() {
               </div>
             )}
 
-            {!loading && !error && filteredListings.length === 0 && (
+            {!loading && !error && propertyParam && propertyResolution?.status === "not_found" && (
               <div className="listings-empty">
-                <p>No properties match your filters.</p>
-                <button type="button" className="toolbar-clear-btn" onClick={() => setFilters(EMPTY_FILTERS)}>
-                  Clear Filters
-                </button>
+                <p>We couldn't find a property matching "{propertyParam}" yet.</p>
+                <p className="listings-empty-hint">It may not be in our search index yet — try its city or university instead.</p>
               </div>
             )}
 
-            {!loading && view === "list" && filteredListings.map((listing, index) => (
-              <React.Fragment key={listing.id}>
-                <ListingCard listing={listing} onEnquire={handleEnquire} />
-                
-                {/* INLINE MOBILE FILTER BLOCK AFTER 3RD ITEM */}
-                {index === 2 && (
-                  <div className="mobile-only mobile-inline-filter-block">
-                    <div className="inline-filter-header">
-                      <h3>Price: Min - Max</h3>
-                      <button
-                        type="button"
-                        className="inline-filter-clear"
-                        onClick={() => { setFilter("minPrice")(""); setFilter("maxPrice")(""); }}
-                      >
-                        Clear
-                      </button>
-                    </div>
-                    <div className="inline-filter-body">
-                      <div className="toolbar-panel-row">
-                        <input
-                          aria-label="Minimum price"
-                          placeholder="Min £"
-                          inputMode="numeric"
-                          value={filters.minPrice}
-                          onChange={(e) => setFilter("minPrice")(e.target.value.replace(/[^0-9]/g, ""))}
-                        />
-                        <input
-                          aria-label="Maximum price"
-                          placeholder="Max £"
-                          inputMode="numeric"
-                          value={filters.maxPrice}
-                          onChange={(e) => setFilter("maxPrice")(e.target.value.replace(/[^0-9]/g, ""))}
-                        />
-                      </div>
-                      <button type="button" className="btn btn-primary inline-filter-apply">Apply Filter</button>
-                    </div>
-                  </div>
+            {!loading && !error && filteredListings.length === 0 && !(propertyParam && propertyResolution?.status === "not_found") && (
+              <div className="listings-empty">
+                <p>No stays found</p>
+                <p className="listings-empty-hint">We couldn't find properties matching your search. Try:</p>
+                <ul className="listings-empty-suggestions">
+                  {(filters.minPrice || filters.maxPrice) && <li>expanding your budget</li>}
+                  {filtersActive && <li>removing a filter</li>}
+                  <li>searching another city</li>
+                </ul>
+                {filtersActive && (
+                  <button type="button" className="toolbar-clear-btn" onClick={clearFilters}>
+                    Clear Filters
+                  </button>
                 )}
-              </React.Fragment>
+              </div>
+            )}
+
+            {!loading && view === "list" && filteredListings.map((listing) => (
+              <ListingCard key={listing.id} listing={listing} onEnquire={handleEnquire} />
             ))}
 
             {!loading && view === "grid" && (
@@ -630,9 +939,22 @@ export default function PropertyListingPage() {
                 ))}
               </div>
             )}
+
           </div>
 
           <aside className="listings-sidebar">
+            {!loading && filteredListings.length > 0 && (
+              <button type="button" className="explore-map-widget" onClick={() => setView("map")} aria-label="Explore properties on a map">
+                <div className="explore-map-widget-preview">
+                  <span className="explore-map-widget-pin explore-map-widget-pin--1">{priceCurrency}{Math.round(priceBounds.min)}</span>
+                  <span className="explore-map-widget-pin explore-map-widget-pin--2">{priceCurrency}{Math.round((priceBounds.min + priceBounds.max) / 2)}</span>
+                  <span className="explore-map-widget-pin explore-map-widget-pin--3">{priceCurrency}{Math.round(priceBounds.max)}</span>
+                </div>
+                <span className="explore-map-widget-label">
+                  <MapViewIcon /> Explore on Map
+                </span>
+              </button>
+            )}
             <div className="listings-sidebar-card">
               {USPS.map((u) => (
                 <div className="listings-sidebar-row" key={u.key}>
@@ -646,8 +968,29 @@ export default function PropertyListingPage() {
             </div>
           </aside>
         </div>
+        )}
       </div>
       )}
+
+      <MobileFilterSheet
+        open={mobileSheetOpen}
+        onClose={() => setMobileSheetOpen(false)}
+        filters={filters}
+        setFilter={setFilter}
+        toggleAmenity={toggleAmenity}
+        clearFilters={clearFilters}
+        nearOptions={nearOptions}
+        roomTypeOptions={roomTypeOptions}
+        amenityOptions={amenityOptions}
+        moveInOptions={moveInOptions}
+        stayDurationOptions={stayDurationOptions}
+        priceBounds={priceBounds}
+        priceCurrency={priceCurrency}
+        priceDuration={priceDuration}
+        resultCount={filteredListings.length}
+        initialFocusSection={mobileSheetSection}
+      />
+
       {/* FOOTER (Desktop only for properties page) */}
       <div className="desktop-only">
         <SiteFooter />
