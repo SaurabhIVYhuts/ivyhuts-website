@@ -11,7 +11,7 @@ const CheckBadgeIcon = () => (
 );
 
 export default function ListingCard({ listing, onEnquire }) {
-  const { id, name, address, images, price, distances, amenities, badges, rooms, rating, social, slug } = listing;
+  const { id, name, address, images, price, distances, amenities, badges, rooms, rating, social, slug, isSoldOut } = listing;
   const navigate = useNavigate();
 
   const wishlistSnapshot = id != null ? {
@@ -127,7 +127,9 @@ export default function ListingCard({ listing, onEnquire }) {
 
         <div className="listing-card-footer">
           <div className="listing-card-price">
-            {price.from !== null ? (
+            {isSoldOut ? (
+              <span className="listing-price-label listing-price-label--soldout">Sold Out</span>
+            ) : price.from !== null ? (
               <>
                 <span className="listing-price-label">From</span>
                 <span className="listing-price-value">

@@ -148,9 +148,16 @@ export default function UniversityHousingPage() {
     if (sortBy === "distance") {
       sorted.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
     } else if (sortBy === "price_asc") {
-      sorted.sort((a, b) => (a.price.from ?? Infinity) - (b.price.from ?? Infinity));
+      // priceWeekly (not price.from) — already availability-aware (a
+      // sold-out property's cheapest room is never selected, see
+      // amberMapper.js's normalizeResidencePricing/selectCheapestAvailableRoomType)
+      // and duration-normalized so a monthly-priced property is never
+      // ranked as if its raw number were a weekly one. A sold-out property
+      // (priceWeekly: null) sorts to the end either direction, never
+      // appearing as "cheapest".
+      sorted.sort((a, b) => (a.priceWeekly ?? Infinity) - (b.priceWeekly ?? Infinity));
     } else if (sortBy === "price_desc") {
-      sorted.sort((a, b) => (b.price.from ?? -Infinity) - (a.price.from ?? -Infinity));
+      sorted.sort((a, b) => (b.priceWeekly ?? -Infinity) - (a.priceWeekly ?? -Infinity));
     }
     return sorted;
   }, [properties, sortBy]);

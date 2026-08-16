@@ -5,7 +5,7 @@ import WishlistHeart from "./WishlistHeart";
 import ShareButton from "./ShareButton";
 
 export default function CompactPropertyCard({ listing }) {
-  const { id, name, address, images, price, rating, badges, slug } = listing;
+  const { id, name, address, images, price, rating, badges, slug, isSoldOut } = listing;
   const safeAddress = address || {};
   const safePrice = price || { from: null };
   const safeBadges = badges || [];
@@ -65,7 +65,9 @@ export default function CompactPropertyCard({ listing }) {
         <h3 className="chp-title">{name}</h3>
         <p className="chp-location">{[safeAddress.locality, safeAddress.country].filter(Boolean).join(", ")}</p>
         <div className="chp-footer">
-          {safePrice.from !== null ? (
+          {isSoldOut ? (
+            <span className="chp-price chp-price--soldout">Sold Out</span>
+          ) : safePrice.from !== null ? (
             <span className="chp-price">From <strong style={{color: '#000', fontSize: '1.05rem'}}>{safePrice.currency}{safePrice.from}</strong>/{safePrice.duration || "wk"}</span>
           ) : (
             <span className="chp-price">Price on request</span>

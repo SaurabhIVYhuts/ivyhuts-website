@@ -1105,6 +1105,14 @@
   color: #6B4E5E;
 }
 
+.listing-price-label--soldout {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #9B3A3A;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 .listing-price-value {
   font-size: 1.05rem;
   font-weight: 700;
