@@ -8,9 +8,10 @@
 // lock, rate budget) lives in ./_lib/amberGateway.js so it can be unit
 // tested directly with plain Node, without needing a live Vercel/HTTP
 // round-trip.
-const { fetchAmber, fetchListings, normalizeCityName, AmberGatewayError } = require("./_lib/amberGateway");
+const { fetchAmber, fetchListings, normalizeCityName, matchesCity, AmberGatewayError } = require("./_lib/amberGateway");
 const { getInventoryStats } = require("./_lib/inventoryStats");
 const { mapAmberItemToResidence, persistResidences, extractResultArray } = require("./_lib/accommodationIndex");
+const AccommodationResidence = require("./_lib/models/AccommodationResidence");
 const { connectToDatabase, MongoNotConfiguredError } = require("./_lib/mongodb");
 const { withTimeout } = require("./_lib/withTimeout");
 
@@ -69,6 +70,79 @@ async function indexOnRead(type, city, rawJson) {
     }
 }
 
+// Amber's `location_place_name` search filter is confirmed unreliable for
+// at least some cities (Derby: real inventory 29 properties per the
+// independent full-catalog crawl, but the live filtered listings call has
+// been observed returning as few as 1-3 genuine matches) — fetchListings()'s
+// own bounded fallback (amberGateway.js) already compensates some, but it's
+// still limited to a couple of UNFILTERED catalog pages, no guarantee of
+// finding a specific sparse city's properties.
+//
+// This is the second, complementary layer: when a listings response still
+// looks suspiciously small, check AccommodationResidence — our own mirror,
+// populated by real traffic and the full-catalog crawl — for slugs already
+// known to belong to this city that AREN'T in the live result, and fetch
+// each directly by slug (fetchAmber type:"detail", the same targeted,
+// per-property mechanism university accommodationOverrides already use —
+// not a broad search, so it isn't subject to the same filter unreliability).
+// Every candidate is re-verified via matchesCity() against its OWN freshly-
+// fetched location before being trusted — never taken on faith just because
+// Mongo says so (this is exactly the guard that would have caught the Derby
+// mistagging incident, where 10 wrong-city records were once persisted from
+// a single bad batch — see git history/session notes).
+//
+// Bounded to MONGO_ENRICH_MAX_EXTRA additional Amber calls and an overall
+// time budget short enough that, combined with fetchListings' own worst-case
+// duration, the whole request still fits inside Vercel's 30s ceiling
+// (vercel.json's maxDuration for this function) — never lets a sparse city
+// turn into an unbounded hunt.
+const MONGO_ENRICH_THRESHOLD = 5;
+const MONGO_ENRICH_MAX_EXTRA = 3;
+const MONGO_ENRICH_TIMEOUT_MS = 4000;
+
+async function enrichFromKnownResidences(city, result, priority, source) {
+    const items = extractResultArray(result.data);
+    if (items.length >= MONGO_ENRICH_THRESHOLD) return result;
+    const normalizedCity = normalizeCityName(city);
+    if (!normalizedCity) return result;
+    try {
+        await connectToDatabase();
+    } catch (err) {
+        return result;
+    }
+    try {
+        const knownIds = new Set(items.map((item) => String(item.id)));
+        const candidates = await AccommodationResidence.find({ city: normalizedCity })
+            .select("propertyId slug")
+            .lean();
+        const missing = candidates.filter((c) => c.slug && !knownIds.has(String(c.propertyId)));
+        if (!missing.length) return result;
+
+        const fetched = await Promise.all(
+            missing.slice(0, MONGO_ENRICH_MAX_EXTRA).map(async (candidate) => {
+                try {
+                    const detail = await fetchAmber({ type: "detail", params: { slug: candidate.slug }, priority, source: `${source}-mongo-enrich` });
+                    const item = extractResultArray(detail.data)[0];
+                    return item && matchesCity(item, normalizedCity) ? item : null;
+                } catch (err) {
+                    return null; // best-effort — one bad slug must never fail the whole enrichment
+                }
+            })
+        );
+        const verified = fetched.filter(Boolean);
+        if (!verified.length) return result;
+
+        const mergedItems = [...items, ...verified];
+        return {
+            data: { message: result.data?.data?.message || "success", data: { result: mergedItems, meta: { count: mergedItems.length } } },
+            cacheStatus: result.cacheStatus,
+        };
+    } catch (err) {
+        console.log(`[GATEWAY] action=MONGO_ENRICH_FAILED city=${city} error=${err.message}`);
+        return result;
+    }
+}
+
 module.exports = async (req, res) => {
     if (req.method !== "GET") {
         res.status(405).json({ error: "Method not allowed" });
@@ -89,11 +163,15 @@ module.exports = async (req, res) => {
     try {
         const p = VALID_PRIORITIES.has(priority) ? priority : "MEDIUM";
         const s = source || "unknown";
-        const result = type === "inventorystats"
+        let result = type === "inventorystats"
             ? { data: await getInventoryStats(), cacheStatus: "COMPUTED" }
             : type === "listings"
             ? await fetchListings({ city, page, limit }, p, s)
             : await fetchAmber({ type, params: { city, slug, page, limit }, priority: p, source: s });
+
+        if (type === "listings" && city) {
+            result = await withTimeout(enrichFromKnownResidences(city, result, p, s), MONGO_ENRICH_TIMEOUT_MS, result);
+        }
 
         // Only index on a genuine upstream fetch (cacheStatus "MISS") — same
         // guard accommodationIndex.js's own refreshCityIndex() already uses for
