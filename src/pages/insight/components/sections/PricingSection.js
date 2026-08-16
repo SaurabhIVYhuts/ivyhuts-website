@@ -7,16 +7,44 @@ import { ChartSkeleton } from "../SkeletonBlocks";
 import ErrorState, { EmptyState } from "../ErrorState";
 import { CHART_COLORS } from "../../insightPalette";
 
+// Real Amber data spans many currencies (£/€/$/AED/... — see
+// insightsMarket.js's CURRENCY_SYMBOLS) — averaging raw numbers across them
+// produces a meaningless blended figure (audit fix: this used to sum every
+// currency together and label the result with whichever symbol the FIRST
+// priced property happened to have). Scoped to whichever currency has the
+// most samples instead of guessing an FX rate this codebase has no source
+// for — sampleSize/totalPriced/mixedCurrencies make that scoping honest
+// rather than silent.
 function aggregatePrices(cities) {
   const allProps = cities.filter((c) => c.cached).flatMap((c) => c.properties);
-  const priced = allProps.filter((p) => Number.isFinite(p.minPrice));
-  const currency = priced.find((p) => p.currency)?.currency || "";
-  const avg = priced.length ? Math.round(priced.reduce((s, p) => s + p.minPrice, 0) / priced.length) : null;
-  const min = priced.length ? Math.min(...priced.map((p) => p.minPrice)) : null;
-  const max = priced.length ? Math.max(...priced.map((p) => p.minPrice)) : null;
-  return { avg, min, max, currency, sampleSize: priced.length };
+  const priced = allProps.filter((p) => Number.isFinite(p.minPrice) && p.currency);
+  if (!priced.length) return { avg: null, min: null, max: null, currency: "", sampleSize: 0, totalPriced: 0, mixedCurrencies: false };
+
+  const byCurrency = new Map();
+  for (const p of priced) {
+    if (!byCurrency.has(p.currency)) byCurrency.set(p.currency, []);
+    byCurrency.get(p.currency).push(p);
+  }
+  const [currency, dominant] = [...byCurrency.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+
+  return {
+    avg: Math.round(dominant.reduce((s, p) => s + p.minPrice, 0) / dominant.length),
+    min: Math.min(...dominant.map((p) => p.minPrice)),
+    max: Math.max(...dominant.map((p) => p.minPrice)),
+    currency,
+    sampleSize: dominant.length,
+    totalPriced: priced.length,
+    mixedCurrencies: byCurrency.size > 1,
+  };
 }
 
+// Grouped by country/city (in practice single-currency per real-world
+// market), but each group keeps its OWN currency rather than assuming the
+// caller's global `stats.currency` applies — audit fix: the by-country/
+// by-city bar charts previously labeled every bar with one arbitrary global
+// currency symbol regardless of which market it actually was (e.g. a German
+// bar showing "£450" because the first cached property overall happened to
+// be priced in pounds).
 function avgPriceByKey(cities, keyFn) {
   const groups = new Map();
   for (const c of cities.filter((c) => c.cached)) {
@@ -24,14 +52,14 @@ function avgPriceByKey(cities, keyFn) {
       if (!Number.isFinite(p.minPrice)) continue;
       const key = keyFn(p, c);
       if (!key) continue;
-      const g = groups.get(key) || { label: key, sum: 0, count: 0 };
+      const g = groups.get(key) || { label: key, sum: 0, count: 0, currency: p.currency || "" };
       g.sum += p.minPrice;
       g.count += 1;
       groups.set(key, g);
     }
   }
   return Array.from(groups.values())
-    .map((g) => ({ label: g.label, value: Math.round(g.sum / g.count) }))
+    .map((g) => ({ label: g.label, value: Math.round(g.sum / g.count), currency: g.currency }))
     .sort((a, b) => b.value - a.value);
 }
 
@@ -73,7 +101,16 @@ export default function PricingSection({ market, loading, error, onRetry, onRese
       </div>
 
       <div className="insight-kpi-grid">
-        <KpiCard icon={<Tag size={18} />} label="Average Asking Price" value={stats.avg != null ? `${stats.currency}${stats.avg.toLocaleString()}` : "—"} description={`n=${stats.sampleSize} cached properties`} />
+        <KpiCard
+          icon={<Tag size={18} />}
+          label="Average Asking Price"
+          value={stats.avg != null ? `${stats.currency}${stats.avg.toLocaleString()}` : "—"}
+          description={
+            stats.mixedCurrencies
+              ? `n=${stats.sampleSize} ${stats.currency} properties (of ${stats.totalPriced} cached total — other currencies excluded, not blended)`
+              : `n=${stats.sampleSize} cached properties`
+          }
+        />
         <KpiCard icon={<ArrowDownCircle size={18} />} label="Minimum Asking Price" value={stats.min != null ? `${stats.currency}${stats.min.toLocaleString()}` : "—"} />
         <KpiCard icon={<ArrowUpCircle size={18} />} label="Maximum Asking Price" value={stats.max != null ? `${stats.currency}${stats.max.toLocaleString()}` : "—"} />
         <DataUnavailableCard label="Average Discount / Booked vs. Listed" reason="Booked price is not currently captured — discount % cannot be computed." />
@@ -82,11 +119,11 @@ export default function PricingSection({ market, loading, error, onRetry, onRese
       <div className="insight-card-grid-2">
         <div className="insight-card">
           <h3>Average Asking Price by Country</h3>
-          <BarList data={byCountry} color={CHART_COLORS.gold} formatValue={(v) => `${stats.currency}${v.toLocaleString()}`} />
+          <BarList data={byCountry} color={CHART_COLORS.gold} formatValue={(v, row) => `${row?.currency || stats.currency}${v.toLocaleString()}`} />
         </div>
         <div className="insight-card">
           <h3>Average Asking Price by City</h3>
-          <BarList data={byCity} color={CHART_COLORS.gold} formatValue={(v) => `${stats.currency}${v.toLocaleString()}`} />
+          <BarList data={byCity} color={CHART_COLORS.gold} formatValue={(v, row) => `${row?.currency || stats.currency}${v.toLocaleString()}`} />
         </div>
       </div>
 

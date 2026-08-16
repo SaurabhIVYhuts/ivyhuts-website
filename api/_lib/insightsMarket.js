@@ -865,12 +865,31 @@ function filterBreakdown(breakdown, { country, city } = {}) {
         .sort((a, b) => b.soldOut - a.soldOut)
         .map((p, i) => ({ ...p, soldOutShare: totalSoldOut ? p.soldOut / totalSoldOut : null, rank: i + 1 }));
 
+    // Same derivation buildFullBreakdown() uses, over the now-filtered
+    // `properties` — audit gap fix: this function originally left `pricing`
+    // untouched, so a filtered historical view (e.g. country=UK) still
+    // showed the average/median/min/max SOLD-OUT asking price across the
+    // ENTIRE unfiltered snapshot while every other number on screen was
+    // correctly narrowed. Sold-out-only scope matches buildFullBreakdown's
+    // own documented intent, not a new decision made here.
+    const pricedValues = properties.filter((p) => Number.isFinite(p.minPrice)).map((p) => p.minPrice);
+    const sortedPrices = [...pricedValues].sort((a, b) => a - b);
+    const pricing = {
+        sampleSize: pricedValues.length,
+        currency: properties.find((p) => p.currency)?.currency || null,
+        average: pricedValues.length ? Math.round(pricedValues.reduce((s, v) => s + v, 0) / pricedValues.length) : null,
+        median: computeMedian(sortedPrices),
+        min: pricedValues.length ? sortedPrices[0] : null,
+        max: pricedValues.length ? sortedPrices[sortedPrices.length - 1] : null,
+    };
+
     return {
         ...breakdown,
         cities,
         countries,
         postcodes,
         properties,
+        pricing,
         totalSoldOut,
         totalAvailable,
         coverage: breakdown.coverage

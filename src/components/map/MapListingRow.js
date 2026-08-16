@@ -14,7 +14,7 @@ import "./MapListingRow.css";
 // click-to-navigate card like CompactPropertyCard. Reuses WishlistHeart and
 // the existing /property/:slug route as-is.
 export default function MapListingRow({ listing, active, onSelect }) {
-  const { id, name, address, image, price, rating, badges, slug, distanceKm } = listing;
+  const { id, name, address, image, price, rating, badges, slug, distanceKm, isSoldOut } = listing;
 
   const wishlistSnapshot = id != null ? {
     propertyId: String(id),
@@ -46,7 +46,13 @@ export default function MapListingRow({ listing, active, onSelect }) {
         {distanceKm != null && <p className="mlr-distance">{distanceKm} km away</p>}
         <div className="mlr-footer">
           <span className="mlr-price">
-            {price?.from != null ? <>From {price.currency}{price.from}{price.duration ? <span className="mlr-duration">/{price.duration}</span> : null}</> : "Price on request"}
+            {isSoldOut ? (
+              <span className="mlr-price--soldout">Sold Out</span>
+            ) : price?.from != null ? (
+              <>From {price.currency}{price.from}{price.duration ? <span className="mlr-duration">/{price.duration}</span> : null}</>
+            ) : (
+              "Price on request"
+            )}
           </span>
           {rating?.overall != null && <span className="mlr-rating"><Star size={11} fill="currentColor" /> {rating.overall}</span>}
         </div>

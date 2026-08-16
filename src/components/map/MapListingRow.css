@@ -88,6 +88,8 @@
 
 .mlr-price { font-size: 0.84rem; font-weight: 700; color: var(--brand-purple-deep); }
 
+.mlr-price--soldout { color: #9B3A3A; text-transform: uppercase; letter-spacing: 0.3px; }
+
 .mlr-duration { font-weight: 500; color: #9A8290; }
 
 .mlr-rating {

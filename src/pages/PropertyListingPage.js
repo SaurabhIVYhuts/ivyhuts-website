@@ -337,13 +337,30 @@ export default function PropertyListingPage() {
     return Array.from(set).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
   }, [listings]);
 
+  // Bounds/filter/sort all compare `priceWeekly` (amberMapper.js's
+  // weekly-equivalent of price.from), not the raw amount — audit fix.
+  // Listings genuinely bill in different periods (UK properties are usually
+  // weekly, EU/Dubai ones often monthly), so comparing raw price.from mixed
+  // a €900/month property (900) against a £200/week one (200) as if 900 were
+  // the bigger number, when the monthly one is actually cheaper per week
+  // (~£184-equivalent). Falls back to the raw amount only for the rare
+  // unrankable-duration case (priceWeekly null — e.g. "term"/"semester"
+  // billing, which has no real per-week conversion to fabricate).
+  // Currency is NOT normalized the same way — there's no real FX rate in
+  // this codebase to convert with, so mixed-currency comparison stays a
+  // known, accepted limitation (see PriceRangeSlider.js's own header
+  // comment), not something this fix invents an answer for.
   const priceBounds = useMemo(() => {
-    const prices = listings.map((l) => l.price.from).filter((p) => Number.isFinite(p));
+    const prices = listings.map((l) => l.priceWeekly ?? l.price.from).filter((p) => Number.isFinite(p));
     if (!prices.length) return { min: 0, max: 1000 };
     return { min: Math.floor(Math.min(...prices)), max: Math.ceil(Math.max(...prices)) };
   }, [listings]);
   const priceCurrency = useMemo(() => listings.find((l) => l.price.currency)?.price.currency || "£", [listings]);
-  const priceDuration = useMemo(() => listings.find((l) => l.price.duration)?.price.duration || "week", [listings]);
+  // Always "week" now — every value compared against priceBounds/filters is
+  // a weekly-equivalent (or, for the rare unrankable case, the listing's own
+  // raw amount/duration), so the slider must label what the numbers actually
+  // mean rather than whichever duration the first listing happens to bill in.
+  const priceDuration = "week";
 
   const sortOptions = useMemo(
     () => (resolvedUniversity && hasValidCoords(resolvedUniversity.latitude, resolvedUniversity.longitude)
@@ -383,7 +400,12 @@ export default function PropertyListingPage() {
         .toLowerCase();
       const textMatch = !q || haystack.includes(q);
 
-      const price = l.price.from ?? 0;
+      // Weekly-equivalent (see priceBounds above) — a raw price.from compare
+      // here previously excluded genuinely-in-budget monthly-billed
+      // properties (e.g. a real €900/month property, ~€184/week, wrongly
+      // failing a maxPrice=300 filter meant as "≤£300/week" purely because
+      // 900 &gt; 300 in raw terms).
+      const price = l.priceWeekly ?? l.price.from ?? 0;
       const minOk = !filters.minPrice || price >= Number(filters.minPrice);
       const maxOk = !filters.maxPrice || price <= Number(filters.maxPrice);
 
@@ -398,8 +420,12 @@ export default function PropertyListingPage() {
     });
 
     const sorted = [...filtered];
-    if (filters.sortBy === "price_asc") sorted.sort((a, b) => (a.price.from ?? Infinity) - (b.price.from ?? Infinity));
-    else if (filters.sortBy === "price_desc") sorted.sort((a, b) => (b.price.from ?? -Infinity) - (a.price.from ?? -Infinity));
+    // Weekly-equivalent sort — see priceBounds' comment above. A raw
+    // price.from sort previously ranked a €800/month property (800) behind a
+    // £200/week one (200) even when the monthly property was actually
+    // cheaper per week.
+    if (filters.sortBy === "price_asc") sorted.sort((a, b) => (a.priceWeekly ?? a.price.from ?? Infinity) - (b.priceWeekly ?? b.price.from ?? Infinity));
+    else if (filters.sortBy === "price_desc") sorted.sort((a, b) => (b.priceWeekly ?? b.price.from ?? -Infinity) - (a.priceWeekly ?? a.price.from ?? -Infinity));
     else if (filters.sortBy === "rating_desc") sorted.sort((a, b) => (b.rating?.overall ?? -1) - (a.rating?.overall ?? -1));
     else if (filters.sortBy === "distance") sorted.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
 
@@ -786,8 +812,8 @@ export default function PropertyListingPage() {
               <div className="listings-error">
                 {error.isRateLimit ? (
                   <>
-                    <strong>We're fetching too fast.</strong> Amber is briefly limiting requests —
-                    please try again in about {Math.ceil(error.retryAfterSeconds / 60)} minute
+                    <strong>We're briefly rate-limited.</strong> Please try again in about{" "}
+                    {Math.ceil(error.retryAfterSeconds / 60)} minute
                     {Math.ceil(error.retryAfterSeconds / 60) === 1 ? "" : "s"}.
                   </>
                 ) : (
@@ -851,8 +877,8 @@ export default function PropertyListingPage() {
               <div className="listings-error">
                 {error.isRateLimit ? (
                   <>
-                    <strong>We're fetching too fast.</strong> Amber is briefly limiting requests —
-                    please try again in about {Math.ceil(error.retryAfterSeconds / 60)} minute
+                    <strong>We're briefly rate-limited.</strong> Please try again in about{" "}
+                    {Math.ceil(error.retryAfterSeconds / 60)} minute
                     {Math.ceil(error.retryAfterSeconds / 60) === 1 ? "" : "s"}.
                   </>
                 ) : (

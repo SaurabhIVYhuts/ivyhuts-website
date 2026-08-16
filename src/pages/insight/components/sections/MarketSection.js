@@ -85,7 +85,7 @@ export default function MarketSection({ market, overview, loading, error, onRetr
     if (shareDimension === "country") return (market.countries || []).slice(0, 10).map((c) => ({ label: c.country, value: c.soldOut, id: c.country }));
     if (shareDimension === "city") return cachedCities.slice(0, 10).map((c) => ({ label: c.city, sublabel: c.country, value: c.soldOut, id: c.city }));
     if (shareDimension === "postcode") return (market.postcodes || []).slice(0, 10).map((p) => ({ label: p.postcode, sublabel: p.city, value: p.soldOut, id: p.postcode }));
-    return (market.properties || []).slice(0, 10).map((p) => ({ label: p.name, sublabel: p.city, value: p.minPrice ?? 0, id: p.id || p.slug }));
+    return (market.properties || []).slice(0, 10).map((p) => ({ label: p.name, sublabel: p.city, value: p.minPrice ?? 0, id: p.id || p.slug, currency: p.currency }));
   }, [market, shareDimension, cachedCities]);
 
   if (loading) {
@@ -178,9 +178,14 @@ export default function MarketSection({ market, overview, loading, error, onRetr
           <BarList
             data={shareData}
             color={CHART_COLORS.purple}
-            formatValue={(v) =>
+            formatValue={(v, row) =>
               shareDimension === "property"
-                ? `${market.pricing?.currency || ""}${v.toLocaleString()}`
+                // Each property's OWN currency (audit fix) — market.pricing.currency
+                // is a single global symbol that doesn't hold across countries,
+                // and this list is sorted by price across every cached property,
+                // not scoped to one market the way PricingSection's by-country/
+                // by-city aggregates are.
+                ? `${row?.currency || ""}${v.toLocaleString()}`
                 : `${v.toLocaleString()} (${crawlSoldOutCounted ? Math.round((v / crawlSoldOutCounted) * 100) : 0}%)`
             }
             emptyMessage={`No ${shareDimension} data available yet.`}
