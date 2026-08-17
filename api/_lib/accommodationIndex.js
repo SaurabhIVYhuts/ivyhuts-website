@@ -24,6 +24,28 @@ const AccommodationResidence = require("./models/AccommodationResidence");
 const AccommodationIndexMeta = require("./models/AccommodationIndexMeta");
 const { fetchListings, fetchAmber, normalizeCityName } = require("./amberGateway");
 const { log } = require("./sharedStore");
+const { withTimeout } = require("./withTimeout");
+
+// CONFIRMED LIVE (production 504 on ivyhuts.com/properties?city=New York):
+// refreshCityIndex()'s own fetchListings() call already has an internal
+// AMBER_FETCH_TIMEOUT_MS (~25s) deadline for a SINGLE Amber attempt — but a
+// never-before-indexed city forces this refresh on every request, and
+// fetchListings' own pagination (amberGateway.js) can chain several
+// sequential Amber calls, each also subject to LOCK_POLL_INTERVALS_MS lock-
+// wait under concurrent traffic — the sum comfortably exceeds Vercel's own
+// function ceiling (vercel.json's maxDuration:30 for api/city-listings.js),
+// which then hard-kills the whole invocation (FUNCTION_INVOCATION_TIMEOUT,
+// a 504 with no JSON body at all — worse than "slow", it's un-parseable).
+// refreshCityIndex() itself never throws (see its own header), so wrapping
+// it here only ever protects against SLOW, never masks a real failure (see
+// withTimeout.js's own caveat on that distinction). 15s leaves comfortable
+// room, even in the worst case, for connectToDatabase()'s own up-to-10s
+// serverSelectionTimeoutMS (called separately, before this) plus the
+// following Mongo read and response serialization, safely inside the 30s
+// ceiling — a refresh that doesn't finish in time just means this request
+// serves whatever was already indexed (possibly nothing, "building"); the
+// refresh itself may still finish and persist in the background afterward.
+const REFRESH_TIMEOUT_MS = 15000;
 
 // Fresh (<30min) and stale-but-usable (<24h) are behaviorally identical here
 // — both just read Mongo with zero Amber attempts — so there is deliberately
@@ -788,7 +810,11 @@ async function getCityResidences(city, { budget, accommodationPreference, priori
         // future truly-expired request do the one coordinated refresh").
         residenceDocs = await readMongoResidences(normalizedCity);
     } else {
-        const { residences: refreshed } = await refreshCityIndex(normalizedCity, priority, source);
+        const { residences: refreshed } = await withTimeout(
+            refreshCityIndex(normalizedCity, priority, source),
+            REFRESH_TIMEOUT_MS,
+            { residences: [], refreshed: false }
+        );
         residenceDocs = refreshed.length ? refreshed : await readMongoResidences(normalizedCity);
     }
 
@@ -836,11 +862,12 @@ async function getCityListings(city, { priority = "MEDIUM", source = "listings-p
     const age = meta?.lastRefreshedAt ? now - new Date(meta.lastRefreshedAt).getTime() : Infinity;
 
     if (!meta || age >= MAX_AGE_MS) {
-        // Never throws (see refreshCityIndex) — a failed/slow Amber refresh
-        // just means this cycle's read below falls back to whatever was
-        // already indexed from before, same degrade-to-known-data contract
-        // as every other caller of this function.
-        await refreshCityIndex(normalizedCity, priority, source);
+        // Bounded (see REFRESH_TIMEOUT_MS above) — a failed/slow Amber
+        // refresh just means this cycle's read below falls back to whatever
+        // was already indexed from before, same degrade-to-known-data
+        // contract as every other caller of this function, but WITHOUT
+        // risking the whole request past Vercel's function ceiling.
+        await withTimeout(refreshCityIndex(normalizedCity, priority, source), REFRESH_TIMEOUT_MS, null);
     }
 
     const residenceDocs = await readAllMongoResidences(normalizedCity);
