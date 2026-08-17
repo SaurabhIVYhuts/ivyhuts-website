@@ -809,18 +809,33 @@ function mapResidenceDocToListing(doc) {
     isSoldOut: doc.available === false,
     selectedRoomType: null,
     distances: {
-      cityCentre: Number.isFinite(doc.distanceToCentreKm) ? `${doc.distanceToCentreKm} km` : null,
-      nearby: [],
+      // Rounded to 1 decimal (same convention accommodationIndex.js's own
+      // toOutputShape uses for this same field) — the stored value is a
+      // parsed float (see parseDistanceKm), unlike the live-Amber path's
+      // distances.cityCentre, which is Amber's own already-formatted
+      // display string ("0.5 km") and never needed rounding.
+      cityCentre: Number.isFinite(doc.distanceToCentreKm) ? `${Math.round(doc.distanceToCentreKm * 10) / 10} km` : null,
+      nearby: Array.isArray(doc.nearbyPlaces) ? doc.nearbyPlaces.slice(0, 4).map((d) => ({ place: d.place, distance: d.distance })) : [],
     },
-    amenities: { shown: [], moreCount: 0, all: [] },
-    badges: [],
-    offerText: "",
-    billsIncluded: false,
-    rooms: { count: null, activeCount: null, bedroomCount: null, bathroomCount: null, types: doc.roomType ? [doc.roomType] : [] },
+    amenities: {
+      shown: Array.isArray(doc.amenities) ? doc.amenities.slice(0, 6) : [],
+      moreCount: Array.isArray(doc.amenities) ? Math.max(0, doc.amenities.length - 6) : 0,
+      all: Array.isArray(doc.amenities) ? doc.amenities : [],
+    },
+    badges: Array.isArray(doc.badges) ? doc.badges : [],
+    offerText: doc.offerText || "",
+    billsIncluded: !!doc.billsIncluded,
+    rooms: {
+      count: Number.isFinite(doc.roomsCount) ? doc.roomsCount : null,
+      activeCount: null,
+      bedroomCount: null,
+      bathroomCount: null,
+      types: Array.isArray(doc.roomTypes) && doc.roomTypes.length ? doc.roomTypes : (doc.roomType ? [doc.roomType] : []),
+    },
     moveInOptions: [],
     stayDurationOptions: [],
     rating: Number.isFinite(doc.rating) ? { overall: doc.rating, categories: [] } : null,
-    social: { shortlisted: null, recentEnquiries: null, recentBooking: null },
+    social: { shortlisted: doc.socialShortlisted || null, recentEnquiries: null, recentBooking: null },
     available: doc.available !== false,
     detailUrl: null,
     // Not read by any component today — a hook for a future "may be a few

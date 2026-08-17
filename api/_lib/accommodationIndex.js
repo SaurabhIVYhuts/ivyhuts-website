@@ -116,6 +116,100 @@ function getRoomType(raw) {
     return titleCase(first) || null;
 }
 
+// The four extractors below mirror src/services/amberMapper.js's
+// getAmenities/getBadges/getRooms/getSocialProof/getDistances — same
+// duplication rationale as this file's header comment already gives for
+// mapAmberItemToResidence as a whole (api/_lib is plain CommonJS, that file
+// is an ES module for CRA's build). Added so the general property browse/
+// search page's cards (api/city-listings.js) can show the same amenity
+// chips, badges, room count and nearby-place lines the live-Amber-sourced
+// cards already do — the original narrow shape here was deliberately built
+// only for the Planner's compact card, which never needed them.
+const AMENITY_STORE_LIMIT = 12;
+function getAmenitiesList(raw) {
+    const out = [];
+    const seen = new Set();
+    const add = (name) => {
+        const clean = (name || "").trim();
+        if (!clean) return;
+        const key = clean.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(clean);
+    };
+    if (Array.isArray(raw.features)) {
+        for (const category of raw.features) {
+            if (!category || !Array.isArray(category.values)) continue;
+            for (const v of category.values) if (v && v.name) add(v.name);
+        }
+    }
+    if (Array.isArray(raw.tags)) {
+        for (const t of raw.tags) {
+            if (typeof t !== "string" || t === "not_available") continue;
+            add(titleCase(t));
+        }
+    }
+    return out.slice(0, AMENITY_STORE_LIMIT);
+}
+
+function truthy(v) {
+    return v === true || v === "true" || v === 1 || v === "1";
+}
+
+function getBadgesInfo(raw) {
+    const cro = raw.meta?.cro_tags || {};
+    const badges = [];
+    if (truthy(cro.is_student_choice)) badges.push("Student's Choice");
+    if (truthy(cro.is_amber_exclusive)) badges.push("Exclusive");
+    if (truthy(cro.is_property_of_the_day)) badges.push("Property of the Day");
+    if (truthy(cro.is_filling_fast_v2) || truthy(cro.is_fast_filling)) badges.push("Filling Fast");
+    if (truthy(cro.is_immediate_move_in)) badges.push("Immediate Move-in");
+    if (truthy(cro.is_breakfast_included)) badges.push("Breakfast Included");
+    if (truthy(cro.is_budget_friendly)) badges.push("Budget Friendly");
+
+    const hasDiscount = truthy(cro.has_discounts);
+    const offerText = cro.amber_sale && typeof cro.amber_sale.offer === "string" ? cro.amber_sale.offer : null;
+    if (hasDiscount) badges.push("Offer Available");
+
+    const billsIncluded =
+        (Array.isArray(raw.features) && raw.features.some((f) => f && f.type === "bills_included")) ||
+        (Array.isArray(raw.tags) && raw.tags.some((t) => typeof t === "string" && t.toLowerCase().includes("bills_included")));
+    if (billsIncluded) badges.push("Bills Included");
+
+    const dualOccupancy = Array.isArray(raw.tags) && raw.tags.includes("dual_occupancy");
+    if (dualOccupancy) badges.push("Dual Occupancy");
+
+    return { badges, offerText, billsIncluded };
+}
+
+function getRoomsSummary(raw) {
+    const children = Array.isArray(raw.children) ? raw.children : [];
+    const unitTypes = new Set();
+    const addType = (t) => {
+        if (!t || /^\d/.test(t)) return; // skip cryptic bedroom-count codes like "1b", "3b"
+        unitTypes.add(titleCase(t));
+    };
+    (raw.meta?.unit_types || []).forEach(addType);
+    children.forEach((c) => addType(c?.meta?.unit_type));
+    return {
+        count: toNumber(raw.children_count) ?? children.length,
+        types: Array.from(unitTypes).slice(0, 4),
+    };
+}
+
+function getNearbyPlacesList(raw, limit = 4) {
+    const list = Array.isArray(raw?.meta?.distances) ? raw.meta.distances : [];
+    const cityCentre = list.find((d) => d && /city cent(re|er)/i.test(d.place || ""));
+    const nearby = list.filter((d) => d && d !== cityCentre && d.place && d.distance);
+    return nearby.slice(0, limit).map((d) => ({ place: d.place, distance: d.distance }));
+}
+
+function getSocialShortlisted(raw) {
+    const facts = Array.isArray(raw?.meta?.facts) ? raw.meta.facts : [];
+    const entry = facts.find((f) => f && f.name === "shortlisted_in_30days");
+    return entry?.value || null;
+}
+
 const WEEKS_PER_MONTH = 52 / 12;
 
 // Mirrors the transform src/services/amberMapper.js's getPrice() already
@@ -155,6 +249,8 @@ function mapAmberItemToResidence(raw, normalizedCity) {
     const pricing = raw.pricing || {};
     const priceAmount = toNumber(pricing.min_price ?? pricing.available_price ?? pricing.price);
     const priceDuration = normalizeDuration(pricing.duration);
+    const { badges, offerText, billsIncluded } = getBadgesInfo(raw);
+    const rooms = getRoomsSummary(raw);
     return {
         source: "amber",
         propertyId,
@@ -176,6 +272,14 @@ function mapAmberItemToResidence(raw, normalizedCity) {
         distanceToCentreKm: getCityCentreDistanceKm(raw),
         nearbyUniversities: getNearbyUniversities(raw),
         available: raw.available !== false,
+        amenities: getAmenitiesList(raw),
+        badges,
+        offerText,
+        billsIncluded,
+        roomsCount: rooms.count,
+        roomTypes: rooms.types,
+        nearbyPlaces: getNearbyPlacesList(raw),
+        socialShortlisted: getSocialShortlisted(raw),
     };
 }
 
