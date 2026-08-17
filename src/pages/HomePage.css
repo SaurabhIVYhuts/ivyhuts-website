@@ -4,142 +4,10 @@
    Reuses the global palette/typography — no new design language.
    ═══════════════════════════════════════════════════════ */
 
-/* ── HERO SEARCH ── */
-.hero-search-form {
-  display: flex;
-  gap: 10px;
-  margin: 38px 0 16px;
-  max-width: 680px;
-}
-
-.hero-search-input-wrap {
-  position: relative;
-  flex: 1;
-  border-radius: var(--radius-full);
-  box-shadow: 0 10px 26px rgba(0,0,0,0.22);
-  border: 1px solid rgba(255,255,255,0.16);
-  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-}
-
-.hero-search-input-wrap:hover {
-  border-color: rgba(255,255,255,0.3);
-}
-
-.hero-search-input-wrap:focus-within {
-  box-shadow: 0 0 0 3px rgba(245, 217, 120, 0.45), 0 12px 28px rgba(0,0,0,0.26);
-  border-color: rgba(245,217,120,0.5);
-  transform: translateY(-1px);
-}
-
-.hero-search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #A68E9B;
-  pointer-events: none;
-}
-
-.hero-search-input {
-  width: 100%;
-  padding: 18px 34px 18px 40px;
-  border-radius: var(--radius-full);
-  border: none;
-  outline: none;
-  font-family: inherit;
-  font-size: 0.96rem;
-  color: #3A2442;
-  background: rgba(255, 255, 255, 0.96);
-}
-
-.hero-search-input::placeholder { color: #A68E9B; }
-
-.hero-search-clear {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(94, 58, 107, 0.1);
-  color: #6B4E5E;
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.hero-search-clear:hover {
-  background: rgba(94, 58, 107, 0.18);
-  color: #3A2442;
-}
-
-.hero-search-btn {
-  padding: 18px 26px;
-  border-radius: var(--radius-full);
-  border: none;
-  background: linear-gradient(135deg, #C47A8A 0%, #B05E72 100%);
-  color: #fff;
-  font-family: inherit;
-  font-size: 0.98rem;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.hero-search-btn:hover,
-.hero-search-btn:focus-visible {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(196, 122, 138, 0.4);
-}
-
-.hero-search-suggestions {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 14px 32px rgba(58, 36, 66, 0.18);
-  list-style: none;
-  margin: 0;
-  padding: 6px;
-  z-index: 40;
-  max-height: 260px;
-  overflow-y: auto;
-}
-
-.hero-search-suggestions li button {
-  width: 100%;
-  text-align: left;
-  padding: 9px 12px;
-  border-radius: 8px;
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: 0.9rem;
-  color: #3A2442;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hero-search-suggestions li button:hover,
-.hero-search-suggestions li button:focus-visible {
-  background: rgba(94, 58, 107, 0.08);
-}
-
-.hero-suggestion-flag { font-size: 1rem; }
-
-.hero-suggestion-country {
-  margin-left: auto;
-  font-size: 0.76rem;
-  color: #A68E9B;
-}
+/* Hero search bar is now GlobalSearchBar (src/components/search/
+   GlobalSearchBar.js + its own CSS) — see the `.gsb-form` mobile-ordering
+   rule further down for the one piece of positioning that's genuinely this
+   page's concern (where the bar sits inside the hero flex layout). */
 
 /* ── PILL BUTTONS (recent searches, country/city selectors) ── */
 .pill-btn {
@@ -221,16 +89,12 @@
 
 @media (min-width: 769px) {
   .mobile-hero-text { display: none !important; }
-  .hero-search-btn-icon { display: none !important; }
-  .mobile-only-input { display: none !important; }
 }
 
 @media (max-width: 768px) {
   /* Hide desktop text & icon & input */
   .desktop-hero-text { display: none !important; }
-  .desktop-only-icon { display: none !important; }
-  .desktop-only-input { display: none !important; }
-  
+
   /* Hero section wrapper redesign to seamlessly connect to navbar */
   .hero {
     background: #5E3A6B !important;
@@ -254,16 +118,12 @@
   .hero-header-row {
     order: 0;
   }
-  .hero-search-form {
+  /* GlobalSearchBar owns its own full mobile pill styling (see
+     GlobalSearchBar.css's max-width:768px block) — this page only needs to
+     say where it sits in the hero's flex order. */
+  .gsb-form {
     order: -1;
     margin-bottom: 16px;
-    flex-direction: row;
-    align-items: center;
-    background: #fff;
-    border-radius: 50px;
-    padding: 5px;
-    gap: 0;
-    max-width: 100%;
   }
 
   /* Mobile text styling — kept compact (smaller heading, tighter gaps) so
@@ -406,45 +266,6 @@
     flex-shrink: 0;
   }
 
-  /* Search input styling */
-  .hero-search-input-wrap {
-    border: none;
-    box-shadow: none;
-    background: transparent;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    flex: 1;
-  }
-  .hero-search-input {
-    background: transparent;
-    padding: 10px 16px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #333;
-    flex: 1;
-    box-shadow: none;
-  }
-  .hero-search-input.mobile-only-input::placeholder {
-    color: #333;
-    font-weight: 600;
-  }
-  
-  .hero-search-btn {
-    background: linear-gradient(135deg, #C47A8A 0%, #B05E72 100%);
-    border-radius: 50%;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: unset;
-    box-shadow: none;
-    flex-shrink: 0;
-  }
-  .hero-search-btn-text { display: none; }
-  .hero-search-btn-icon { display: block !important; color: #fff; }
   .search-autocomplete-footer {
     display: none;
   }

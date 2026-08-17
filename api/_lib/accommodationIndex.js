@@ -72,6 +72,26 @@ function getCityCentreDistanceKm(raw) {
     return entry ? parseDistanceKm(entry.distance) : null;
 }
 
+// Same free-text heuristic src/pages/PropertyListingPage.js's own
+// "University / Area" proximity filter already trusts (its UNIVERSITY_RE) —
+// duplicated rather than imported (CommonJS/ESM boundary, see this file's
+// header). Extracts REAL nearby-place names Amber already reported for this
+// exact property, never a fabricated or curated name. This is what lets the
+// global search index (api/_lib/searchIndex.js) grow to cover every real
+// university/college actually present in the inventory, not just the
+// hand-curated campusUniversities.json shortlist — coverage grows the same
+// way property coverage does, from real Amber responses (index-on-read AND
+// the full-catalog crawl), with zero new Amber calls of its own.
+const NEARBY_UNIVERSITY_RE = /university|college/i;
+const MAX_NEARBY_UNIVERSITIES_PER_RESIDENCE = 5;
+function getNearbyUniversities(raw) {
+    const list = Array.isArray(raw?.meta?.distances) ? raw.meta.distances : [];
+    const names = list
+        .map((d) => (d && typeof d.place === "string" ? d.place.trim() : null))
+        .filter((place) => place && NEARBY_UNIVERSITY_RE.test(place) && !/city cent(re|er)/i.test(place));
+    return Array.from(new Set(names)).slice(0, MAX_NEARBY_UNIVERSITIES_PER_RESIDENCE);
+}
+
 function getPrimaryImage(raw) {
     if (typeof raw.image_featured_link === "string" && raw.image_featured_link.trim()) return raw.image_featured_link;
     if (raw.meta && typeof raw.meta.featured_image_path === "string" && raw.meta.featured_image_path.trim()) return raw.meta.featured_image_path;
@@ -271,6 +291,7 @@ function mapAmberItemToResidence(raw, normalizedCity) {
         rating: getRating(raw),
         roomType: getRoomType(raw),
         distanceToCentreKm: getCityCentreDistanceKm(raw),
+        nearbyUniversities: getNearbyUniversities(raw),
         // Derived from real room/tenancy availability when that data
         // exists (see deriveResidencePricing/isChildRoomAvailable above) —
         // NOT just the property's own coarse top-level flag, which can
@@ -279,13 +300,17 @@ function mapAmberItemToResidence(raw, normalizedCity) {
     };
 }
 
-// Persists one refreshed batch — ONLY called for the caller that observed
-// cacheStatus:"MISS" (see refreshCityIndex). Concurrent first-inserts of the
-// same not-yet-existing document under a unique index can still legitimately
-// race (a fetch that outlives the gateway's own lock TTL is a pre-existing,
-// rare edge case shared by every Amber consumer) — E11000 from that race is
-// swallowed as benign rather than surfaced as a refresh failure.
-async function persistResidences(normalizedCity, mapped) {
+// Just the upsert loop, no AccommodationIndexMeta bookkeeping — split out of
+// persistResidences() so a caller whose batch spans MANY cities in one go
+// (api/_lib/insightsMarket.js's full-catalog crawl, which pages through
+// every city at once rather than one at a time) can persist residences
+// without writing a nonsensical single-city Meta row for a mixed-city batch.
+// Concurrent first-inserts of the same not-yet-existing document under a
+// unique index can still legitimately race (a fetch that outlives the
+// gateway's own lock TTL is a pre-existing, rare edge case shared by every
+// Amber consumer) — E11000 from that race is swallowed as benign rather than
+// surfaced as a failure.
+async function persistResidencesRaw(mapped) {
     await Promise.all(
         mapped.map((doc) =>
             AccommodationResidence.updateOne({ source: doc.source, propertyId: doc.propertyId }, { $set: doc }, { upsert: true }).catch((err) => {
@@ -294,6 +319,15 @@ async function persistResidences(normalizedCity, mapped) {
             })
         )
     );
+}
+
+// Persists one refreshed SINGLE-CITY batch — ONLY called for the caller that
+// observed cacheStatus:"MISS" (see refreshCityIndex). Also updates this
+// city's AccommodationIndexMeta freshness row, which only makes sense when
+// every doc in `mapped` really does belong to `normalizedCity` (true for
+// every existing caller of this function — a per-city fetchListings result).
+async function persistResidences(normalizedCity, mapped) {
+    await persistResidencesRaw(mapped);
     await AccommodationIndexMeta.updateOne(
         { city: normalizedCity },
         { $set: { city: normalizedCity, lastRefreshedAt: new Date(), status: mapped.length ? "ok" : "empty", residenceCount: mapped.length } },
@@ -663,6 +697,7 @@ module.exports = {
     parseDistanceKm,
     refreshCityIndex,
     haversineKm,
+    hasValidCoords,
     attachRankingDistance,
     applyRadius,
     computePriceWeekly,
@@ -671,4 +706,13 @@ module.exports = {
     deriveResidencePricing,
     selectCheapestAvailableTenancy,
     isChildRoomAvailable,
+    // Exported for api/amber.js's "index-on-read" hook (see api/_lib/searchIndex.js
+    // header comment) — lets any successful Amber response opportunistically
+    // upsert into AccommodationResidence without duplicating this upsert logic.
+    persistResidences,
+    // Exported for api/_lib/insightsMarket.js's full-catalog crawl — see
+    // persistResidencesRaw's own header comment for why it needs the raw
+    // (no single-city Meta write) form.
+    persistResidencesRaw,
+    extractResultArray,
 };

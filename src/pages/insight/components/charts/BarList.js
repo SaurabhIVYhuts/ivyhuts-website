@@ -60,8 +60,8 @@ export default function BarList({
               )}
             </div>
             <span className="insight-barlist-value">
-              {formatValue(row[valueKey])}
-              {secondaryKey && <span className="insight-barlist-value-secondary"> / {formatValue(row[secondaryKey])}</span>}
+              {formatValue(row[valueKey], row)}
+              {secondaryKey && <span className="insight-barlist-value-secondary"> / {formatValue(row[secondaryKey], row)}</span>}
             </span>
           </div>
         );

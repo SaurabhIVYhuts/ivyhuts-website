@@ -29,9 +29,14 @@
 // `crawlProgress.complete` is true, so the full ~87-page catalog (at the
 // 6-requests/minute shared budget) finishes in a few minutes without ever
 // bursting Amber or blocking a single request on the whole crawl.
-const { sharedGet, sharedSet, acquireLock, releaseLock } = require("./sharedStore");
-const { fetchListings, RATE_BUDGET_PER_MINUTE } = require("./amberGateway");
+const { sharedGet, sharedSet, acquireLock, releaseLock, log } = require("./sharedStore");
+const { fetchListings, RATE_BUDGET_PER_MINUTE, normalizeCityName } = require("./amberGateway");
 const { getInventoryStats } = require("./inventoryStats");
+const { connectToDatabase } = require("./mongodb");
+const { mapAmberItemToResidence, persistResidencesRaw } = require("./accommodationIndex");
+const AccommodationResidence = require("./models/AccommodationResidence");
+const CAMPUS_UNIVERSITIES = require("./campusUniversities.json");
+const COUNTRY_FULL_NAMES = require("./countryFullNames.json");
 
 const PAGE_LIMIT = 50; // Amber's own max items per page
 const PAGES_PER_ADVANCE = RATE_BUDGET_PER_MINUTE; // at most one full shared budget window's worth of page fetches per call
@@ -58,6 +63,296 @@ const SOLD_OUT_PROPERTIES_CAP = 5000;
 // "done" straight through the next day's 08:00 IST digest, decoupling
 // completion from the digest's fixed schedule.
 const CRAWL_TTL_SECONDS = 26 * 60 * 60;
+
+// A tiny, purpose-built summary derived from `state.countries` — every real
+// country/city the full crawl has discovered so far, and NOTHING else (no
+// per-city price stats, no samples, no the full sold-out property list —
+// those stay in CRAWL_KEY's ~900KB blob). This is what api/_lib/searchIndex.js
+// reads for comprehensive country/city coverage: a global search request
+// must never pay the cost of fetching/parsing the full crawl-state blob just
+// to answer "does this city exist" — confirmed live to take ~1-1.5s for the
+// full blob vs. this summary, which is two orders of magnitude smaller
+// (roughly a few hundred country/city name pairs, well under the crawl's own
+// nearly-1MB size). Kept as its OWN shared-store key (not derived on read
+// from CRAWL_KEY) so a cold /api/search request only ever pays for a small,
+// fast Redis GET, never the large one.
+const LOCATION_INDEX_KEY = "search:locationIndex:v1";
+const LOCATION_INDEX_TTL_SECONDS = CRAWL_TTL_SECONDS;
+
+// Pure — takes an already-loaded crawl state, returns the small summary.
+// Exported separately from saveLocationIndex so a caller (or a test) can
+// inspect the derivation without needing write access to the shared store.
+function buildLocationIndex(state) {
+    const countries = [];
+    const cities = [];
+    for (const [countryName, bucket] of Object.entries(state?.countries || {})) {
+        const countryTotal = (bucket.soldOut || 0) + (bucket.available || 0);
+        if (countryTotal <= 0) continue;
+        const cityNames = Object.keys(bucket.cities || {});
+        countries.push({ name: countryName, cityCount: cityNames.length });
+        for (const cityName of cityNames) {
+            const cityBucket = bucket.cities[cityName];
+            const cityTotal = (cityBucket.soldOut || 0) + (cityBucket.available || 0);
+            // "Unknown" is Amber's own placeholder for a missing locality —
+            // real inventory, but not a real, nameable city, so it would only
+            // ever confuse a location search rather than help one.
+            if (cityTotal <= 0 || !cityName || cityName === "Unknown") continue;
+            cities.push({ name: cityName, country: countryName });
+        }
+    }
+    return { countries, cities, updatedAt: Date.now() };
+}
+
+// Writes the summary — called every time advanceCrawl() runs (see below),
+// on the SAME cadence as the existing 5-minute cron, so if the crawl
+// discovers a new country/city on some future pass, the search-facing
+// summary picks it up automatically within one cron tick, with zero
+// additional Amber calls (this only re-reads/re-derives state the crawl
+// already fetched — no network call to Amber of its own). Best-effort: a
+// failure here must never break the crawl itself, only leave the search
+// summary stale until the next tick retries.
+async function saveLocationIndex(state) {
+    try {
+        const summary = buildLocationIndex(state);
+        await sharedSet(LOCATION_INDEX_KEY, summary, LOCATION_INDEX_TTL_SECONDS);
+    } catch (err) {
+        log(`[insightsMarket] action=LOCATION_INDEX_SAVE_FAILED error=${err.message}`);
+    }
+}
+
+// What api/_lib/searchIndex.js actually reads — small and fast, or null if
+// the crawl has never completed a tick since this summary existed (falls
+// back to curated-only coverage until the next cron tick populates it).
+function loadLocationIndex() {
+    return sharedGet(LOCATION_INDEX_KEY);
+}
+
+// ── Complete search dataset (countries + cities + universities), for the
+// property-search-out-of-scope Global Search phase. Conceptually the
+// "search-data.json" the product spec describes — physically a shared-store
+// key (SEARCH_DATA_KEY below), not a file on disk, because Vercel serverless
+// functions have no persistent/writable filesystem across invocations; the
+// shared store IS this project's existing mechanism for "a generated
+// artifact the crawl produces and other requests read" (see LOCATION_INDEX_KEY
+// above, or amber:invstats:aggregate). api/search-data.js serves this key's
+// contents as real JSON over HTTP, which is what the frontend actually
+// fetches — so from the browser's point of view it IS a JSON document, just
+// backed by Redis instead of a static file, and kept up to date by the
+// existing crawl cron instead of a build step. ──
+const SEARCH_DATA_KEY = "search:searchData:v1";
+const SEARCH_DATA_TTL_SECONDS = CRAWL_TTL_SECONDS;
+
+function slugify(str) {
+    return String(str || "")
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
+// Every REAL university/college name in the inventory: the curated,
+// hand-verified campusUniversities.json (real coordinates/aliases) PLUS
+// every DISTINCT name extracted from properties' own nearby-place data (see
+// accommodationIndex.js's getNearbyUniversities — same free-text signal
+// PropertyListingPage.js's University/Area filter already trusts). This is
+// a background/generation-time read of AccommodationResidence (as part of
+// the crawl's own lifecycle, same as LOCATION_INDEX_KEY above), NOT a
+// per-keystroke property query — the live /api/search-data endpoint only
+// ever reads the already-computed result of this function, never runs it
+// itself. Never fabricates: an extracted entry is exactly the string Amber's
+// own data reported, nothing invented. Best-effort — a Mongo failure here
+// just means the university list stays curated-only until the next tick.
+async function buildSearchDataUniversities() {
+    const universities = [];
+    const seen = new Set();
+    for (const u of CAMPUS_UNIVERSITIES) {
+        const key = String(u.name).trim().toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        universities.push({
+            name: u.name, city: u.city || null, country: u.country || null,
+            slug: slugify(u.name), aliases: u.aliases || [], curated: true,
+        });
+    }
+    try {
+        await connectToDatabase();
+        const rows = await AccommodationResidence.aggregate([
+            { $match: { nearbyUniversities: { $exists: true, $ne: [] } } },
+            { $unwind: "$nearbyUniversities" },
+            { $group: { _id: "$nearbyUniversities", city: { $first: "$city" }, country: { $first: "$country" } } },
+        ]);
+        for (const row of rows) {
+            const key = String(row._id).trim().toLowerCase();
+            if (seen.has(key)) continue; // already represented by a curated, hand-verified record
+            seen.add(key);
+            universities.push({
+                name: row._id, city: row.city || null, country: row.country || null,
+                slug: slugify(row._id), aliases: [], curated: false,
+            });
+        }
+    } catch (err) {
+        log(`[insightsMarket] action=SEARCH_DATA_UNIVERSITIES_FAILED error=${err.message}`);
+    }
+    return universities;
+}
+
+// Real, known abbreviations for the handful of curated countries whose
+// short code genuinely differs from their full name (UK, USA, UAE) — these
+// are the SAME codes destinations.json/searchIndex.js already treat as
+// equivalent to the full name, surfaced here as an explicit alias rather
+// than invented. A crawl-only country with no curated equivalent gets no
+// alias (nothing to draw one from without guessing).
+function countryAliases(fullName) {
+    for (const [code, full] of Object.entries(COUNTRY_FULL_NAMES)) {
+        if (full === fullName && code !== fullName) return [code];
+    }
+    return [];
+}
+
+// The /insight dashboard's country dropdown (src/data/destinations.js) sends
+// curated short codes ("UK", "USA", "UAE") — the same codes COUNTRY_FULL_NAMES
+// already maps to Amber's real full country name. Every real record this
+// file buckets by (state.countries, stored snapshot country/city fields) uses
+// that full name, since it comes straight from Amber's own
+// location.country.long_name (see normalizeItem above) — never the curated
+// short code. Resolving here means every country-filter comparison in this
+// file compares like with like instead of "UK" !== "United Kingdom" silently
+// matching zero rows. A country with no curated code (crawl-only) passes
+// through unchanged.
+function resolveCountryFilter(country) {
+    if (!country) return country;
+    return COUNTRY_FULL_NAMES[country] || country;
+}
+
+// Pure — builds the complete {countries, cities, universities} dataset from
+// an already-loaded crawl state plus the university sources above. Countries/
+// cities reuse buildLocationIndex's own derivation (same real crawl data, so
+// there is exactly one place that decides "what counts as a real discovered
+// city") — this just adds the slug/alias fields the frontend dataset shape
+// needs on top.
+async function buildSearchData(state) {
+    const location = buildLocationIndex(state);
+    const countries = location.countries.map((c) => ({
+        name: c.name, slug: slugify(c.name), aliases: countryAliases(c.name), cityCount: c.cityCount,
+    }));
+    const cities = location.cities.map((c) => ({
+        name: c.name, country: c.country, slug: slugify(c.name), aliases: [],
+    }));
+    const universities = await buildSearchDataUniversities();
+    return { countries, cities, universities, updatedAt: Date.now() };
+}
+
+// Called every time advanceCrawl() runs (see below) — same cadence/failure
+// philosophy as saveLocationIndex above: never breaks the crawl itself, just
+// leaves the dataset stale (or, on the very first tick after this code
+// deploys, absent — api/search-data.js has its own curated-only fallback for
+// exactly that gap) until the next tick retries.
+async function saveSearchData(state) {
+    try {
+        const data = await buildSearchData(state);
+        await sharedSet(SEARCH_DATA_KEY, data, SEARCH_DATA_TTL_SECONDS);
+    } catch (err) {
+        log(`[insightsMarket] action=SEARCH_DATA_SAVE_FAILED error=${err.message}`);
+    }
+}
+
+// What api/search-data.js actually serves — small (countries + cities +
+// universities only, no per-city price stats or sold-out property lists)
+// and pre-computed, so the endpoint itself never touches Amber, Mongo, or
+// the full crawl blob at request time.
+function loadSearchData() {
+    return sharedGet(SEARCH_DATA_KEY);
+}
+
+// Grows LOCATION_INDEX_KEY/SEARCH_DATA_KEY incrementally from REAL traffic —
+// any real listings/detail Amber response the site already fetches for
+// other reasons (a user browsing a city, viewing a property) — instead of
+// waiting for the crawl's next full pass. A country/city genuinely in
+// Amber's catalog that the crawl's LAST completed pass didn't discover
+// (confirmed live: Darwin, Australia — 2 real properties, added to Amber's
+// catalog after the crawl's last pass finished and the crawl then sat idle)
+// becomes searchable the first time ANY real request happens to surface it.
+//
+// Captures BOTH `location.locality` (fine-grained, e.g. "Casuarina") AND
+// `location.district` (the broader city/metro name, e.g. "City of Darwin")
+// as separate real city entries — confirmed live that Amber's own address
+// hierarchy splits these two levels, and a search for "Darwin" only matches
+// district ("City of Darwin" / "Darwin Municipality"), never locality alone.
+// Both are used completely verbatim, exactly as Amber sent them — never
+// cleaned/parsed/renamed ("City of Darwin" is NOT rewritten to "Darwin"),
+// since guessing at that transformation risks being wrong for some other
+// district's naming convention. matchRank's existing word-boundary tier
+// already ranks "darwin" as a strong (not just substring) match against
+// "city of darwin" without any special-casing needed here.
+//
+// Deliberately does NOT touch insights:marketCrawl:v2 (the full crawl
+// state the /insight market-intelligence dashboard depends on) — that
+// key's per-property counts are only accurate as a single coherent full
+// pass, so incrementally poking new cities into it here would silently
+// corrupt its numbers. This function only ever touches the two small
+// search-facing summaries, which have no such "one coherent pass" constraint
+// — a duplicate-safe union is exactly what they need. Same growth
+// philosophy already proven for universities (accommodationIndex.js's
+// getNearbyUniversities), applied here to countries/cities instead. Zero
+// new Amber calls: only ever reads items a response already fetched for a
+// different reason (see api/amber.js's indexOnRead, which is what calls this).
+function realCityNamesFor(item) {
+    const names = new Set();
+    const locality = item?.location?.locality?.long_name;
+    const district = item?.location?.district?.long_name;
+    if (locality) names.add(locality);
+    if (district) names.add(district);
+    return Array.from(names);
+}
+
+async function growSearchDataFromRealTraffic(items) {
+    if (!items || !items.length) return;
+    try {
+        const [locationIndex, searchData] = await Promise.all([loadLocationIndex(), loadSearchData()]);
+        if (!locationIndex && !searchData) return; // nothing to grow yet — the crawl's first tick creates the base
+
+        let locationChanged = false;
+        let searchDataChanged = false;
+        const locCountries = locationIndex ? [...locationIndex.countries] : null;
+        const locCities = locationIndex ? [...locationIndex.cities] : null;
+        const locCountrySet = locationIndex ? new Set(locCountries.map((c) => c.name)) : null;
+        const locCityKeySet = locationIndex ? new Set(locCities.map((c) => `${c.name}|${c.country}`)) : null;
+
+        const sdCountries = searchData ? [...searchData.countries] : null;
+        const sdCities = searchData ? [...searchData.cities] : null;
+        const sdCountrySet = searchData ? new Set(sdCountries.map((c) => c.name)) : null;
+        const sdCityKeySet = searchData ? new Set(sdCities.map((c) => `${c.name}|${c.country}`)) : null;
+
+        for (const item of items) {
+            const country = item?.location?.country?.long_name;
+            if (!country) continue;
+            for (const city of realCityNamesFor(item)) {
+                if (!city || city === "Unknown") continue;
+                const cityKey = `${city}|${country}`;
+
+                if (locationIndex) {
+                    if (!locCountrySet.has(country)) { locCountries.push({ name: country, cityCount: 0 }); locCountrySet.add(country); locationChanged = true; }
+                    if (!locCityKeySet.has(cityKey)) { locCities.push({ name: city, country }); locCityKeySet.add(cityKey); locationChanged = true; }
+                }
+                if (searchData) {
+                    if (!sdCountrySet.has(country)) { sdCountries.push({ name: country, slug: slugify(country), aliases: countryAliases(country), cityCount: 0 }); sdCountrySet.add(country); searchDataChanged = true; }
+                    if (!sdCityKeySet.has(cityKey)) { sdCities.push({ name: city, country, slug: slugify(city), aliases: [] }); sdCityKeySet.add(cityKey); searchDataChanged = true; }
+                }
+            }
+        }
+
+        if (locationChanged) {
+            for (const c of locCountries) c.cityCount = locCities.filter((ct) => ct.country === c.name).length;
+            await sharedSet(LOCATION_INDEX_KEY, { countries: locCountries, cities: locCities, updatedAt: Date.now() }, LOCATION_INDEX_TTL_SECONDS);
+        }
+        if (searchDataChanged) {
+            for (const c of sdCountries) c.cityCount = sdCities.filter((ct) => ct.country === c.name).length;
+            await sharedSet(SEARCH_DATA_KEY, { ...searchData, countries: sdCountries, cities: sdCities, updatedAt: Date.now() }, SEARCH_DATA_TTL_SECONDS);
+        }
+    } catch (err) {
+        log(`[insightsMarket] action=GROW_SEARCH_DATA_FAILED error=${err.message}`);
+    }
+}
 
 function toNumber(v) {
     if (v == null) return null;
@@ -220,6 +515,34 @@ function bucketItem(state, raw, available) {
     }
 }
 
+// Writes every item this crawl page fetched into the SAME AccommodationResidence
+// mirror api/amber.js's index-on-read hook and the Student Planner already
+// populate/query (api/_lib/accommodationIndex.js). This is what makes the
+// global search index (api/_lib/searchIndex.js) eventually cover Amber's
+// ENTIRE catalog rather than only properties a real user has opened —
+// reusing this cron-driven, already-budget-safe crawl (see this file's
+// header) means ZERO additional Amber traffic: this crawl fetches every one
+// of these items on its existing schedule regardless of whether search
+// indexing exists at all. Never allowed to slow down or fail the crawl
+// itself — Mongo being unconfigured or briefly unreachable just leaves this
+// page's items un-indexed until the crawl's next pass revisits them.
+async function persistCrawlItemsToSearchIndex(items) {
+    if (!items.length) return;
+    try {
+        await connectToDatabase();
+    } catch (err) {
+        return; // not configured, or briefly unreachable — search index just stays as-is
+    }
+    try {
+        const mapped = items
+            .map((raw) => mapAmberItemToResidence(raw, normalizeCityName(raw?.location?.locality?.long_name)))
+            .filter((doc) => doc && doc.city);
+        if (mapped.length) await persistResidencesRaw(mapped);
+    } catch (err) {
+        // Best-effort — a search-index write failure must never break the crawl.
+    }
+}
+
 // Advances one side of the crawl (sold-out or available) by up to
 // `callBudget` real page fetches. Stops early (leaving `done: false`) on any
 // error/skip so the next advance call just resumes from the same page — a
@@ -243,6 +566,7 @@ async function advanceCrawlSide(state, sideKey, availableFlag, callBudget) {
         if (side.expectedTotal == null && metaCount != null) side.expectedTotal = metaCount;
 
         for (const raw of items) bucketItem(state, raw, availableFlag);
+        await persistCrawlItemsToSearchIndex(items);
         side.fetchedCount += items.length;
 
         // Once Amber has told us the real total (meta.count, captured above —
@@ -289,11 +613,26 @@ async function advanceCrawl() {
     }
     try {
         const state = await loadCrawlState();
-        if (state.soldOut.done && state.available.done) return state; // nothing left to do
+        if (state.soldOut.done && state.available.done) {
+            // Nothing left to fetch, but still keep the lightweight
+            // search-facing summaries (see LOCATION_INDEX_KEY/SEARCH_DATA_KEY
+            // above) fresh on every tick — cheap (no Amber call, just
+            // re-deriving from state already in hand, plus one Mongo
+            // aggregate for universities) and is what lets a newly-deployed
+            // reader of these summaries see real data within one cron tick
+            // instead of waiting up to CRAWL_TTL_SECONDS for the crawl to restart.
+            await saveLocationIndex(state);
+            await saveSearchData(state);
+            return state;
+        }
 
         const usedSoldOut = await advanceCrawlSide(state, "soldOut", false, Math.ceil(PAGES_PER_ADVANCE / 2));
         const usedAvailable = await advanceCrawlSide(state, "available", true, PAGES_PER_ADVANCE - usedSoldOut);
-        if (usedSoldOut + usedAvailable > 0) await saveCrawlState(state);
+        if (usedSoldOut + usedAvailable > 0) {
+            await saveCrawlState(state);
+            await saveLocationIndex(state);
+            await saveSearchData(state);
+        }
         return state;
     } finally {
         await releaseLock(CRAWL_LOCK_KEY, lockToken);
@@ -320,13 +659,14 @@ function computeMedian(sortedNums) {
 // properties[]/pricing{} — existing consumers of the original fields are
 // unaffected by the additions.
 function buildFullBreakdown(state, siteWide, { country, city } = {}) {
+    const countryFilter = resolveCountryFilter(country);
     const cities = [];
     const countryTotals = {};
     let totalSoldOut = 0;
     let totalAvailable = 0;
 
     for (const [countryName, countryBucket] of Object.entries(state.countries)) {
-        if (country && countryName !== country) continue;
+        if (countryFilter && countryName !== countryFilter) continue;
         let countrySoldOut = 0;
         let countryAvailable = 0;
         for (const [cityName, cityBucket] of Object.entries(countryBucket.cities)) {
@@ -371,7 +711,7 @@ function buildFullBreakdown(state, siteWide, { country, city } = {}) {
     // Postcodes ranked by sold-out count — only real postal-code data,
     // capped to the top 100 (a management dashboard table, not a full dump).
     const postcodes = Object.values(state.postcodes || {})
-        .filter((p) => (!country || p.country === country) && (!city || p.city === city))
+        .filter((p) => (!countryFilter || p.country === countryFilter) && (!city || p.city === city))
         .sort((a, b) => b.soldOut - a.soldOut)
         .slice(0, 100)
         .map((p, i) => ({
@@ -389,7 +729,7 @@ function buildFullBreakdown(state, siteWide, { country, city } = {}) {
     // Intelligence / "strongest sold-out presence" section), filtered the
     // same way as everything else above.
     const properties = (state.soldOutProperties || [])
-        .filter((p) => (!country || p.country === country) && (!city || p.city === city))
+        .filter((p) => (!countryFilter || p.country === countryFilter) && (!city || p.city === city))
         .sort((a, b) => (b.minPrice ?? -1) - (a.minPrice ?? -1));
 
     // Pricing intelligence — average/median/min/max ASKING price of
@@ -471,4 +811,109 @@ async function getMarketIntelligence({ country, city } = {}) {
     return buildFullBreakdown(state, siteWide, { country, city });
 }
 
-module.exports = { getMarketIntelligence, buildFullBreakdown, loadCrawlState, advanceCrawl };
+// Re-filters an ALREADY-BUILT flat breakdown by country/city — the
+// {cities, countries, postcodes, properties} shape buildFullBreakdown()
+// returns above, which api/_lib/models/InsightSnapshot.js stores verbatim.
+// A stored historical snapshot is a frozen document with every real
+// country/city/postcode/property already broken out (not a curated list),
+// so narrowing it to one country/city is pure in-memory array work — no
+// Amber call, which is the whole reason a snapshot is stored in the first
+// place. api/insights/snapshot.js calls this for date < today so the
+// country/city dropdowns work on historical dates the same way they do live,
+// instead of the filters being silently dropped for every date but today.
+// totalSoldOut/totalAvailable and countries[]/postcodes[]' soldOutShare/rank
+// are recomputed from the filtered subset (mirrors buildFullBreakdown's own
+// derivation) so a filtered view's percentages/ranks stay internally
+// consistent rather than referencing the unfiltered total. The absolute
+// siteWide-derived headline figures (totalInventory/soldOutInventory/
+// soldOutPercentage) are deliberately left untouched — same as live mode,
+// where those are the site-wide reconciled totals, not a filter-scoped
+// count (see buildFullBreakdown's own comment on that field).
+function filterBreakdown(breakdown, { country, city } = {}) {
+    const countryFilter = resolveCountryFilter(country);
+    if (!countryFilter && !city) return breakdown;
+
+    const matches = (row) => (!countryFilter || row.country === countryFilter) && (!city || row.city === city);
+    const cities = (breakdown.cities || []).filter(matches);
+    const properties = (breakdown.properties || []).filter(matches);
+
+    let totalSoldOut = 0;
+    let totalAvailable = 0;
+    const countryTotals = {};
+    for (const c of cities) {
+        totalSoldOut += c.soldOut || 0;
+        totalAvailable += c.available || 0;
+        const t = countryTotals[c.country] || { soldOut: 0, available: 0 };
+        t.soldOut += c.soldOut || 0;
+        t.available += c.available || 0;
+        countryTotals[c.country] = t;
+    }
+
+    const countries = Object.entries(countryTotals)
+        .map(([name, t]) => ({
+            country: name,
+            soldOut: t.soldOut,
+            available: t.available,
+            total: t.soldOut + t.available,
+            soldOutShare: totalSoldOut ? t.soldOut / totalSoldOut : null,
+        }))
+        .sort((a, b) => b.soldOut - a.soldOut)
+        .map((c, i) => ({ ...c, rank: i + 1 }));
+
+    const postcodes = (breakdown.postcodes || [])
+        .filter(matches)
+        .sort((a, b) => b.soldOut - a.soldOut)
+        .map((p, i) => ({ ...p, soldOutShare: totalSoldOut ? p.soldOut / totalSoldOut : null, rank: i + 1 }));
+
+    // Same derivation buildFullBreakdown() uses, over the now-filtered
+    // `properties` — audit gap fix: this function originally left `pricing`
+    // untouched, so a filtered historical view (e.g. country=UK) still
+    // showed the average/median/min/max SOLD-OUT asking price across the
+    // ENTIRE unfiltered snapshot while every other number on screen was
+    // correctly narrowed. Sold-out-only scope matches buildFullBreakdown's
+    // own documented intent, not a new decision made here.
+    const pricedValues = properties.filter((p) => Number.isFinite(p.minPrice)).map((p) => p.minPrice);
+    const sortedPrices = [...pricedValues].sort((a, b) => a - b);
+    const pricing = {
+        sampleSize: pricedValues.length,
+        currency: properties.find((p) => p.currency)?.currency || null,
+        average: pricedValues.length ? Math.round(pricedValues.reduce((s, v) => s + v, 0) / pricedValues.length) : null,
+        median: computeMedian(sortedPrices),
+        min: pricedValues.length ? sortedPrices[0] : null,
+        max: pricedValues.length ? sortedPrices[sortedPrices.length - 1] : null,
+    };
+
+    return {
+        ...breakdown,
+        cities,
+        countries,
+        postcodes,
+        properties,
+        pricing,
+        totalSoldOut,
+        totalAvailable,
+        coverage: breakdown.coverage
+            ? { ...breakdown.coverage, citiesWithData: cities.length, totalCities: cities.length, itemsCounted: totalSoldOut + totalAvailable }
+            : breakdown.coverage,
+    };
+}
+
+module.exports = {
+    getMarketIntelligence, buildFullBreakdown, loadCrawlState, advanceCrawl,
+    // Exported for api/insights/snapshot.js — applies the same country/city
+    // filtering to a stored historical snapshot's already-flat breakdown
+    // (see filterBreakdown's own comment above for why no Amber call is
+    // needed to do this).
+    filterBreakdown, resolveCountryFilter,
+    // Exported for api/_lib/searchIndex.js's comprehensive country/city
+    // search — see LOCATION_INDEX_KEY's own comment for why this is a
+    // separate, much smaller artifact than loadCrawlState()'s full blob.
+    loadLocationIndex, buildLocationIndex, saveLocationIndex,
+    // Exported for api/search-data.js — the complete countries/cities/
+    // universities dataset the Global Search's client-side index loads once
+    // (see SEARCH_DATA_KEY's own comment).
+    loadSearchData, buildSearchData, saveSearchData,
+    // Exported for api/amber.js's indexOnRead — grows the same search
+    // dataset from real traffic between crawl passes (see its own header).
+    growSearchDataFromRealTraffic,
+};

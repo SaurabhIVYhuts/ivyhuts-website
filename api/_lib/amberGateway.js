@@ -82,6 +82,41 @@ const LOCK_POLL_INTERVALS_MS = [300, 500, 800, 1200, 1800, 2500];
 
 const COOLDOWN_KEY = "amber:cooldownUntil";
 
+// ── Local in-memory shadow cache — VALUES ONLY, never lock/budget state. ──
+// A safety net for when Redis is *configured* but flaky/unreachable at a
+// given moment (RedisUnavailableError) — a different case from
+// REDIS_AVAILABLE===false (sharedStore.js's own separate, already-safe
+// fallback for "not configured at all"). Without this, one failed cache
+// WRITE guaranteed the very next request for that same key would ALSO miss:
+// cache miss -> Amber -> write fails -> next request -> miss again -> Amber
+// again -> ... — for every request, defeating caching entirely and burning
+// through the shared per-minute Amber budget on pure repeats of the same
+// city. (Confirmed live: CACHE_WRITE_FAILED_REDIS_UNAVAILABLE logged
+// repeatedly for the same handful of cities, each one a real upstream call.)
+//
+// Deliberately NOT used for acquireLock/tryReserveSlot — see fetchAmber()'s
+// own comment below for why falling back to memory for THOSE in a real
+// multi-instance deployment would multiply Amber traffic instead of
+// preventing it. A slightly-stale cached VALUE served from one instance's
+// local memory instead of Redis's shared copy carries no such risk — it's
+// the same "serve stale, never fabricate" tradeoff this file already makes
+// everywhere else, just also covering the "Redis itself is the failure"
+// case, not only "Amber is the failure."
+const SHADOW_CACHE_MAX_ENTRIES = 500;
+const shadowCache = new Map(); // cacheKey -> { data, cachedAt }
+
+function shadowCacheGet(key) {
+    return shadowCache.get(key);
+}
+
+function shadowCacheSet(key, entry) {
+    shadowCache.delete(key); // re-insert at the end for simple LRU-ish ordering
+    shadowCache.set(key, entry);
+    if (shadowCache.size > SHADOW_CACHE_MAX_ENTRIES) {
+        shadowCache.delete(shadowCache.keys().next().value); // evict oldest
+    }
+}
+
 // Server-side retention per data type. maxAgeSeconds is the number that
 // actually matters for correctness: it must be >= the matching client-side
 // staleMs in src/services/amberApi.js's CLIENT_TTL, with a buffer, or the
@@ -243,7 +278,33 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
     // share ONE upstream time budget instead of each getting an independent
     // full timeout — see fetchListings' own comment for why.
     const deadline = deadlineAt || Date.now() + AMBER_FETCH_TIMEOUT_MS;
-    const cached = await sharedGet(cacheKey);
+    // This read was previously unguarded — any Redis hiccup here (not just on
+    // the write below) threw straight out of fetchAmberInner as a raw,
+    // uncaught RedisUnavailableError, skipping every one of the graceful
+    // stale/degraded paths below entirely. Falls back to the local shadow
+    // cache (see its own header comment) instead of treating a flaky READ as
+    // fatal.
+    let cached;
+    try {
+        cached = await sharedGet(cacheKey);
+    } catch (err) {
+        if (!(err instanceof RedisUnavailableError)) throw err;
+        cached = undefined;
+        log(`source=${source} priority=${priority} key=${cacheKey} action=CACHE_READ_FAILED_REDIS_UNAVAILABLE`);
+    }
+    // Also consult the shadow when Redis GET *succeeded* but came back
+    // empty — the exact shape of the bug this whole shadow cache exists for
+    // is "the WRITE silently failed" (see CACHE_WRITE_FAILED_REDIS_UNAVAILABLE
+    // below), which looks identical to a real cache miss from here unless we
+    // check: Redis has nothing not because nothing was ever fetched, but
+    // because it couldn't hold onto what THIS instance already fetched once.
+    if (!cached) {
+        const shadow = shadowCacheGet(cacheKey);
+        if (shadow) {
+            cached = shadow;
+            log(`source=${source} priority=${priority} key=${cacheKey} action=CACHE_READ_SHADOW_FALLBACK`);
+        }
+    }
 
     if (cached && isFresh(cached, ttl.freshSeconds)) {
         log(`source=${source} priority=${priority} cache=HIT key=${cacheKey}`);
@@ -388,15 +449,22 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
             throw err;
         }
         console.log(`[AMBER] event=AMBER_SUCCESS type=${type} city=${params.city || "-"} durationMs=${Date.now() - amberStartedAt} source=${source}`);
+        const freshEntry = { data: json, cachedAt: Date.now() };
         try {
-            await sharedSet(cacheKey, { data: json, cachedAt: Date.now() }, ttl.maxAgeSeconds);
+            await sharedSet(cacheKey, freshEntry, ttl.maxAgeSeconds);
         } catch (err) {
             if (!(err instanceof RedisUnavailableError)) throw err;
             // We have a perfectly good fresh result in hand — Redis merely
-            // failed to *persist* it. Still return it to this caller; we just
-            // won't benefit other instances/requests until Redis recovers.
+            // failed to *persist* it. Still return it to this caller; the
+            // shadow-cache write just below is what keeps the NEXT request
+            // for this same key from also missing and re-hitting Amber.
             log(`source=${source} priority=${priority} key=${cacheKey} action=CACHE_WRITE_FAILED_REDIS_UNAVAILABLE`);
         }
+        // Always populated, regardless of whether the Redis write above
+        // succeeded — keeps this instance's shadow warm so a LATER Redis
+        // hiccup (on some future request) still has a good local fallback,
+        // not just the one that happened to coincide with an outage.
+        shadowCacheSet(cacheKey, freshEntry);
 
         // Reuse: a full listings page already contains everything a separate
         // citystats call would need (Amber's inventories endpoint returns the
@@ -508,22 +576,45 @@ function matchesCity(item, cityLower) {
 // checking only for emptiness would let the second case through unfiltered
 // and serve some other city's listings under this city's name, so every
 // primary result is sanity-checked against the requested city via
-// matchesCity() before being trusted. The fallback — fetch the unfiltered
-// dataset and filter server-side — is itself a normal fetchAmber() call, so
-// it's cached/budgeted/stampede-protected exactly like any other request.
-// Once that unfiltered dataset is cached once, every city's fallback becomes
-// a free cache hit instead of a second Amber call.
+// matchesCity() before being trusted.
 //
-// Both legs share ONE deadlineAt, established here once, rather than each
+// CONFIRMED LIVE (Derby investigation): the failure mode isn't limited to
+// "empty" — Amber's own reported meta.count for `location_place_name=derby`
+// has been observed as 1, 3, and 251 (mostly wrong-city noise) across
+// separate calls the same day, while the independent full-catalog crawl
+// (api/_lib/insightsMarket.js — reads each item's own real
+// location.locality.long_name directly, no filter parameter involved at
+// all, so it isn't subject to this instability) found 29 genuine Derby
+// properties. A NONZERO-but-small matchedPrimary count is just as
+// untrustworthy as zero, so it now gets the same fallback treatment instead
+// of being returned as if it were complete.
+//
+// The fallback — fetch the unfiltered catalog and filter server-side by the
+// same reliable per-item matchesCity() check — is itself a normal
+// fetchAmber() call, so it's cached/budgeted/stampede-protected exactly like
+// any other request. Once a given unfiltered page is cached once, every
+// OTHER city's fallback that happens to check the same page becomes a free
+// cache hit instead of a second Amber call. Bounded to
+// FALLBACK_MAX_EXTRA_PAGES extra calls (not unbounded pagination through the
+// full ~86-page catalog) specifically because the shared budget is only
+// ~6 Amber requests/minute site-wide — a single sparse-city page load must
+// never be able to consume a large fraction of that for every other
+// concurrent user.
+//
+// All legs share ONE deadlineAt, established here once, rather than each
 // defaulting to its own fresh AMBER_FETCH_TIMEOUT_MS. Without this, a slow
-// (but successful, empty-result) primary Amber call followed by a fallback
-// that also needs a real Amber attempt could sum to up to 2x
+// (but successful, empty-result) primary Amber call followed by fallback
+// pages that also need real Amber attempts could sum to well over
 // AMBER_FETCH_TIMEOUT_MS — incompatible with a single Vercel invocation's
-// maxDuration. With a shared deadline, the fallback only gets whatever time
-// the primary didn't use; fetchAmberInner's own MIN_AMBER_ATTEMPT_MS check
-// skips the fallback's Amber attempt entirely (failing amber_timeout, or
+// maxDuration. With a shared deadline, each fallback page only gets whatever
+// time earlier legs didn't use; fetchAmberInner's own MIN_AMBER_ATTEMPT_MS
+// check skips a page's Amber attempt entirely (failing amber_timeout, or
 // serving stale if available) rather than wasting a budget slot on an
-// attempt that can't realistically finish in time.
+// attempt that can't realistically finish in time — and this loop stops
+// early on that failure rather than trying further pages.
+const FALLBACK_SUSPICIOUS_MATCH_THRESHOLD = 5;
+const FALLBACK_MAX_EXTRA_PAGES = 2;
+
 async function fetchListings(params, priority, source) {
     const deadlineAt = Date.now() + AMBER_FETCH_TIMEOUT_MS;
     const primary = await fetchAmber({ type: "listings", params, priority, source, deadlineAt });
@@ -532,50 +623,54 @@ async function fetchListings(params, priority, source) {
     const primaryItems = extractResultArray(primary.data);
     const cityLower = normalizeCityName(params.city);
     const matchedPrimary = primaryItems.filter((item) => matchesCity(item, cityLower));
-    if (matchedPrimary.length > 0) {
-        if (matchedPrimary.length === primaryItems.length) return primary;
-        // Amber returned a mix — keep only the items that actually belong to
-        // the requested city rather than trusting its filter wholesale.
+
+    if (matchedPrimary.length > 0 && matchedPrimary.length === primaryItems.length) {
+        // Every item Amber's own filter returned genuinely belongs to this
+        // city — no reason to distrust it or spend extra budget looking further.
+        return primary;
+    }
+    if (matchedPrimary.length >= FALLBACK_SUSPICIOUS_MATCH_THRESHOLD) {
+        // Amber returned a mix, but a healthy number of genuine matches —
+        // keep only those, same as before. Not suspicious enough to warrant
+        // spending extra Amber budget chasing a handful of possible extras.
         return {
             data: { message: primary.data?.message || "success", data: { result: matchedPrimary, meta: { count: matchedPrimary.length } } },
             cacheStatus: primary.cacheStatus,
         };
     }
 
-    // The fallback can now legitimately fail to even attempt Amber (deadline
-    // already spent by a slow primary — see MIN_AMBER_ATTEMPT_MS) as well as
-    // fail the ordinary ways (lock busy, budget exceeded, genuine timeout).
-    // None of that should crash this request: the primary already succeeded,
-    // just with zero results, which is a perfectly valid — if not ideal —
-    // thing to show the user. Losing the fallback must degrade to "primary's
-    // empty result", never to a hard error the primary itself didn't have.
-    let fallback;
-    try {
-        fallback = await fetchAmber({
-            type: "listings",
-            params: { page: params.page, limit: params.limit },
-            priority,
-            source: `${source}-fallback`,
-            deadlineAt,
-        });
-    } catch (err) {
-        log(`source=${source} priority=${priority} action=FALLBACK_FAILED_SERVING_PRIMARY error=${err.message}`);
-        // Must degrade to primary's EMPTY (already city-filtered) result, not
-        // the raw primary response — primary.data is Amber's unfiltered
-        // default page at this point (that's exactly why matchedPrimary came
-        // back empty and we're in this fallback leg at all). Returning it
-        // as-is would silently serve some other city's listings mislabeled
-        // as this one instead of a correct "no results" — this is `matchedPrimary`,
-        // not `primaryItems`, and it's already known to be [] here.
-        return {
-            data: { message: primary.data?.message || "success", data: { result: matchedPrimary, meta: { count: matchedPrimary.length } } },
-            cacheStatus: primary.cacheStatus,
-        };
+    // Zero, or a suspiciously small nonzero count — page through a BOUNDED
+    // number of unfiltered pages, filtering each by the reliable
+    // matchesCity() check, merging with whatever the primary call already
+    // found (deduped by id). Any failure mid-loop (deadline, budget, lock)
+    // just stops early — never a hard error; the primary's own already-real
+    // matches (if any) are always preserved, never discarded.
+    const merged = new Map(matchedPrimary.map((item) => [item.id, item]));
+    let cacheStatus = primary.cacheStatus;
+    const targetCount = Number(params.limit) || 50;
+    for (let page = 1; page <= FALLBACK_MAX_EXTRA_PAGES && merged.size < targetCount; page++) {
+        let fallback;
+        try {
+            fallback = await fetchAmber({
+                type: "listings",
+                params: { page, limit: params.limit },
+                priority,
+                source: `${source}-fallback`,
+                deadlineAt,
+            });
+        } catch (err) {
+            log(`source=${source} priority=${priority} action=FALLBACK_PAGE_FAILED page=${page} error=${err.message}`);
+            break; // deadline/budget/lock exhausted — serve whatever's already merged
+        }
+        cacheStatus = fallback.cacheStatus;
+        for (const item of extractResultArray(fallback.data)) {
+            if (matchesCity(item, cityLower)) merged.set(item.id, item);
+        }
     }
-    const filtered = extractResultArray(fallback.data).filter((item) => matchesCity(item, cityLower));
+    const result = Array.from(merged.values());
     return {
-        data: { message: "success", data: { result: filtered, meta: { count: filtered.length } } },
-        cacheStatus: fallback.cacheStatus,
+        data: { message: primary.data?.message || "success", data: { result, meta: { count: result.length } } },
+        cacheStatus,
     };
 }
 
@@ -585,6 +680,13 @@ module.exports = {
     buildCacheKey,
     buildAmberUrl,
     normalizeCityName,
+    // Exported for api/amber.js's Mongo-known-slug enrichment step — reuses
+    // the SAME reliable per-item location check fetchListings' own fallback
+    // already relies on, so a candidate slug pulled from AccommodationResidence
+    // is verified against its real (freshly-fetched) location before ever
+    // being shown, never trusted just because it was tagged with this city
+    // historically (see the Derby mistagging incident this existed to guard against).
+    matchesCity,
     AmberGatewayError,
     RATE_BUDGET_PER_MINUTE,
     RATE_WINDOW_MS,

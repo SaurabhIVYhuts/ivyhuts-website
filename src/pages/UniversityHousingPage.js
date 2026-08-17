@@ -140,8 +140,12 @@ export default function UniversityHousingPage() {
     (async () => {
       try {
         if (hasOverride) {
+          // Per-slug .catch (audit fix, matches PropertyListingPage.js's own
+          // override-fetch pattern) — one property removed/renamed on Amber
+          // used to fail the whole Promise.all and show a generic error
+          // banner instead of the other still-valid override properties.
           const items = await Promise.all(
-            overrideSlugs.map((slug) => getPropertyBySlug(slug, "MEDIUM", "university-housing-override"))
+            overrideSlugs.map((slug) => getPropertyBySlug(slug, "MEDIUM", "university-housing-override").catch(() => null))
           );
           if (cancelled) return;
           const found = items.filter(Boolean);
@@ -173,12 +177,26 @@ export default function UniversityHousingPage() {
     return () => { cancelled = true; };
   }, [university, hasOverride, overrideSlugs]);
 
+  // Mirrors the `cancelled` flag the main fetch effect above uses — loadMore
+  // is a separate async flow with no such guard of its own (audit fix). A
+  // real race: click "Load more" for University A, then switch to
+  // University B before A's page-2 request resolves. The main effect
+  // correctly discards A's response once cancelled, replacing rawProperties
+  // with B's page-1 data — but A's un-guarded loadMore would still land
+  // afterward and merge INTO whatever rawProperties currently holds (B's
+  // properties), silently attaching University A's properties under
+  // University B's label, with distances computed against B's coordinates.
+  const universityRef = useRef(university);
+  useEffect(() => { universityRef.current = university; }, [university]);
+
   const loadMore = useCallback(async () => {
     if (!university || loadingMore || hasOverride) return; // a fixed override list has no further pages to load
+    const requestedUniversity = university;
     const nextPage = page + 1;
     setLoadingMore(true);
     try {
       const data = await getProperties(university.city, nextPage, PAGE_LIMIT, "LOW", "university-housing-load-more");
+      if (universityRef.current !== requestedUniversity) return; // university changed mid-flight — discard, same as the main effect's `cancelled` guard
       const more = Array.isArray(data) ? data : [];
       setRawProperties((prev) => {
         const seen = new Set(prev.map((r) => r?.id ?? r?.canonical_name));
@@ -191,7 +209,7 @@ export default function UniversityHousingPage() {
     } catch (err) {
       // A failed "load more" must not lose what's already on screen.
     } finally {
-      setLoadingMore(false);
+      setLoadingMore(false); // always reset, even if stale — otherwise the NEW university's own loadMore stays permanently blocked
     }
   }, [university, page, loadingMore, hasOverride, rawProperties.length]);
 
@@ -292,7 +310,7 @@ export default function UniversityHousingPage() {
             {error && (
               <div className="uh-error-banner">
                 {error.isRateLimit ? (
-                  <>Amber is briefly limiting requests — please try again in about {Math.ceil(error.retryAfterSeconds / 60)} minute{Math.ceil(error.retryAfterSeconds / 60) === 1 ? "" : "s"}.</>
+                  <>We're briefly rate-limited — please try again in about {Math.ceil(error.retryAfterSeconds / 60)} minute{Math.ceil(error.retryAfterSeconds / 60) === 1 ? "" : "s"}.</>
                 ) : (
                   <>We couldn't load properties right now. {error.message}</>
                 )}

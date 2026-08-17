@@ -608,6 +608,187 @@
 
 .listings-empty p { margin: 0 0 10px; }
 
+.listings-empty p:first-child { font-size: 1.15rem; font-weight: 700; color: var(--brand-purple-deep); }
+
+.listings-empty-hint { font-size: 0.88rem; }
+
+.listings-empty-suggestions {
+  list-style: disc;
+  margin: 0 auto 14px;
+  padding-left: 20px;
+  text-align: left;
+  display: inline-block;
+  font-size: 0.88rem;
+}
+
+/* ── "EXPLORE ON MAP" SIDEBAR WIDGET ── */
+.explore-map-widget {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin-bottom: 16px;
+  border: 1px solid rgba(94, 58, 107, 0.12);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.explore-map-widget:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(58, 36, 66, 0.16);
+}
+
+.explore-map-widget-preview {
+  position: relative;
+  height: 120px;
+  background:
+    linear-gradient(rgba(94, 58, 107, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(94, 58, 107, 0.06) 1px, transparent 1px),
+    linear-gradient(135deg, #F5EDF2 0%, #EFE2EC 100%);
+  background-size: 22px 22px, 22px 22px, 100% 100%;
+}
+
+.explore-map-widget-pin {
+  position: absolute;
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+  background: #fff;
+  color: var(--brand-purple-deep);
+  font-size: 0.7rem;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(58, 36, 66, 0.22);
+}
+
+.explore-map-widget-pin--1 { top: 18px; left: 14px; }
+.explore-map-widget-pin--2 { top: 50px; left: 50%; transform: translateX(-50%); background: var(--brand-puce-deep); color: #fff; }
+.explore-map-widget-pin--3 { bottom: 16px; right: 16px; }
+
+.explore-map-widget-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--brand-purple-deep);
+}
+
+/* ── MAP VIEW ── */
+.listings-map-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, 420px) 1fr;
+  gap: 20px;
+  height: calc(100vh - 260px);
+  min-height: 480px;
+}
+
+.listings-map-list {
+  overflow-y: auto;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(94, 58, 107, 0.25) transparent;
+}
+
+.listings-map-list::-webkit-scrollbar { width: 6px; }
+.listings-map-list::-webkit-scrollbar-track { background: transparent; }
+.listings-map-list::-webkit-scrollbar-thumb {
+  background: rgba(94, 58, 107, 0.25);
+  border-radius: var(--radius-full);
+}
+.listings-map-list::-webkit-scrollbar-thumb:hover { background: rgba(94, 58, 107, 0.4); }
+
+.listings-map-list-count {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--brand-purple-deep);
+  padding: 0 2px 2px;
+}
+
+.listings-map-panel {
+  position: relative;
+  height: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.listings-map-close {
+  display: none;
+}
+
+.listings-map-loading {
+  padding: 60px 20px;
+  text-align: center;
+  color: #7A6570;
+}
+
+@media (max-width: 900px) {
+  .listings-map-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .listings-map-list { display: none; }
+}
+
+@media (max-width: 768px) {
+  .listings-map-layout {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    height: 100vh;
+    background: #fff;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .listings-map-list { display: none; }
+  .listings-map-panel { border-radius: 0; height: 100vh; }
+  .listings-map-close {
+    display: block;
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 500;
+    padding: 10px 16px;
+    border-radius: var(--radius-full);
+    border: none;
+    background: rgba(58, 36, 66, 0.85);
+    color: #fff;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.82rem;
+  }
+}
+
+.country-properties-preview {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(94, 58, 107, 0.1);
+}
+
+.country-properties-preview h3 {
+  font-size: 1.15rem;
+  color: var(--brand-purple-deep);
+  margin: 0 0 16px;
+}
+
+.country-cities-secondary {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(94, 58, 107, 0.1);
+}
+
+.country-cities-secondary h3 {
+  font-size: 1.05rem;
+  color: var(--brand-purple-deep);
+  margin: 0 0 14px;
+}
+
 /* ── LOADING SKELETON (listings page only) ── */
 .listings-skeleton {
   display: flex;
@@ -1306,40 +1487,16 @@
     font-size: 0.85rem;
     white-space: nowrap;
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
   }
 
-  /* ── INLINE FILTER BLOCK ── */
-  .mobile-inline-filter-block {
-    background: #fff;
-    border-radius: 12px;
-    padding: 16px;
-    margin: 16px 0;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-  }
-  .inline-filter-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-  .inline-filter-header h3 {
-    margin: 0;
-    font-size: 1rem;
-    color: #5E3A6B;
+  .mobile-filter-pills .pill-btn.active {
+    background: var(--brand-purple-deep);
+    border-color: var(--brand-purple-deep);
+    color: #fff;
     font-weight: 700;
   }
-  .inline-filter-clear {
-    background: none;
-    border: none;
-    color: #888;
-    font-size: 0.8rem;
-    cursor: pointer;
-    text-decoration: underline;
-  }
-  /* .btn.btn-primary (see global.css) already supplies the brand gradient/
-     color/padding/radius — this only adds the layout tweak it needs here. */
-  .inline-filter-apply {
-    width: 100%;
-    margin-top: 12px;
-  }
+
 }

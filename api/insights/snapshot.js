@@ -17,13 +17,15 @@
 // coverage), so every dashboard component consumes one shape regardless of
 // mode — the frontend just swaps which date it asks for.
 //
-// `country`/`city` filters only apply to live mode (matching the existing
-// /api/insights/market behavior) — a historical snapshot is a frozen
-// full-catalog record, not a live-filterable crawl aggregate.
+// `country`/`city` filters apply to both modes. Live mode filters during the
+// crawl aggregation itself (getMarketIntelligence -> buildFullBreakdown).
+// Historical mode filters the already-stored flat breakdown in memory via
+// insightsMarket.js's filterBreakdown() — the stored document already has
+// every real country/city broken out, so narrowing it needs no Amber call.
 const { withErrorHandling, badRequest } = require("../_lib/validation");
 const { sendSuccess } = require("../_lib/apiResponse");
 const { authorizeInsights } = require("../_lib/insightsDevAuth");
-const { getMarketIntelligence } = require("../_lib/insightsMarket");
+const { getMarketIntelligence, filterBreakdown } = require("../_lib/insightsMarket");
 const { istDateString, getSnapshotByDate, getPreviousSnapshot, getRecentSnapshots } = require("../_lib/insightsSnapshotStore");
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -87,5 +89,6 @@ module.exports = withErrorHandling(async (req, res) => {
         return;
     }
 
-    sendSuccess(res, { mode: "historical", date, available: true, ...snapshot, comparison: await buildComparison(date) });
+    const filtered = filterBreakdown(snapshot, { country, city });
+    sendSuccess(res, { mode: "historical", date, available: true, ...filtered, comparison: await buildComparison(date) });
 });

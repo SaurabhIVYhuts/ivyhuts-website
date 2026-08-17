@@ -3,6 +3,14 @@
   { "id": "university-college-london", "name": "University College London", "type": "UNIVERSITY", "aliases": ["UCL"], "city": "London", "country": "United Kingdom", "latitude": 51.5246, "longitude": -0.1340 },
   { "id": "imperial-college-london", "name": "Imperial College London", "type": "UNIVERSITY", "aliases": ["Imperial", "ICL"], "city": "London", "country": "United Kingdom", "latitude": 51.4988, "longitude": -0.1749 },
   { "id": "kings-college-london", "name": "King's College London", "type": "UNIVERSITY", "aliases": ["KCL", "Kings College London"], "city": "London", "country": "United Kingdom", "latitude": 51.5115, "longitude": -0.1160 },
+  {
+    "id": "birkbeck-university-of-london", "name": "Birkbeck, University of London", "type": "UNIVERSITY",
+    "aliases": ["Birkbeck", "Birkbeck College", "Birkbeck London"],
+    "city": "London", "country": "United Kingdom",
+    "address": "Malet Street, Bloomsbury, London WC1E 7HX",
+    "latitude": 51.5219, "longitude": -0.1303,
+    "_note": "Main (Malet Street/Bloomsbury) campus coordinates, cross-checked against latitude.to and findlatitudeandlongitude.com (both ~51.5219, -0.1303/-0.1304). Birkbeck also operates a Stratford satellite campus in East London; using the main campus as the single canonical location, same one-entry-per-institution convention every other record in this file follows."
+  },
   { "id": "university-of-birmingham", "name": "University of Birmingham", "type": "UNIVERSITY", "aliases": ["Birmingham University", "U Birmingham"], "city": "Birmingham", "country": "United Kingdom", "latitude": 52.4508, "longitude": -1.9305 },
   { "id": "coventry-university", "name": "Coventry University", "type": "UNIVERSITY", "aliases": ["U Coventry"], "city": "Coventry", "country": "United Kingdom", "latitude": 52.4008, "longitude": -1.5091 },
   { "id": "university-of-leeds", "name": "University of Leeds", "type": "UNIVERSITY", "aliases": ["Leeds University", "U Leeds"], "city": "Leeds", "country": "United Kingdom", "latitude": 53.8067, "longitude": -1.5550 },
@@ -33,7 +41,7 @@
     "_note": "Address as specified (Cranmer Terrace, Tooting, SW17 0RE); coordinates cross-checked against OpenStreetMap Nominatim's own amenity=university point for this campus (51.4264330, -0.1758360) and independently corroborated by geocoding the Cranmer Terrace street address itself (~51.428, -0.176, same immediate area). Deliberately the TOOTING campus, not Islington: St George's, University of London merged with City, University of London in 2024 to form 'City St George's, University of London', and Nominatim now has a SECOND, differently-branded point for the former City campus on Ashby Street, Clerkenwell, Islington EC1V 0ED (~51.5277, -0.1036) — a genuinely different location. The address given here pins this record unambiguously to the Tooting medical-school site."
   },
   { "id": "university-college-dublin", "name": "University College Dublin", "type": "UNIVERSITY", "aliases": ["UCD", "UCD Dublin"], "city": "Dublin", "country": "Ireland", "latitude": 53.3065, "longitude": -6.2218 },
-  { "id": "trinity-college-dublin", "name": "Trinity College Dublin", "type": "UNIVERSITY", "aliases": ["TCD", "Trinity Dublin"], "city": "Dublin", "country": "Ireland", "latitude": 53.3438, "longitude": -6.2546 },
+  { "id": "trinity-college-dublin", "name": "Trinity College Dublin", "type": "UNIVERSITY", "aliases": ["TCD", "Trinity Dublin", "University of Dublin"], "city": "Dublin", "country": "Ireland", "latitude": 53.3438, "longitude": -6.2546 },
   {
     "id": "vamos-spanish-academy-madrid",
     "name": "Vamos Madrid | Tu escuela de español",

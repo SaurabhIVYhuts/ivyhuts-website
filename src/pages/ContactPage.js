@@ -93,12 +93,26 @@ export default function ContactPage() {
     // frontend-only "request initiated" basis.
     let confirmed = false;
     try {
+      // Room/tenancy context (audit fix): this used to be dropped entirely
+      // before reaching /api/enquire (the email inbox staff actually work
+      // from), and `preferredCity` was wrongly set to the room name — every
+      // other form on this site (ListYourStayPage.js, PartnerPage.js) uses
+      // that field for an actual city, so this was corrupting it. The
+      // Sheets/Mongo destinations below already sent this data correctly;
+      // this now matches them.
+      const formattedPrice = tenancyPrice ? `${tenancyCurrency || ""}${tenancyPrice}${tenancyPriceUnit ? `/${tenancyPriceUnit}` : ""}` : undefined;
       const enquiryPayload = {
         propertyName: propertyName || undefined,
         propertyId: inventoryId || undefined,
+        roomName: roomName || undefined,
+        roomId: roomId || undefined,
+        tenancyId: tenancyId || undefined,
+        duration: tenancyDuration || undefined,
+        moveIn: tenancyMoveIn || undefined,
+        moveOut: tenancyMoveOut || undefined,
+        price: formattedPrice,
         studentName: form.name.trim(),
         phoneNumber: form.phone.trim(),
-        preferredCity: roomName || undefined,
         message: `Subject: ${subjectDefault || "General Enquiry"}\n\n${form.message.trim() || "N/A"}`,
         websiteSource: "ivyhuts.com/contact",
       };

@@ -10,6 +10,7 @@ import RoomTypeCard from "../components/listing/RoomTypeCard";
 import WishlistHeart from "../components/listing/WishlistHeart";
 import ShareButton from "../components/listing/ShareButton";
 import { trackEvent } from "../lib/eventsApi";
+import { getAmenityIcon } from "../lib/amenityIcons";
 import "./PropertyDetailPage.css";
 
 const PAYMENT_FACT_LABELS = ["Guarantor", "Lease Duration", "Non-Students Allowed"];
@@ -249,7 +250,17 @@ export default function PropertyDetailPage() {
                     <div key={g.name} className="pdp-amenity-group">
                       <h3>{g.name}</h3>
                       <div className="pdp-amenity-items">
-                        {g.items.map((item) => <span key={item} className="pdp-amenity-item">{item}</span>)}
+                        {g.items.map((item) => {
+                          const Icon = getAmenityIcon(item);
+                          return (
+                            <span key={item} className="pdp-amenity-item">
+                              <span className="pdp-amenity-icon-chip">
+                                <Icon size={17} strokeWidth={1.75} aria-hidden="true" />
+                              </span>
+                              {item}
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}

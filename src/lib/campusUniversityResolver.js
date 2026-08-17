@@ -54,6 +54,18 @@ export function resolveCampusUniversityById(id) {
   return CAMPUS_UNIVERSITIES.find((u) => u.id === id) || null;
 }
 
+// PropertyListingPage's ?university= param accepts either the canonical id
+// (what selecting a GlobalSearchBar suggestion writes) or a human-readable
+// name/alias (per the product spec's own URL examples, e.g.
+// ?university=University%20of%20Toronto, and for hand-typed/shared links) —
+// id is tried first since it's unambiguous by construction, name/alias falls
+// back to the same exact/alias match resolveCampusUniversity() already uses
+// (never a best-guess partial match, same "no implicit default" discipline).
+export function resolveCampusUniversityByNameOrId(value) {
+  if (!value) return null;
+  return resolveCampusUniversityById(value) || resolveCampusUniversity(value);
+}
+
 // Lightweight autocomplete filter — prefix/substring match against
 // name+aliases, for showing suggestions as the student types. Selecting a
 // suggestion IS the resolution (the caller already has the canonical record).

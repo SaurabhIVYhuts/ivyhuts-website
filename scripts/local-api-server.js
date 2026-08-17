@@ -21,6 +21,8 @@ const http = require("http");
 const { URL } = require("url");
 const amberHandler = require("../api/amber.js");
 const universitiesResolveHandler = require("../api/universities/resolve.js");
+const searchHandler = require("../api/search.js");
+const searchDataHandler = require("../api/search-data.js");
 const enquireHandler = require("../api/enquire.js");
 const studentPlannerHandler = require("../api/student-planner.js");
 const studentPlannerPptHandler = require("../api/student-planner-ppt.js");
@@ -121,6 +123,23 @@ const server = http.createServer(async (req, res) => {
         if (url.pathname === "/api/universities/resolve") {
             if (req.method === "POST") req.body = await readJsonBody(req);
             await universitiesResolveHandler(req, res);
+            return;
+        }
+        // Global search (GlobalSearchBar's autocomplete) — was missing from
+        // this router entirely, so it silently fell through to amberHandler
+        // below (which naturally rejects anything without a `type` param),
+        // making search look completely broken under `npm start` even
+        // though the real handler (api/search.js) was correct all along.
+        if (url.pathname === "/api/search") {
+            await searchHandler(req, res);
+            return;
+        }
+        // The complete countries/cities/universities dataset GlobalSearchBar
+        // loads once (see src/lib/entitySearch.js) — same "must be
+        // explicitly routed or it silently falls through to amberHandler"
+        // lesson as /api/search above.
+        if (url.pathname === "/api/search-data") {
+            await searchDataHandler(req, res);
             return;
         }
         if (Object.prototype.hasOwnProperty.call(authRoutes, url.pathname)) {

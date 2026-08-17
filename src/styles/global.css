@@ -681,6 +681,9 @@ a { text-decoration: none; }
   aspect-ratio: 1 / 1;
   overflow: hidden;
   border-radius: var(--radius-xl);
+  /* Shows through whenever the img below fails to load/is missing (see
+     CityCard.js's onError) instead of a broken-image icon on an empty box. */
+  background: linear-gradient(135deg, var(--brand-purple), var(--brand-puce-deep));
 }
 
 .city-card-image::after {
@@ -1800,8 +1803,18 @@ a.footer-social-icon:hover {
      area). */
   .nav-hamburger { box-sizing: content-box; padding: 12px; }
 
-  /* Navbar search moves out of the navbar row and becomes a full-width bar underneath */
-  .navbar-search-desktop { display: none; }
+  /* Navbar search moves out of the navbar row and becomes a full-width bar
+     underneath. !important is required here: GlobalSearchBar.css's own base
+     `.gsb-form { display: flex; }` (unconditional, single-class selector)
+     has the SAME specificity as this single-class `.navbar-search-desktop`
+     rule — a tie CSS resolves by source order, not by which one is inside a
+     media query, so depending on stylesheet load order this mobile-hide
+     rule could silently lose and leave the desktop search cramped into the
+     navbar next to the logo on small screens. Same fix already used for the
+     identical conflict elsewhere in GlobalSearchBar.css itself (its own
+     `.mobile-only-input`/`.desktop-only-input` overrides, both !important
+     for this exact reason). */
+  .navbar-search-desktop { display: none !important; }
   .navbar-search-mobile-wrap { display: block; }
 
   /* Hero */

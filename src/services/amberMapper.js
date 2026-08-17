@@ -258,9 +258,33 @@ function mapTenancy(leaf) {
   };
 }
 
-// Available tenancies first (stable sort preserves Amber's own ordering within each group).
+// Available tenancies first, cheapest-first within that group (by
+// weekly-equivalent price — see weeklyEquivalentPrice below for why raw
+// amounts across different lease durations aren't directly comparable).
+// RoomTypeCard.js only ever shows the first TENANCY_PREVIEW of this array by
+// default — confirmed live against a real property (Amber id 3302773,
+// "136-138 New Walk, Leicester"): its room type carries 4 real available
+// tenancies (£196/51wk, £188/51wk, £185/51wk, £204/44wk) in THAT raw order
+// from Amber, none of it price-sorted. The room's displayed "From" price
+// (getRoomLowestAvailablePrice, computed over the FULL tenancy list) already
+// correctly showed the true minimum, £185 — but the old availability-only
+// sort left it as tenancy #3, invisible in the default 2-row preview behind
+// "View more tenancies" while two pricier options (£196, £188) showed
+// instead. The number was never wrong; it just never appeared anywhere the
+// preview showed, which reads exactly like a bug. Sorting the available
+// group by price means the visible preview and the "From" price it sits
+// under can never disagree again.
 function sortTenancies(tenancies) {
-  return [...tenancies].sort((a, b) => (a.available === b.available ? 0 : a.available ? -1 : 1));
+  return [...tenancies].sort((a, b) => {
+    if (a.available !== b.available) return a.available ? -1 : 1;
+    if (!a.available) return 0; // unavailable tenancies: relative order doesn't matter, none are ever priced/shown as "from"
+    const aw = a.price !== null ? weeklyEquivalentPrice(a.price, a.priceDuration) : null;
+    const bw = b.price !== null ? weeklyEquivalentPrice(b.price, b.priceDuration) : null;
+    if (aw != null && bw != null) return aw - bw;
+    if (aw != null) return -1; // a comparable-duration tenancy ranks ahead of an unrankable one
+    if (bw != null) return 1;
+    return (a.price ?? Infinity) - (b.price ?? Infinity); // both unrankable durations — last-resort raw compare
+  });
 }
 
 // A room is available if any of its real tenancies are — never just a raw flag,
@@ -714,6 +738,46 @@ function getCoordinates(raw) {
   return typeof lat === "number" && typeof lng === "number" ? { lat, lng } : null;
 }
 
+const MONTH_LABELS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+// Lightweight tenancy scan — deliberately NOT a full mapRoomType() pass (that
+// builds full room/tenancy objects with images/descriptions for the detail
+// page; here we only need two small option lists for the Move-in Month /
+// Stay Duration filters). Reads the same raw `children[].children[]`
+// tenancy shape mapRoomType() does. If a listings response ever omits this
+// nested tenancy data (unconfirmed either way — Amber's listings endpoint
+// payload is large enough that it may or may not include it), these simply
+// return empty arrays and the corresponding filter doesn't render, same
+// "only show what the data actually supports" rule every other filter here
+// already follows.
+function getMoveInOptions(raw) {
+  const rooms = Array.isArray(raw.children) ? raw.children : [];
+  const months = new Set();
+  for (const room of rooms) {
+    const tenancies = Array.isArray(room?.children) ? room.children : [];
+    for (const t of tenancies) {
+      if (t?.available !== true) continue;
+      const d = parseAmberDate(t?.available_from);
+      if (d) months.add(`${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`);
+    }
+  }
+  return Array.from(months).sort((a, b) => new Date(a) - new Date(b));
+}
+
+function getStayDurationOptions(raw) {
+  const rooms = Array.isArray(raw.children) ? raw.children : [];
+  const durations = new Set();
+  for (const room of rooms) {
+    const tenancies = Array.isArray(room?.children) ? room.children : [];
+    for (const t of tenancies) {
+      const value = t?.meta?.lease_duration;
+      const unit = t?.meta?.lease_duration_unit;
+      if (value != null && unit) durations.add(`${value} ${unit}${Number(value) === 1 ? "" : "s"}`);
+    }
+  }
+  return Array.from(durations).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+}
+
 export function mapAmberPropertyToListing(raw) {
   if (!raw || typeof raw !== "object") return null;
 
@@ -753,6 +817,8 @@ export function mapAmberPropertyToListing(raw) {
     offerText,
     billsIncluded,
     rooms: getRooms(raw),
+    moveInOptions: getMoveInOptions(raw),
+    stayDurationOptions: getStayDurationOptions(raw),
     rating: getRating(raw),
     social: getSocialProof(raw),
     available: raw.available !== false,

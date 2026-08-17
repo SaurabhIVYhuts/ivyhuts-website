@@ -1,5 +1,5 @@
 import React, { useEffect, lazy, Suspense } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import "./styles/global.css";
 import HomePage from "./pages/HomePage";
 import PropertyListingPage from "./pages/PropertyListingPage";
@@ -21,6 +21,19 @@ const TermsPage                = lazy(() => import("./pages/legal/TermsPage"));
 const PrivacyPage              = lazy(() => import("./pages/legal/PrivacyPage"));
 const InsightPage              = lazy(() => import("./pages/insight/InsightPage"));
 const ThankYouPage             = lazy(() => import("./pages/ThankYouPage"));
+
+/* ── DEDICATED MAP ROUTES — /properties/map and /find-rooms/map are thin
+   redirects onto the SAME PropertyListingPage + ?view=map query param every
+   other view mode already uses (see PropertyListingPage.js's own `view`
+   state), rather than a second map-page implementation. Preserves whatever
+   else is already in the query string (city/university/filters) so a link
+   like /properties/map?city=London still lands on London's map, not a blank one. ── */
+function MapRouteRedirect() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  params.set("view", "map");
+  return <Navigate to={`/properties?${params.toString()}`} replace />;
+}
 
 /* ── SCROLL TO TOP ON ROUTE CHANGE ── */
 function ScrollToTop() {
@@ -70,6 +83,8 @@ function App() {
             <Route path="/login"          element={<LoginPage />} />
             <Route path="/wishlist"       element={<WishlistPage />} />
             <Route path="/properties" element={<PropertyListingPage />} />
+            <Route path="/properties/map" element={<MapRouteRedirect />} />
+            <Route path="/find-rooms/map" element={<MapRouteRedirect />} />
             <Route path="/insight"    element={<InsightPage />} />
             {/* Not linked from navbar/footer/sitemap — reached only via a successful form-submission redirect */}
             <Route path="/thank-you"  element={<ThankYouPage />} />

@@ -61,10 +61,17 @@ function lookupByCountry(table, country, fallback) {
   return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : fallback;
 }
 
-// Fallback ONLY for when /api/student-planner is unreachable (e.g. plain
-// `react-scripts start` instead of `vercel dev`) — the real figure comes
-// from api/_lib/costOfLiving.js via the API response and overwrites this in
-// StudentPlannerPage.js's handleSubmit, same as residences/degree.
+// Fallback for when /api/student-planner is unreachable, OR — the gap this
+// comment didn't previously cover (audit fix) — when it responds but without
+// a real livingExpenses field (e.g. res.ok but body.ok false, or the field
+// missing for some other reason): StudentPlannerPage.js's handleSubmit only
+// overwrites this with the real api/_lib/costOfLiving.js figure `if (res.ok
+// && body?.ok && body.livingExpenses)`, so any other outcome silently leaves
+// this generic country-level guess on screen. LivingExpenses.js already has
+// an honest `meta.note` affordance for exactly this (built for the real
+// API's own estimate caveat) — this was the one caller never supplying one,
+// so a fabricated figure rendered pixel-identical to real curated data with
+// no way for a student to tell the difference.
 function buildLivingExpenses(accommodationMonthly, currency) {
   const food = roundTo5(accommodationMonthly * 0.35);
   const transport = roundTo5(accommodationMonthly * 0.12);
@@ -80,6 +87,7 @@ function buildLivingExpenses(accommodationMonthly, currency) {
     totalMonthly,
     totalAnnual: totalMonthly * 12,
     currency,
+    meta: { note: "Generic estimate based on typical costs for your country — not yet confirmed against real city-level data." },
   };
 }
 

@@ -10,11 +10,12 @@ import HeroInventoryCards from "../components/home/HeroInventoryCards";
 import HeroJourneyStrip from "../components/home/HeroJourneyStrip";
 import LeadPopup from "../components/popups/LeadPopup";
 import "../components/popups/LeadPopup.css";
-import { DESTINATIONS, COUNTRIES, countryFullName, countryIsoCode } from "../data/destinations";
+import { DESTINATIONS, COUNTRIES, countryFullName, countryIsoCode, findDestination } from "../data/destinations";
 import { getRecentSearches, addRecentSearch, getRecentProperties } from "../services/recentActivity";
 import { getProperties } from "../services/amberApi";
 import { safeListingList } from "../services/amberMapper";
 import CompactPropertyCard from "../components/listing/CompactPropertyCard";
+import GlobalSearchBar from "../components/search/GlobalSearchBar";
 
 // --- Static Data for Marketing Sections ---
 const STEPS = [
@@ -42,21 +43,22 @@ function HomePage() {
       .catch(() => {});
   }, []);
 
-  /* ── SEARCH ── */
-  const [searchValue, setSearchValue] = useState("");
-  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-  const suggestions = useMemo(() => {
-    const q = searchValue.trim().toLowerCase();
-    if (!q) return [];
-    return DESTINATIONS.filter((d) => d.name.toLowerCase().startsWith(q)).slice(0, 6);
-  }, [searchValue]);
-
+  /* ── SEARCH ──
+     The live entity-aware search box (GlobalSearchBar) owns its own
+     input/suggestion state — see src/components/search/GlobalSearchBar.js.
+     `runSearch` remains here only for the "Recent Searches" pill row below,
+     which stores a plain past query string (now potentially a city,
+     country, university or property name — GlobalSearchBar records
+     whatever the user picked, not just cities): a known city name still
+     takes the fast, exact `?city=` path; anything else degrades to the
+     generic `?property=` query, which PropertyListingPage resolves via the
+     same /api/search index GlobalSearchBar itself uses. */
   const runSearch = (value) => {
     const clean = (value || "").trim();
     if (!clean) return;
-    setSuggestionsOpen(false);
     addRecentSearch(clean);
-    navigate(`/properties?city=${encodeURIComponent(clean)}`);
+    const knownCity = findDestination(clean);
+    navigate(knownCity ? `/properties?city=${encodeURIComponent(knownCity.name)}` : `/properties?property=${encodeURIComponent(clean)}`);
   };
 
   /* ── POPULAR CITIES — COUNTRY FILTER TABS ── */
@@ -178,70 +180,10 @@ function HomePage() {
               </div>
             </div>
 
-            {/* LIVE ACCOMMODATION SEARCH */}
-            <form
-              className="hero-search-form"
-              role="search"
-              onSubmit={(e) => { e.preventDefault(); runSearch(searchValue); }}
-            >
-              <div className="hero-search-input-wrap">
-                <svg className="hero-search-icon desktop-only-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <circle cx="11" cy="11" r="7" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  type="text"
-                  className="hero-search-input desktop-only-input"
-                  placeholder="Search by city, university or property"
-                  value={searchValue}
-                  onChange={(e) => { setSearchValue(e.target.value); setSuggestionsOpen(true); }}
-                  onFocus={() => setSuggestionsOpen(true)}
-                  onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
-                  aria-label="Search by city, university or property"
-                  autoComplete="off"
-                />
-                <input
-                  type="text"
-                  className="hero-search-input mobile-only-input"
-                  placeholder="Search by"
-                  value={searchValue}
-                  onChange={(e) => { setSearchValue(e.target.value); setSuggestionsOpen(true); }}
-                  onFocus={() => setSuggestionsOpen(true)}
-                  onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
-                  aria-label="Search by"
-                  autoComplete="off"
-                />
-                {searchValue && (
-                  <button
-                    type="button"
-                    className="hero-search-clear"
-                    aria-label="Clear search"
-                    onMouseDown={() => setSearchValue("")}
-                  >
-                    ×
-                  </button>
-                )}
-                {suggestionsOpen && suggestions.length > 0 && (
-                  <ul className="hero-search-suggestions" role="listbox">
-                    {suggestions.map((d) => (
-                      <li key={d.name}>
-                        <button type="button" onMouseDown={() => runSearch(d.name)}>
-                          <span className="hero-suggestion-flag">{d.flag}</span> {d.name}
-                          <span className="hero-suggestion-country">{d.country}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <button type="submit" className="hero-search-btn">
-                <span className="hero-search-btn-text">Find Rooms →</span>
-                <svg className="hero-search-btn-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                  <circle cx="11" cy="11" r="7" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </button>
-            </form>
+            {/* LIVE ACCOMMODATION SEARCH — understands country/city/university/
+                property without the user needing to say which (see
+                GlobalSearchBar + GET /api/search). */}
+            <GlobalSearchBar />
           </div>
 
           {/* HOUSING → CAREER JOURNEY — full-width row below the text
