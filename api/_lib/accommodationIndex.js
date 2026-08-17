@@ -265,6 +265,15 @@ function readMongoResidences(normalizedCity) {
     return AccommodationResidence.find({ city: normalizedCity, available: true }).lean();
 }
 
+// Unlike readMongoResidences (Planner-only: available residences it might
+// recommend), the general browse/search page shows BOTH available and
+// sold-out properties (sold-out ones marked via `available`, same as the
+// live Amber pipeline it's replacing already did) — a student browsing a
+// city expects to see the whole picture, not just what's currently bookable.
+function readAllMongoResidences(normalizedCity) {
+    return AccommodationResidence.find({ city: normalizedCity }).lean();
+}
+
 function hasValidCoords(lat, lng) {
     return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
 }
@@ -568,8 +577,55 @@ async function getCityResidences(city, { budget, accommodationPreference, priori
     return { status: "ready", residences: ranked };
 }
 
+// The general property browse/search page's entry point (api/city-listings.js)
+// — same Mongo-first shape as getCityResidences above, but returns the WHOLE
+// known city inventory instead of a ranked top-RESULT_LIMIT recommendation
+// (there's no resolved university/budget to rank against on a plain city
+// browse, and hiding all but 5 properties would defeat the point).
+//
+// This is what actually fixes a city like London only ever showing whatever
+// Amber's own location filter + one page's worth of live pagination could
+// return (confirmed live: 38, capped by Amber's own filter recognizing only
+// that many — see amberGateway.js's fetchListings comment) despite Amber
+// genuinely having 200+ London properties: refreshCityIndex()'s persistence
+// is an upsert (see persistResidences), so it can only ADD to / update what's
+// already indexed, never shrink it. Reading Mongo again AFTER a refresh
+// therefore reflects the UNION of everything this city has ever had indexed
+// — from this refresh, from every earlier real page view (index-on-read, see
+// api/amber.js), and from the independent full-catalog crawl
+// (api/_lib/insightsMarket.js) — not just whatever this one, budget-limited
+// live call happened to find.
+async function getCityListings(city, { priority = "MEDIUM", source = "listings-page" } = {}) {
+    const normalizedCity = normalizeCityName(city);
+    if (!normalizedCity) return { status: "building", residences: [] };
+
+    try {
+        await connectToDatabase();
+    } catch (err) {
+        if (err instanceof MongoNotConfiguredError) return { status: "building", residences: [] };
+        throw err;
+    }
+
+    const meta = await AccommodationIndexMeta.findOne({ city: normalizedCity }).lean();
+    const now = Date.now();
+    const age = meta?.lastRefreshedAt ? now - new Date(meta.lastRefreshedAt).getTime() : Infinity;
+
+    if (!meta || age >= MAX_AGE_MS) {
+        // Never throws (see refreshCityIndex) — a failed/slow Amber refresh
+        // just means this cycle's read below falls back to whatever was
+        // already indexed from before, same degrade-to-known-data contract
+        // as every other caller of this function.
+        await refreshCityIndex(normalizedCity, priority, source);
+    }
+
+    const residenceDocs = await readAllMongoResidences(normalizedCity);
+    if (!residenceDocs.length) return { status: "building", residences: [] };
+    return { status: "ready", residences: residenceDocs };
+}
+
 module.exports = {
     getCityResidences,
+    getCityListings,
     getOverrideResidences,
     rankResidences,
     mapAmberItemToResidence,

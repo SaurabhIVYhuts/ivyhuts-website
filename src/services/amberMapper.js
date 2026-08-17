@@ -766,3 +766,71 @@ export function safeListingList(rawArray) {
   if (!Array.isArray(rawArray)) return [];
   return rawArray.map(mapAmberPropertyToListing).filter(Boolean);
 }
+
+// Adapter for the Mongo-backed browse/search path (api/city-listings.js,
+// src/services/amberApi.js's getCityListings) — produces the SAME "listing"
+// shape mapAmberPropertyToListing does, so ListingCard.js/CompactPropertyCard.js
+// need no changes, but from AccommodationResidence's already-reduced summary
+// doc (see api/_lib/models/AccommodationResidence.js) instead of a full raw
+// Amber item. That doc deliberately never stored amenities/room-tenancy
+// detail/social proof/full address (see its own header comment on why — this
+// index exists to avoid duplicating that), so those fields come back empty/
+// null here rather than fabricated; the property detail page (opened via
+// `slug`) still does its own full, live, per-property Amber fetch and shows
+// the complete picture there. This is the exact same "may be a little thin
+// until you open it" tradeoff the Student Planner's own residence cards
+// already accept for the same underlying data.
+function mapResidenceDocToListing(doc) {
+  if (!doc || typeof doc !== "object") return null;
+  const id = doc.propertyId ?? null;
+  const lat = doc.latitude;
+  const lng = doc.longitude;
+  const hasCoords = typeof lat === "number" && typeof lng === "number" && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+  const locality = doc.city ? titleCase(doc.city) : "";
+  const addressParts = [locality, doc.country].filter(Boolean);
+
+  return {
+    id,
+    slug: doc.slug || null,
+    name: doc.propertyName || "Student Accommodation",
+    address: { line: "", locality, country: doc.country || "", postcode: "", full: addressParts.join(", ") },
+    coordinates: hasCoords ? { lat, lng } : null,
+    image: doc.image || null,
+    images: doc.image ? [{ url: doc.image, caption: "" }] : [],
+    price: {
+      from: Number.isFinite(doc.price?.amount) ? doc.price.amount : null,
+      to: null,
+      original: null,
+      currency: doc.price?.currency || "",
+      duration: doc.priceDuration || "",
+      deposit: null,
+    },
+    priceWeekly: Number.isFinite(doc.priceWeekly) ? doc.priceWeekly : null,
+    isSoldOut: doc.available === false,
+    selectedRoomType: null,
+    distances: {
+      cityCentre: Number.isFinite(doc.distanceToCentreKm) ? `${doc.distanceToCentreKm} km` : null,
+      nearby: [],
+    },
+    amenities: { shown: [], moreCount: 0, all: [] },
+    badges: [],
+    offerText: "",
+    billsIncluded: false,
+    rooms: { count: null, activeCount: null, bedroomCount: null, bathroomCount: null, types: doc.roomType ? [doc.roomType] : [] },
+    moveInOptions: [],
+    stayDurationOptions: [],
+    rating: Number.isFinite(doc.rating) ? { overall: doc.rating, categories: [] } : null,
+    social: { shortlisted: null, recentEnquiries: null, recentBooking: null },
+    available: doc.available !== false,
+    detailUrl: null,
+    // Not read by any component today — a hook for a future "may be a few
+    // hours old" affordance, since this card came from the background index
+    // rather than a fresh live Amber call (see this function's own header).
+    fromIndex: true,
+  };
+}
+
+export function safeResidenceListingList(docs) {
+  if (!Array.isArray(docs)) return [];
+  return docs.map(mapResidenceDocToListing).filter(Boolean);
+}

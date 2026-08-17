@@ -316,6 +316,33 @@ export async function getProperties(city, page = 1, limit = 50, priority = "MEDI
     return extractArray(json);
 }
 
+// Mongo-first city browse/search — calls /api/city-listings (see that file
+// and api/_lib/accommodationIndex.js's getCityListings), NOT the Amber
+// gateway directly, so it returns this site's already-indexed FULL city
+// inventory (built up over time from real traffic + the background
+// full-catalog crawl) rather than being capped at whatever one live,
+// rate-limited Amber call/page can return right now. Deliberately bypasses
+// the L1 IndexedDB/memory cache above — that cache exists specifically to
+// protect Amber's own shared rate budget, which this endpoint doesn't touch
+// on a cache hit; the endpoint's own 30s/120s HTTP cache header already
+// covers the "many users hit this at once" case. Returns residence docs in
+// AccommodationResidence's own shape (see that model) — callers map them via
+// src/services/amberMapper.js's safeResidenceListingList, never
+// safeListingList (that expects a full raw Amber item, not this reduced
+// summary shape).
+export async function getCityListings(city, priority = "MEDIUM", source = "listings-page") {
+    const url = `/api/city-listings?${new URLSearchParams({ city, priority, source }).toString()}`;
+    const res = await fetch(url);
+    let body;
+    try {
+        body = await res.json();
+    } catch {
+        throw new Error("City listings endpoint unavailable (is the app running via `vercel dev`?)");
+    }
+    if (!res.ok || !body.ok) throw new Error(body?.message || "Failed to fetch city listings");
+    return { status: body.status, residences: Array.isArray(body.residences) ? body.residences : [] };
+}
+
 // Amber has no "search by country" endpoint — only fetch-by-city. A country
 // search is therefore a bounded fan-out of the exact same getProperties()
 // call every other page already uses, one per city, each independently
