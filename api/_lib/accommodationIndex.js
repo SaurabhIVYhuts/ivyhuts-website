@@ -124,6 +124,123 @@ function extractResultArray(json) {
     return Array.isArray(json?.data?.result) ? json.data.result : [];
 }
 
+// Cheapest AVAILABLE tenancy — backend CommonJS twin of
+// src/services/amberMapper.js's selectCheapestAvailableTenancy() (same
+// rule: amount+currency+duration always read off the SAME tenancy record,
+// never mixed with a different room's own aggregate). Not imported (see
+// mapAmberItemToResidence's own comment on why this file duplicates rather
+// than imports the frontend mapper).
+function selectCheapestAvailableTenancy(tenancies) {
+    // price > 0, not just Number.isFinite — a zero/negative "price" is a
+    // data artifact, never a real chargeable rate (item 14).
+    const available = (Array.isArray(tenancies) ? tenancies : [])
+        .filter((t) => t && t.available === true && Number.isFinite(toNumber(t.pricing?.price)) && toNumber(t.pricing.price) > 0);
+    if (!available.length) return null;
+    return available.reduce((best, t) => (toNumber(t.pricing.price) < toNumber(best.pricing.price) ? t : best));
+}
+
+// A room is available if any of its real tenancies are — never just the
+// room's own raw flag alone. Same rule as amberMapper.js's isRoomAvailable
+// (confirmed live: a real Manchester room had its own `available:false`
+// while one of its tenancies was genuinely `available:true` at a real,
+// lower price — the tenancy-level truth is what's authoritative).
+function isChildRoomAvailable(child, tenancies) {
+    if (tenancies.length > 0) return tenancies.some((t) => t && t.available === true);
+    return child.available === true;
+}
+
+// Backend CommonJS twin of amberMapper.js's dedupeRoomChildren() — same
+// rule, same two confirmed-live motivating cases (see that function's own
+// header for the full phantom-room / availability-mismatch writeup): a
+// same-named duplicate that's genuinely available is never discarded in
+// favor of a same-named duplicate that isn't, and a tenancy-less phantom
+// with a bogus price is never preferred over a real, tenancy-bearing entry.
+// Applied here specifically so a phantom (if ever marked available:true at
+// the room level) can never win this file's own cheapest-candidate scan
+// across raw.children.
+function dedupeRoomChildren(children) {
+    const list = Array.isArray(children) ? children.filter(Boolean) : [];
+    const groups = new Map();
+    for (const child of list) {
+        const key = String(child.name || "").trim().toLowerCase();
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(child);
+    }
+    const hasTenancies = (child) => Array.isArray(child.children) && child.children.length > 0;
+    const result = [];
+    for (const group of groups.values()) {
+        if (group.length === 1) { result.push(group[0]); continue; }
+        const available = group.filter((c) => isChildRoomAvailable(c, Array.isArray(c.children) ? c.children : []));
+        if (available.length > 0) {
+            const availableWithTenancies = available.filter(hasTenancies);
+            result.push(...(availableWithTenancies.length ? availableWithTenancies : available));
+        } else {
+            const withTenancies = group.filter(hasTenancies);
+            result.push(...(withTenancies.length ? withTenancies : [group[0]]));
+        }
+    }
+    return result;
+}
+
+// THE property-level pricing/availability decision for the Planner's own
+// cached index — mirrors src/services/amberMapper.js's deriveDisplayPricing
+// (same business rule: derive from real room/tenancy data when present,
+// preferring availability-aware tenancy pricing over Amber's own coarse
+// aggregate `pricing.min_price`, which is NOT availability-aware and can
+// equal a sold-out room's price — see that file's own header for the real
+// live example this was found against). Falls back to the top-level
+// aggregate (preferring min_available_price over min_price) only when no
+// room/tenancy breakdown exists at all. Returns real source values only —
+// `amount`/`currency`/`duration` always come from the SAME selected
+// record, never a fabricated/derived composite.
+function deriveResidencePricing(raw) {
+    const children = dedupeRoomChildren(raw?.children);
+    if (children.length) {
+        let best = null;
+        for (const child of children) {
+            const tenancies = Array.isArray(child.children) ? child.children : [];
+            if (!isChildRoomAvailable(child, tenancies)) continue;
+
+            const cheapestTenancy = selectCheapestAvailableTenancy(tenancies);
+            const roomPricing = child.pricing || {};
+            const candidate = cheapestTenancy
+                ? {
+                    amount: toNumber(cheapestTenancy.pricing.price),
+                    currency: currencySymbol(cheapestTenancy.pricing.currency) || currencySymbol(roomPricing.currency),
+                    duration: normalizeDuration(cheapestTenancy.pricing.duration) || normalizeDuration(roomPricing.duration),
+                }
+                : { amount: toNumber(roomPricing.min_price ?? roomPricing.price), currency: currencySymbol(roomPricing.currency), duration: normalizeDuration(roomPricing.duration) };
+            // amount > 0, not just Number.isFinite — never fabricate/select
+            // a zero or negative "price" (item 14).
+            if (!Number.isFinite(candidate.amount) || candidate.amount <= 0) continue;
+
+            if (!best) { best = candidate; continue; }
+            const candidateWeekly = computePriceWeekly(candidate.amount, candidate.duration);
+            const bestWeekly = computePriceWeekly(best.amount, best.duration);
+            if (candidateWeekly != null && bestWeekly != null) { if (candidateWeekly < bestWeekly) best = candidate; }
+            else if (candidateWeekly != null && bestWeekly == null) { best = candidate; }
+            else if (candidateWeekly == null && bestWeekly == null && candidate.amount < best.amount) { best = candidate; }
+        }
+        return best
+            ? { amount: best.amount, currency: best.currency, duration: best.duration, available: true }
+            : { amount: null, currency: null, duration: null, available: false };
+    }
+
+    // No room-type breakdown at all — only positive evidence (the
+    // property's own top-level `available` flag being explicitly false)
+    // marks it unavailable; otherwise fall back to the aggregate, same
+    // fallback-field priority as the frontend fix.
+    if (raw?.available === false) return { amount: null, currency: null, duration: null, available: false };
+    const pricing = raw?.pricing || {};
+    const amount = toNumber(pricing.min_available_price ?? pricing.available_price ?? pricing.min_price ?? pricing.price);
+    return {
+        amount: Number.isFinite(amount) && amount > 0 ? amount : null,
+        currency: currencySymbol(pricing.currency),
+        duration: normalizeDuration(pricing.duration),
+        available: true,
+    };
+}
+
 // Raw Amber item -> index-row shape. Deliberately a small self-contained
 // subset of src/services/amberMapper.js's logic, not an import — that file
 // is an ES module for CRA's webpack pipeline; api/_lib is plain CommonJS
@@ -132,9 +249,9 @@ function extractResultArray(json) {
 function mapAmberItemToResidence(raw, normalizedCity) {
     const propertyId = raw?.id != null ? String(raw.id) : null;
     if (!propertyId || !raw?.name) return null;
-    const pricing = raw.pricing || {};
-    const priceAmount = toNumber(pricing.min_price ?? pricing.available_price ?? pricing.price);
-    const priceDuration = normalizeDuration(pricing.duration);
+    const derived = deriveResidencePricing(raw);
+    const priceAmount = derived.amount;
+    const priceDuration = derived.duration;
     return {
         source: "amber",
         propertyId,
@@ -146,7 +263,7 @@ function mapAmberItemToResidence(raw, normalizedCity) {
         longitude: typeof raw.location_coordinates?.lng === "number" ? raw.location_coordinates.lng : null,
         price: {
             amount: priceAmount,
-            currency: currencySymbol(pricing.currency),
+            currency: derived.currency || currencySymbol(raw.pricing?.currency),
         },
         priceDuration,
         priceWeekly: computePriceWeekly(priceAmount, priceDuration),
@@ -154,7 +271,11 @@ function mapAmberItemToResidence(raw, normalizedCity) {
         rating: getRating(raw),
         roomType: getRoomType(raw),
         distanceToCentreKm: getCityCentreDistanceKm(raw),
-        available: raw.available !== false,
+        // Derived from real room/tenancy availability when that data
+        // exists (see deriveResidencePricing/isChildRoomAvailable above) —
+        // NOT just the property's own coarse top-level flag, which can
+        // disagree with tenancy-level truth in either direction.
+        available: derived.available,
     };
 }
 
@@ -547,4 +668,7 @@ module.exports = {
     computePriceWeekly,
     computePriceMonthly,
     normalizeDuration,
+    deriveResidencePricing,
+    selectCheapestAvailableTenancy,
+    isChildRoomAvailable,
 };

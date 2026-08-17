@@ -20,6 +20,7 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 const http = require("http");
 const { URL } = require("url");
 const amberHandler = require("../api/amber.js");
+const universitiesResolveHandler = require("../api/universities/resolve.js");
 const enquireHandler = require("../api/enquire.js");
 const studentPlannerHandler = require("../api/student-planner.js");
 const studentPlannerPptHandler = require("../api/student-planner-ppt.js");
@@ -115,6 +116,11 @@ const server = http.createServer(async (req, res) => {
         if (url.pathname === "/api/student-planner-ppt") {
             req.body = await readJsonBody(req);
             await studentPlannerPptHandler(req, res);
+            return;
+        }
+        if (url.pathname === "/api/universities/resolve") {
+            if (req.method === "POST") req.body = await readJsonBody(req);
+            await universitiesResolveHandler(req, res);
             return;
         }
         if (Object.prototype.hasOwnProperty.call(authRoutes, url.pathname)) {

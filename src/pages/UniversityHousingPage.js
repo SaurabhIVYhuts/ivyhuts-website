@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { GraduationCap, MapPin, ArrowRight } from "lucide-react";
 import SiteNavbar from "../components/layout/SiteNavbar";
@@ -7,6 +7,7 @@ import UniversitySearchBox from "../components/universityHousing/UniversitySearc
 import UniversityHousingMap from "../components/universityHousing/UniversityHousingMap";
 import PropertyListPanel from "../components/universityHousing/PropertyListPanel";
 import { resolveCampusUniversityById } from "../lib/campusUniversityResolver";
+import { resolveUniversityById as resolveDiscoveredUniversityById } from "../services/universityDiscoveryApi";
 import { getProperties, getPropertyBySlug, getCachedCityStats } from "../services/amberApi";
 import { safeListingList } from "../services/amberMapper";
 import { haversineKm, hasValidCoords } from "../lib/geoDistance";
@@ -26,7 +27,48 @@ export default function UniversityHousingPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const universityId = searchParams.get("university");
 
-  const university = useMemo(() => resolveCampusUniversityById(universityId), [universityId]);
+  // Resolving a URL's ?university=<id> now has two paths: Tier 1 (static
+  // campusUniversities.json) resolves synchronously with zero I/O, exactly
+  // as before. An id that ISN'T in Tier 1 may still be a real,
+  // previously-discovered Tier 2/3 university (AI-assisted discovery — see
+  // api/_lib/universityResolveService.js) whose canonicalId only exists in
+  // the backend's discovery database, so that case falls through to one lookup call. Either way the
+  // selection itself (clicking a search result) already has the full
+  // record in hand via onSelect — this effect only exists for shareable
+  // links / page reloads where only the id survives in the URL.
+  const tier1University = useMemo(() => resolveCampusUniversityById(universityId), [universityId]);
+  const [discoveredUniversity, setDiscoveredUniversity] = useState(null);
+  const [universityLookupState, setUniversityLookupState] = useState("idle"); // idle | loading | not_found
+  const university = tier1University || discoveredUniversity;
+  // Tracks which id `discoveredUniversity` was resolved FOR — lets a
+  // just-completed search/select seed this state directly (see
+  // selectUniversity below) without the effect below immediately re-fetching
+  // the exact same record it was just handed for free.
+  const resolvedForIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!universityId || tier1University) {
+      setDiscoveredUniversity(null);
+      setUniversityLookupState("idle");
+      resolvedForIdRef.current = null;
+      return;
+    }
+    if (resolvedForIdRef.current === universityId) return; // already have it — selectUniversity seeded it directly
+    let cancelled = false;
+    setDiscoveredUniversity(null);
+    setUniversityLookupState("loading");
+    resolveDiscoveredUniversityById(universityId).then((record) => {
+      if (cancelled) return;
+      if (record) {
+        resolvedForIdRef.current = universityId;
+        setDiscoveredUniversity(record);
+        setUniversityLookupState("idle");
+      } else {
+        setUniversityLookupState("not_found");
+      }
+    });
+    return () => { cancelled = true; };
+  }, [universityId, tier1University]);
 
   const [rawProperties, setRawProperties] = useState([]);
   const [page, setPage] = useState(1);
@@ -39,9 +81,27 @@ export default function UniversityHousingPage() {
 
   // Selecting a suggestion updates the URL (shareable link, item 17) without
   // a full page reload — React Router's setSearchParams is a client-side
-  // history push, not a navigation.
-  const selectUniversity = (uni) => setSearchParams({ university: uni.id });
-  const clearUniversity = () => { setSearchParams({}); setRawProperties([]); setTotalCount(null); setSelectedId(null); };
+  // history push, not a navigation. A Tier 2/3 (AI-discovered) selection
+  // arrives with its full record already in hand (from
+  // UniversitySearchBox.js's resolve/confirm response) — seed it directly so
+  // the id-lookup effect above doesn't immediately re-fetch what we already have.
+  const selectUniversity = (uni) => {
+    if (!resolveCampusUniversityById(uni.id)) {
+      resolvedForIdRef.current = uni.id;
+      setDiscoveredUniversity(uni);
+      setUniversityLookupState("idle");
+    }
+    setSearchParams({ university: uni.id });
+  };
+  const clearUniversity = () => {
+    setSearchParams({});
+    setDiscoveredUniversity(null);
+    resolvedForIdRef.current = null;
+    setUniversityLookupState("idle");
+    setRawProperties([]);
+    setTotalCount(null);
+    setSelectedId(null);
+  };
 
   // A university's `accommodationOverride` (see campusUniversities.json /
   // campusUniversityResolver.js) is an explicit business rule — this
@@ -64,6 +124,12 @@ export default function UniversityHousingPage() {
   // cache.
   useEffect(() => {
     if (!university) { setRawProperties([]); setTotalCount(null); return; }
+    // A resolved university with no known city (rare — only possible for an
+    // AI-assisted discovery whose Nominatim match had no city/town/village
+    // in its address components) has nothing to search Amber for. Show the
+    // "found, but no residences" state directly rather than attempting a
+    // doomed fetch with an empty/undefined city.
+    if (!university.city && !hasOverride) { setRawProperties([]); setTotalCount(0); setError(null); return; }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -184,25 +250,42 @@ export default function UniversityHousingPage() {
           </div>
         </div>
 
-        {!university ? (
+        {universityLookupState === "loading" && (
+          <div className="uh-empty-state" aria-live="polite" aria-busy="true">
+            <GraduationCap size={32} />
+            <p>Loading…</p>
+          </div>
+        )}
+
+        {universityLookupState === "not_found" && (
+          <div className="uh-empty-state">
+            <GraduationCap size={32} />
+            <p>We couldn't find that university or school link — it may be out of date. Search again below, or browse every city we cover.</p>
+            <Link to="/find-rooms" className="btn btn-secondary">Browse All Cities</Link>
+          </div>
+        )}
+
+        {!university && universityLookupState === "idle" ? (
           <div className="uh-empty-state">
             <GraduationCap size={32} />
             <p>Search for your university or school above to see accommodation nearby — or browse every city we cover.</p>
             <Link to="/find-rooms" className="btn btn-secondary">Browse All Cities</Link>
           </div>
-        ) : (
+        ) : university ? (
           <>
             <div className="uh-university-info">
               <div className="uh-university-info-body">
                 <h2>{university.name} <span className="uh-university-info-type">{university.type === "SCHOOL" ? "School" : "University"}</span></h2>
-                <p><MapPin size={14} /> {university.address || `${university.city}, ${university.country}`}</p>
+                <p><MapPin size={14} /> {university.address || [university.city, university.country].filter(Boolean).join(", ") || "Location on map below"}</p>
               </div>
               <p className="uh-university-info-count">
                 {loading
                   ? "Searching…"
                   : error
                     ? "Unable to load properties right now."
-                    : `${rawProperties.length}${hasMore ? "+" : ""} student propert${rawProperties.length === 1 ? "y" : "ies"} found in ${university.city}`}
+                    : !university.city
+                      ? "No IVYHUTS properties mapped to this location yet."
+                      : `${rawProperties.length}${hasMore ? "+" : ""} student propert${rawProperties.length === 1 ? "y" : "ies"} found in ${university.city}`}
               </p>
             </div>
 
@@ -226,9 +309,19 @@ export default function UniversityHousingPage() {
             )}
 
             {!loading && !error && sortedProperties.length === 0 && (
-              <div className="uh-empty-state">
-                <p>We don't currently have properties in {university.city}.</p>
-                <Link to="/find-rooms" className="btn btn-secondary">Browse Other Cities</Link>
+              <div className="uh-split-layout uh-split-layout-empty">
+                <div className="uh-empty-state">
+                  <p>{university.city
+                    ? `We don't currently have properties in ${university.city}.`
+                    : "This location isn't near any IVYHUTS city yet — but here's where it is:"}</p>
+                  <Link to="/find-rooms" className="btn btn-secondary">Browse Other Cities</Link>
+                </div>
+                <UniversityHousingMap
+                  university={university}
+                  properties={[]}
+                  selectedId={null}
+                  onSelectProperty={() => {}}
+                />
               </div>
             )}
 
@@ -260,7 +353,7 @@ export default function UniversityHousingPage() {
               </Link>
             </div>
           </>
-        )}
+        ) : null}
       </main>
 
       <SiteFooter />
