@@ -307,27 +307,26 @@ function getRoomAvailableFrom(tenancies) {
   return dated[0].t.availableFrom;
 }
 
-// Cheapest price among AVAILABLE tenancies — falls back to the room's OWN
-// availability-aware aggregate (pricing.min_available_price) only when
-// there's no usable per-tenancy price data at all (a sparse room with zero
-// nested tenancy children but a raw `available: true` flag, or tenancies
-// present but none with a valid price). Deliberately does NOT fall back
-// further to getPrice()'s `from` (pricing.min_price) — that field is
-// documented (see getPrice()'s own header comment) as availability-UNAWARE
-// and confirmed live to be able to equal a completely SOLD OUT room's price,
-// with an explicit warning that every caller must go through this
-// availability-aware path rather than trust it directly. This exact function
-// feeds selectCheapestAvailableRoomType() -> deriveDisplayPricing(), i.e. the
-// literal number shown to a customer as this property's bookable price under
-// the site's Lowest Price Guarantee — a wrong number here is a real, costly
-// promise, not just a display glitch, so this returns null (never shown,
-// property/room correctly falls out of pricing contention) rather than ever
-// guessing from an availability-unaware aggregate.
-function getRoomLowestAvailablePrice(tenancies, child) {
-  const prices = tenancies.filter((t) => t.available && t.price !== null).map((t) => t.price);
-  if (prices.length) return Math.min(...prices);
-  const pricing = child?.pricing || {};
-  return toNumber(pricing.min_available_price ?? pricing.available_price);
+// Cheapest AVAILABLE tenancy — returns the FULL tenancy record (price AND
+// its own currency/duration/id), never just a bare amount. This is the fix
+// for a real data-integrity bug found live: the previous version returned
+// only the minimum available PRICE, which callers then paired with the
+// ROOM's own aggregate duration/currency (child.pricing.duration) — a
+// different record. mapTenancy()'s own header already documents that a
+// tenancy's actual billing period/currency is NOT always the same as its
+// room's aggregate ("a UK property is usually weekly, a continental
+// European one is usually monthly" — the same applies within one room
+// across different tenancy offers). Mixing amount-from-tenancy-A with
+// duration-from-the-room-aggregate can silently produce a price/duration
+// pair that matches NO real record at all. Returning the whole tenancy
+// keeps amount+currency+duration atomically from the SAME source, always.
+// Returns null (never a fabricated substitute) when no tenancy is usable.
+function selectCheapestAvailableTenancy(tenancies) {
+  // price > 0, not just Number.isFinite — a zero/negative "price" is a data
+  // artifact, never a real chargeable rate. Never fabricate £0 (item 14).
+  const available = tenancies.filter((t) => t.available === true && Number.isFinite(t.price) && t.price > 0);
+  if (!available.length) return null;
+  return available.reduce((best, t) => (t.price < best.price ? t : best));
 }
 
 // Cross-duration comparison ONLY — never used for display (a room's actual
@@ -359,9 +358,16 @@ export function weeklyEquivalentPrice(amount, duration) {
 // callers treat that as "every room type is sold out or unpriced",
 // never a silent fallback to a sold-out room's price.
 export function selectCheapestAvailableRoomType(roomTypes) {
+  // price > 0, not just Number.isFinite — same "never fabricate £0" rule
+  // (item 14) applied at the property-level room-to-room comparison too.
   const candidates = (Array.isArray(roomTypes) ? roomTypes : [])
-    .filter((rt) => rt && rt.available === true && Number.isFinite(rt.price?.from))
-    .map((rt) => ({ id: rt.id, name: rt.name, amount: rt.price.from, currency: rt.price.currency, duration: rt.price.duration || "week" }));
+    .filter((rt) => rt && rt.available === true && Number.isFinite(rt.price?.from) && rt.price.from > 0)
+    .map((rt) => ({
+      id: rt.id, name: rt.name, amount: rt.price.from, currency: rt.price.currency, duration: rt.price.duration || "week",
+      // Provenance (item 17) — traceable back to the exact tenancy (or, for
+      // the rare room-aggregate-only case, the room) this price came from.
+      priceSource: rt.price.source || "room", sourceRoomId: rt.id, sourceTenancyId: rt.price.sourceTenancyId || null,
+    }));
   if (!candidates.length) return null;
 
   candidates.sort((a, b) => {
@@ -383,8 +389,12 @@ function buildRoomTypes(raw) {
 }
 
 // Turns a `selectCheapestAvailableRoomType` result (or the no-room-data
-// fallback) into the shared { isSoldOut, displayPrice, selectedRoomType }
-// shape every consumer reads.
+// fallback) into the shared shape every consumer reads. `displayPrice` is
+// ALWAYS an exact real source price (with `source` provenance) — the
+// `comparison.weeklyEquivalent` figure lives in a SEPARATE object
+// specifically so a consumer can never accidentally destructure/render it
+// as if it were the display amount (item 6 of the fake-price fix: display
+// price and comparison price must be structurally impossible to confuse).
 function deriveDisplayPricing(roomTypes, raw) {
   if (roomTypes.length > 0) {
     const selected = selectCheapestAvailableRoomType(roomTypes);
@@ -392,12 +402,13 @@ function deriveDisplayPricing(roomTypes, raw) {
       // Real per-room-type data exists and every single one is sold out
       // (or has no valid price) — this IS confidently "sold out", not an
       // ambiguous/missing-data case.
-      return { isSoldOut: true, displayPrice: null, selectedRoomType: null };
+      return { isSoldOut: true, displayPrice: null, comparison: null, selectedRoomType: null };
     }
     return {
       isSoldOut: false,
-      displayPrice: { amount: selected.amount, currency: selected.currency, duration: selected.duration },
-      selectedRoomType: { id: selected.id, name: selected.name, availability: "available" },
+      displayPrice: { amount: selected.amount, currency: selected.currency, duration: selected.duration, source: selected.priceSource },
+      comparison: { weeklyEquivalent: weeklyEquivalentPrice(selected.amount, selected.duration) },
+      selectedRoomType: { id: selected.sourceRoomId, name: selected.name, availability: "available", sourceTenancyId: selected.sourceTenancyId },
     };
   }
 
@@ -409,14 +420,18 @@ function deriveDisplayPricing(roomTypes, raw) {
   // aggregate field when present (min_available_price — confirmed live to
   // exclude sold-out rooms, see this file's getPrice() comment), only
   // falling further back to the raw, availability-UNAWARE min_price as the
-  // last resort this codebase already used before this fix.
-  if (raw?.available === false) return { isSoldOut: true, displayPrice: null, selectedRoomType: null };
+  // last resort this codebase already used before this fix. Amount and
+  // duration both come from this SAME top-level `pricing` object here, so
+  // there's no cross-record mixing risk in this fallback branch either.
+  if (raw?.available === false) return { isSoldOut: true, displayPrice: null, comparison: null, selectedRoomType: null };
   const pricing = raw?.pricing || {};
   const amount = toNumber(pricing.min_available_price ?? pricing.available_price ?? pricing.min_price ?? pricing.price);
-  if (!Number.isFinite(amount)) return { isSoldOut: false, displayPrice: null, selectedRoomType: null };
+  if (!Number.isFinite(amount) || amount <= 0) return { isSoldOut: false, displayPrice: null, comparison: null, selectedRoomType: null };
+  const duration = pricing.duration ? String(pricing.duration).replace(/ly$/, "") : "week";
   return {
     isSoldOut: false,
-    displayPrice: { amount, currency: currencySymbol(pricing.currency), duration: pricing.duration ? String(pricing.duration).replace(/ly$/, "") : "week" },
+    displayPrice: { amount, currency: currencySymbol(pricing.currency), duration, source: "aggregate" },
+    comparison: { weeklyEquivalent: weeklyEquivalentPrice(amount, duration) },
     selectedRoomType: null,
   };
 }
@@ -431,34 +446,62 @@ export function normalizeResidencePricing(raw) {
 }
 
 // Amber's `children` array occasionally contains stale/phantom duplicate
-// room-type entries alongside the real one — same `name`, but with zero
-// tenancy leaves (no actual bookable duration options) and a bogus price
-// (confirmed live: a property whose real "Studio in Premium Residence" is
-// AED1,840/week with 2 tenancies also carried 3 phantom copies of the same
-// name — AED505, $1854, $1854 — each with zero tenancies). Amber's own site
-// only ever renders the real one; without this, every phantom copy became
-// its own mispriced card. Within each same-name group, if at least one
-// entry actually has tenancies, keep only those (drop the tenancy-less
-// phantoms); otherwise there's nothing to prefer, so keep one representative
-// so a genuinely sold-out/unique room type still shows up exactly once.
+// room-type entries alongside the real one — same `name`, sometimes a bogus
+// price, and no reliable single tell-tale shared across all real cases.
+//
+// CASE 1 (confirmed live, the original motivation): a property whose real
+// "Studio in Premium Residence" is AED1,840/week with 2 (available)
+// tenancies also carried 3 phantom copies of the same name — AED505,
+// $1854, $1854 — each with zero tenancies. Amber's own site only ever
+// renders the real one.
+//
+// CASE 2 (confirmed live, a REAL PRICE INTEGRITY bug this exact function
+// caused): a Toronto property's "1 Bed 1 Bath | Shared Triple" has TWO
+// entries — one available:true, CAD123/month, with NO tenancy breakdown
+// (a real, simple, currently-bookable listing), and one available:false,
+// CAD860/month, WITH 2 tenancies, both unavailable (a stale/sold-out
+// duplicate). A naive "prefer whichever copy has tenancies" rule — this
+// function's ORIGINAL logic — kept the wrong one: the sold-out $860 entry,
+// discarding the genuinely available $123 one, which then became the
+// property's incorrectly-selected display price.
+//
+// The rule that resolves BOTH cases correctly: within a same-name group,
+// AVAILABILITY is checked FIRST (isRoomAvailable's own tenancy-priority
+// rule) — if at least one copy is genuinely available, only available
+// copies are kept (an unavailable duplicate, tenancies or not, is never
+// preferred over one with real availability evidence); among the available
+// ones, prefer whichever have real tenancy detail (richer data), falling
+// back to the tenancy-less available ones only if none have tenancies —
+// this is exactly the Toronto case. If NONE of the group is available, fall
+// back to the original phantom-suppression rule (prefer tenancy-bearing
+// entries; keep one representative if none have tenancies either) — this
+// is exactly the Dubai case, still correctly handled.
 function dedupeRoomChildren(children) {
   const list = Array.isArray(children) ? children.filter(Boolean) : [];
-  const groupHasTenancies = new Map();
+  const groups = new Map();
   for (const child of list) {
     const key = String(child.name || "").trim().toLowerCase();
-    const hasTenancies = Array.isArray(child.children) && child.children.length > 0;
-    if (hasTenancies) groupHasTenancies.set(key, true);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(child);
   }
-  const seenPhantomKey = new Set();
+
+  const hasTenancies = (child) => Array.isArray(child.children) && child.children.length > 0;
+  const isGenuinelyAvailable = (child) => {
+    const tenancies = Array.isArray(child.children) ? child.children : [];
+    return tenancies.length > 0 ? tenancies.some((t) => t && t.available === true) : child.available === true;
+  };
+
   const result = [];
-  for (const child of list) {
-    const key = String(child.name || "").trim().toLowerCase();
-    const hasTenancies = Array.isArray(child.children) && child.children.length > 0;
-    if (groupHasTenancies.get(key)) {
-      if (hasTenancies) result.push(child);
-    } else if (!seenPhantomKey.has(key)) {
-      seenPhantomKey.add(key);
-      result.push(child);
+  for (const group of groups.values()) {
+    if (group.length === 1) { result.push(group[0]); continue; }
+
+    const available = group.filter(isGenuinelyAvailable);
+    if (available.length > 0) {
+      const availableWithTenancies = available.filter(hasTenancies);
+      result.push(...(availableWithTenancies.length ? availableWithTenancies : available));
+    } else {
+      const withTenancies = group.filter(hasTenancies);
+      result.push(...(withTenancies.length ? withTenancies : [group[0]]));
     }
   }
   return result;
@@ -474,6 +517,24 @@ function mapRoomType(child) {
 
   const roomPricing = getPrice(child);
   const available = isRoomAvailable(child, tenancies);
+  // Amount, currency, AND duration always come from the SAME source record
+  // — either one specific available tenancy (all three fields read off that
+  // one tenancy, never mixed with the room's own separate aggregate), or,
+  // when there's no usable tenancy at all, the room-level aggregate as a
+  // single self-consistent whole. Never amount-from-one + duration-from-
+  // another. See selectCheapestAvailableTenancy()'s own header for the real
+  // bug class this prevents.
+  const cheapestTenancy = selectCheapestAvailableTenancy(tenancies);
+  const price = cheapestTenancy
+    ? {
+        ...roomPricing,
+        from: cheapestTenancy.price,
+        currency: cheapestTenancy.currency || roomPricing.currency,
+        duration: cheapestTenancy.priceDuration || roomPricing.duration,
+        source: "tenancy",
+        sourceTenancyId: cheapestTenancy.id,
+      }
+    : { ...roomPricing, source: roomPricing.from !== null ? "room" : null };
 
   return {
     id: child.id,
@@ -484,7 +545,7 @@ function mapRoomType(child) {
     bedroomCount: toNumber(child.meta?.bedroom_count),
     bathroomCount: toNumber(child.meta?.bathroom_count),
     sizeSqm: toNumber(child.meta?.area) || null,
-    price: { ...roomPricing, from: getRoomLowestAvailablePrice(tenancies, child) },
+    price,
     image: getPrimaryImage(child),
     images: getGalleryImages(child, 6),
     available,
@@ -537,8 +598,9 @@ export function mapAmberPropertyDetails(raw) {
     // selection above; `to`/`original`/`deposit` are unaffected by
     // availability and keep basePrice's own values.
     price: pricing.displayPrice
-      ? { ...basePrice, from: pricing.displayPrice.amount, currency: pricing.displayPrice.currency, duration: pricing.displayPrice.duration }
+      ? { ...basePrice, from: pricing.displayPrice.amount, currency: pricing.displayPrice.currency, duration: pricing.displayPrice.duration, source: pricing.displayPrice.source }
       : { ...basePrice, from: null },
+    priceWeekly: pricing.comparison?.weeklyEquivalent ?? null,
     isSoldOut: pricing.isSoldOut,
     selectedRoomType: pricing.selectedRoomType,
     distances: getDistances(raw, 8),
@@ -738,13 +800,15 @@ export function mapAmberPropertyToListing(raw) {
     image: getPrimaryImage(raw),
     images: getGalleryImages(raw),
     price: pricing.displayPrice
-      ? { ...basePrice, from: pricing.displayPrice.amount, currency: pricing.displayPrice.currency, duration: pricing.displayPrice.duration }
+      ? { ...basePrice, from: pricing.displayPrice.amount, currency: pricing.displayPrice.currency, duration: pricing.displayPrice.duration, source: pricing.displayPrice.source }
       : { ...basePrice, from: null },
     // Weekly-equivalent of the displayed price, for cross-duration-safe
     // sort/rank comparisons ONLY (item 18/24) — never shown to the student;
-    // the card always renders the original displayPrice amount+duration.
-    // null whenever displayPrice itself is null/unrankable (never guessed).
-    priceWeekly: pricing.displayPrice ? weeklyEquivalentPrice(pricing.displayPrice.amount, pricing.displayPrice.duration) : null,
+    // the card always renders price.from/price.duration verbatim. Read from
+    // deriveDisplayPricing's own `comparison` object (computed once, single
+    // source of truth) rather than re-deriving it here a second time — null
+    // whenever displayPrice itself is null/unrankable (never guessed).
+    priceWeekly: pricing.comparison?.weeklyEquivalent ?? null,
     isSoldOut: pricing.isSoldOut,
     selectedRoomType: pricing.selectedRoomType,
     distances: getDistances(raw),

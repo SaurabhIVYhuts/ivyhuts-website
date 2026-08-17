@@ -20,6 +20,7 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 const http = require("http");
 const { URL } = require("url");
 const amberHandler = require("../api/amber.js");
+const universitiesResolveHandler = require("../api/universities/resolve.js");
 const searchHandler = require("../api/search.js");
 const searchDataHandler = require("../api/search-data.js");
 const enquireHandler = require("../api/enquire.js");
@@ -129,6 +130,11 @@ const server = http.createServer(async (req, res) => {
         // lesson as /api/search and /api/search-data below.
         if (url.pathname === "/api/city-listings") {
             await cityListingsHandler(req, res);
+            return;
+        }
+        if (url.pathname === "/api/universities/resolve") {
+            if (req.method === "POST") req.body = await readJsonBody(req);
+            await universitiesResolveHandler(req, res);
             return;
         }
         // Global search (GlobalSearchBar's autocomplete) — was missing from

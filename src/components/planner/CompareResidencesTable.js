@@ -56,7 +56,13 @@ export default function CompareResidencesTable({ residences, status = "ready", b
                       {fits == null ? (
                         "—"
                       ) : fits ? (
-                        <span className="sp-budget-fit sp-budget-fit--ok"><Check size={13} /> {r.price.currency}{weekly}/week</span>
+                        // Never render `weekly` (a derived weekly-equivalent
+                        // used only to determine budget fit) as if it were a
+                        // real price — a monthly-priced residence has no
+                        // £X/week figure Amber ever actually quoted. The real
+                        // Price column already shows the true source
+                        // amount+duration; this just confirms it fits.
+                        <span className="sp-budget-fit sp-budget-fit--ok"><Check size={13} /> Within budget</span>
                       ) : (
                         <span className="sp-budget-fit sp-budget-fit--over"><TriangleAlert size={13} /> Above budget</span>
                       )}
