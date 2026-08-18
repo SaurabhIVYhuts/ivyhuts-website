@@ -9,10 +9,13 @@ const { toSafeLead } = require("../../_lib/leadView");
 const { recordEvent } = require("../../_lib/events");
 const { withErrorHandling, requireObjectId, notFound, badRequest, parseJsonBody } = require("../../_lib/validation");
 const { sendSuccess } = require("../../_lib/apiResponse");
+const { withCors } = require("../../_lib/cors");
 
 const INTERNAL_ROLES = ["MARKETING_AGENT", "MARKETING_MANAGER", "ADMIN"];
 
 module.exports = withErrorHandling(async (req, res) => {
+    if (withCors(req, res)) return; // preflight handled
+
     if (req.method !== "PATCH") {
         res.status(405).json({ error: "Method not allowed" });
         return;

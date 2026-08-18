@@ -12,10 +12,12 @@ const { toSafeLead } = require("../_lib/leadView");
 const { recordEvent } = require("../_lib/events");
 const { withErrorHandling, requireObjectId, notFound, badRequest, parseEnumParam, parseNumberParam, parseJsonBody } = require("../_lib/validation");
 const { sendSuccess } = require("../_lib/apiResponse");
+const { withCors } = require("../_lib/cors");
 
 const INTERNAL_ROLES = ["MARKETING_AGENT", "MARKETING_MANAGER", "ADMIN"];
 const DELETE_ROLES = ["MARKETING_MANAGER", "ADMIN"];
-const LEAD_STATUSES = ["new", "contacted", "qualified", "converted", "lost"];
+// Kept in sync with api/_lib/models/Lead.js's LEAD_STATUSES (Milestone 22).
+const LEAD_STATUSES = ["new", "contacted", "qualified", "nurturing", "converted", "lost"];
 const LEAD_TEMPERATURES = ["cold", "warm", "hot"];
 
 // Fields a PATCH may never touch, even if present in the body — internal
@@ -108,6 +110,8 @@ async function handleDelete(req, res, id) {
 }
 
 module.exports = withErrorHandling(async (req, res) => {
+    if (withCors(req, res)) return; // preflight handled
+
     const id = requireObjectId(req.query.id, "id");
     if (req.method === "GET") return handleGet(req, res, id);
     if (req.method === "PATCH") {

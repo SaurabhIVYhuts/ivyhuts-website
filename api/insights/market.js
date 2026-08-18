@@ -1,6 +1,6 @@
-// GET /api/insights/market — internal roles only in production (see
-// api/_lib/insightsDevAuth.js for the TEMPORARY local-dev RBAC bypass —
-// isolated to this file and api/insights/overview.js only). Real, cache-only
+// GET /api/insights/market — internal roles only (MARKETING_AGENT,
+// MARKETING_MANAGER, ADMIN; see api/_lib/insightsDevAuth.js, Milestone 22).
+// Real, cache-only
 // Amber market intelligence (sold-out vs available, asking price, country/
 // city/pincode) for the /insight dashboard's Market Intelligence, Property
 // Performance, Price Intelligence and Next-Year Opportunity sections. See
@@ -18,7 +18,7 @@ module.exports = withErrorHandling(async (req, res) => {
         return;
     }
     const identity = await authorizeInsights(req, res);
-    if (!identity) return; // authorizeInsights already sent 401/403 (production path only)
+    if (!identity) return; // authorizeInsights already sent 401/403
 
     const { country, city } = req.query;
     const market = await getMarketIntelligence({ country, city });

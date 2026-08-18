@@ -10,7 +10,11 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
-const LEAD_STATUSES = ["new", "contacted", "qualified", "converted", "lost"];
+// Kept in sync with api/_lib/models/Lead.js's LEAD_STATUSES (Milestone 22) —
+// this denormalized snapshot field is not currently written by any code
+// path (see customerView.js), but its enum must still accept every real
+// Lead.status value.
+const LEAD_STATUSES = ["new", "contacted", "qualified", "nurturing", "converted", "lost"];
 const LEAD_TEMPERATURES = ["cold", "warm", "hot"];
 const USER_ROLES = ["USER", "MARKETING_AGENT", "MARKETING_MANAGER", "ADMIN"];
 const ACCOMMODATION_JOURNEY_STATUSES = [

@@ -2,8 +2,11 @@
 // Independent of Amber (see api/auth/signup.js header comment).
 const { getSessionIdFromRequest, deleteSession, buildClearCookie } = require("../_lib/session");
 const { RedisUnavailableError } = require("../_lib/sharedStore");
+const { withCors } = require("../_lib/cors");
 
 module.exports = async (req, res) => {
+    if (withCors(req, res)) return; // preflight handled
+
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;

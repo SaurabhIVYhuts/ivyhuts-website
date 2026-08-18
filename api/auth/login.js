@@ -4,12 +4,15 @@ const { findUserByEmail, verifyPassword, updateLastLogin, toSafeUser, normalizeE
 const { createSession, buildSessionCookie } = require("../_lib/session");
 const { RedisUnavailableError } = require("../_lib/sharedStore");
 const { checkLoginRateLimit, getClientIp } = require("../_lib/authRateLimit");
+const { withCors } = require("../_lib/cors");
 
 // Deliberately generic — never reveals whether the email exists or the
 // password was wrong, so a login form can't be used to enumerate accounts.
 const GENERIC_AUTH_FAILURE = "Invalid email or password.";
 
 module.exports = async (req, res) => {
+    if (withCors(req, res)) return; // preflight handled
+
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;

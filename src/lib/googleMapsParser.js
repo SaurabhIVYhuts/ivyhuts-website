@@ -78,12 +78,13 @@
 // null (the common case: most Google Maps URL shapes don't carry one).
 //
 // Only an explicit host allow-list is recognized (google.com/maps,
-// www.google.com/maps, maps.google.com, goo.gl/maps, maps.app.goo.gl) — this
-// module never fetches the URL itself, so there is no SSRF surface here.
-// Short links (goo.gl/maps/*, maps.app.goo.gl/*) carry no coordinates in the
-// URL text; resolving one is handled server-side by
-// api/_lib/googleMapsShortLinkResolver.js — this module still just reports
-// isShortLink:true rather than resolving it itself.
+// www.google.com/maps, maps.google.com, goo.gl/maps, maps.app.goo.gl,
+// share.google) — this module never fetches the URL itself, so there is no
+// SSRF surface here. Short links (goo.gl/maps/*, maps.app.goo.gl/*,
+// share.google/*) carry no coordinates in the URL text; resolving one is
+// handled server-side by api/_lib/googleMapsShortLinkResolver.js — this
+// module still just reports isShortLink:true rather than resolving it
+// itself.
 import { hasValidCoords } from "./geoDistance";
 
 // Generous enough for a real Google Maps URL (which can carry a long `data=`
@@ -95,6 +96,7 @@ const FULL_HOSTS = new Set(["google.com", "www.google.com", "maps.google.com"]);
 function classifyHost(url) {
   const host = url.hostname.toLowerCase();
   if (host === "maps.app.goo.gl") return "short";
+  if (host === "share.google") return "short"; // share.google/<token> — same "no coordinates in the URL text" shape as maps.app.goo.gl, resolved the same way (see googleMapsShortLinkResolver.js)
   if (host === "goo.gl") return url.pathname.toLowerCase().startsWith("/maps") ? "short" : null;
   if (host === "maps.google.com") return "full";
   if (FULL_HOSTS.has(host)) return url.pathname.toLowerCase().startsWith("/maps") ? "full" : null;

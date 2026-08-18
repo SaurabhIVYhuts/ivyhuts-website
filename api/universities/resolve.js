@@ -7,8 +7,8 @@
 //
 // GET  ?id=<canonicalId>        -> resolve a previously-known id (shareable ?university=<id> URLs)
 // GET  ?q=<free text>           -> run the full Tier 1/2/fuzzy/AI/Nominatim escalation
-// GET  ?q=<Google Maps URL>     -> detect + parse the URL (a short maps.app.goo.gl/goo.gl
-//                                  link is first resolved to its canonical full URL — see
+// GET  ?q=<Google Maps URL>     -> detect + parse the URL (a short maps.app.goo.gl/goo.gl/
+//                                  share.google link is first resolved to its canonical full URL — see
 //                                  googleMapsShortLinkResolver.js — then parsed identically),
 //                                  then resolve the extracted candidate through the SAME
 //                                  escalation above (see resolveGoogleMapsCandidate() in
@@ -17,9 +17,16 @@
 const { resolveUniversity, resolveUniversityById, resolveGoogleMapsCandidate, MAX_QUERY_LENGTH } = require("../_lib/universityResolveService");
 const { parseGoogleMapsUrl, MAX_URL_LENGTH } = require("../_lib/googleMapsParser");
 const { resolveGoogleMapsShortLink } = require("../_lib/googleMapsShortLinkResolver");
+const { withCors } = require("../_lib/cors");
 
 module.exports = async (req, res) => {
     res.setHeader("Cache-Control", "no-store"); // discovery results are per-query and often user-specific (ambiguous picks) — never CDN-cached, unlike /api/amber
+    // Milestone 23.3 (CRM Find Rooms foundation) — the CRM needs to call
+    // this endpoint cross-origin for university lookup (see
+    // api/_lib/providers/accommodation/README.md). Public/unauthenticated
+    // behavior is unchanged; this only adds the headers a browser needs to
+    // let a different-origin caller read the (already-public) response.
+    if (withCors(req, res)) return; // preflight handled
 
     try {
         if (req.method === "GET") {

@@ -23,9 +23,11 @@ const {
     parseJsonBody,
 } = require("../_lib/validation");
 const { sendCollection, sendSuccess } = require("../_lib/apiResponse");
+const { withCors } = require("../_lib/cors");
 
 const INTERNAL_ROLES = ["MARKETING_AGENT", "MARKETING_MANAGER", "ADMIN"];
-const LEAD_STATUSES = ["new", "contacted", "qualified", "converted", "lost"];
+// Kept in sync with api/_lib/models/Lead.js's LEAD_STATUSES (Milestone 22).
+const LEAD_STATUSES = ["new", "contacted", "qualified", "nurturing", "converted", "lost"];
 
 async function handleList(req, res) {
     const identity = await requireRole(req, res, INTERNAL_ROLES);
@@ -130,6 +132,8 @@ async function handleCreate(req, res) {
 }
 
 module.exports = withErrorHandling(async (req, res) => {
+    if (withCors(req, res)) return; // preflight handled
+
     if (req.method === "GET") return handleList(req, res);
     if (req.method === "POST") {
         await checkBusinessWriteRateLimit(req);

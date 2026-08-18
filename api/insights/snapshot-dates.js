@@ -1,7 +1,8 @@
 // GET /api/insights/snapshot-dates — powers the /insight calendar's
 // availability dots. Returns only dates + a couple of headline numbers
 // (never full snapshot bodies) for whichever dates have a stored snapshot.
-// Same TEMPORARY RBAC bypass as the other /api/insights/* routes.
+// Internal roles only, same gate as the other /api/insights/* routes (see
+// api/_lib/insightsDevAuth.js, Milestone 22).
 //
 // ?month=YYYY-MM narrows to one month (what the calendar actually needs per
 // render); omitted returns every stored date.

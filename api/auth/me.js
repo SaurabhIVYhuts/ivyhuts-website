@@ -3,8 +3,11 @@
 // requireAuth (api/_lib/auth.js) — never from anything in the request body.
 const { requireAuth } = require("../_lib/auth");
 const { toSafeUser } = require("../_lib/userStore");
+const { withCors } = require("../_lib/cors");
 
 module.exports = async (req, res) => {
+    if (withCors(req, res)) return; // preflight handled
+
     if (req.method !== "GET") {
         res.status(405).json({ error: "Method not allowed" });
         return;

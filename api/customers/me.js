@@ -13,8 +13,11 @@ const { requireCustomerIdentity } = require("../_lib/businessAuth");
 const { toSafeCustomer } = require("../_lib/customerView");
 const { withErrorHandling } = require("../_lib/validation");
 const { sendSuccess } = require("../_lib/apiResponse");
+const { withCors } = require("../_lib/cors");
 
 module.exports = withErrorHandling(async (req, res) => {
+    if (withCors(req, res)) return; // preflight handled
+
     if (req.method !== "GET") {
         res.status(405).json({ error: "Method not allowed" });
         return;

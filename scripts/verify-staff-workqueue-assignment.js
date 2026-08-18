@@ -1,0 +1,261 @@
+#!/usr/bin/env node
+// Verification for the three routes built to fix a live CRM console error
+// (Dashboard Overview calling GET /api/staff, /api/leads/assignment-summary,
+// /api/leads/work-queue — none of which existed backend-side). Same
+// standalone-Node-script convention as every other scripts/verify-*.js in
+// this repo (Jest is broken repo-wide for an unrelated pre-existing
+// reason).
+//
+// REDIS: forced into in-memory fallback (same reasoning as
+// scripts/verify-business-api.js).
+// MONGODB: uses the real MONGODB_URI, guarded by the same "database name
+// must contain 'test'" check as scripts/verify-business-api.js.
+"use strict";
+
+const assert = require("assert");
+const path = require("path");
+const ROOT = path.join(__dirname, "..");
+
+require("dotenv").config({ path: path.join(ROOT, ".env.local") });
+require("dotenv").config({ path: path.join(ROOT, ".env") });
+delete process.env.UPSTASH_REDIS_REST_URL;
+delete process.env.UPSTASH_REDIS_REST_TOKEN;
+
+let passed = 0;
+let failed = 0;
+let skipped = 0;
+const failures = [];
+
+async function test(name, fn) {
+    try {
+        await fn();
+        passed++;
+        console.log(`  PASS  ${name}`);
+    } catch (err) {
+        failed++;
+        failures.push({ name, message: err.message });
+        console.log(`  FAIL  ${name}\n        ${err.message}`);
+    }
+}
+function skip(name, reason) {
+    skipped++;
+    console.log(`  SKIP  ${name}\n        ${reason}`);
+}
+
+function mockReq({ method = "GET", body, cookie, query = {} } = {}) {
+    return { method, body, query: { ...query }, headers: cookie ? { cookie } : {}, socket: { remoteAddress: "127.0.0.1" } };
+}
+function mockRes() {
+    const res = { statusCode: 200, headers: {}, body: undefined };
+    res.status = (code) => { res.statusCode = code; return res; };
+    res.json = (body) => { res.body = JSON.parse(JSON.stringify(body)); return res; };
+    res.setHeader = (key, value) => { res.headers[key] = value; return res; };
+    res.end = () => res;
+    return res;
+}
+function getDbNameFromUri(uri) {
+    const match = /\/([^/?]+)(\?|$)/.exec(uri.replace(/^mongodb(\+srv)?:\/\//, "mongodb://").split("@").pop());
+    return match ? match[1] : "";
+}
+
+async function main() {
+    console.log("=== Staff / Assignment-Summary / Work-Queue Verification ===");
+    console.log("Redis: forced in-memory fallback for this run.\n");
+
+    const staffHandler = require(path.join(ROOT, "api", "staff.js"));
+    const assignmentSummaryHandler = require(path.join(ROOT, "api", "leads", "assignment-summary.js"));
+    const workQueueHandler = require(path.join(ROOT, "api", "leads", "work-queue.js"));
+
+    await test("STRUCTURAL: all three call withCors", () => {
+        const fs = require("fs");
+        for (const f of ["api/staff.js", "api/leads/assignment-summary.js", "api/leads/work-queue.js"]) {
+            const src = fs.readFileSync(path.join(ROOT, f), "utf8");
+            assert.ok(src.includes("withCors("), `${f} must call withCors`);
+            assert.ok(src.includes("requireRole("), `${f} must call requireRole`);
+        }
+    });
+
+    const MONGODB_URI = process.env.MONGODB_URI;
+    const dbName = MONGODB_URI ? getDbNameFromUri(MONGODB_URI) : "";
+    const looksLikeTestDb = /test/i.test(dbName);
+
+    if (!MONGODB_URI) {
+        skip("Everything else", "MONGODB_URI is not set.");
+    } else if (!looksLikeTestDb && process.env.ALLOW_MONGODB_LIVE_TEST !== "true") {
+        skip("Everything else", `MONGODB_URI points at database "${dbName}", which doesn't look like a test database.`);
+    } else {
+        const { connectToDatabase } = require(path.join(ROOT, "api", "_lib", "mongodb"));
+        const userStore = require(path.join(ROOT, "api", "_lib", "userStore"));
+        const session = require(path.join(ROOT, "api", "_lib", "session"));
+        const { resolveMongoUser } = require(path.join(ROOT, "api", "_lib", "businessAuth"));
+        const Lead = require(path.join(ROOT, "api", "_lib", "models", "Lead"));
+        const User = require(path.join(ROOT, "api", "_lib", "models", "User"));
+        const FollowUp = require(path.join(ROOT, "api", "_lib", "models", "FollowUp"));
+        const Communication = require(path.join(ROOT, "api", "_lib", "models", "Communication"));
+
+        await connectToDatabase();
+        console.log("\nMongoDB connection established for live verification.\n");
+
+        const runId = `verify-swq-${Date.now()}`;
+        const createdUserIds = [];
+        const createdLeadIds = [];
+        const createdFollowUpIds = [];
+        const createdCommIds = [];
+
+        async function createActor(role, tag) {
+            const email = `${runId}-${tag}@example.test`;
+            const redisUser = await userStore.createUser({ name: `Test ${tag}`, email, password: "TestPassword123!", phone: "9876543210" });
+            const sessionId = await session.createSession(redisUser.id);
+            const mongoUser = await resolveMongoUser(redisUser);
+            if (role !== "USER") {
+                mongoUser.role = role;
+                await mongoUser.save();
+            }
+            createdUserIds.push(mongoUser._id);
+            return { mongoUser, cookie: `${session.COOKIE_NAME}=${sessionId}` };
+        }
+        async function createLead(tag, overrides = {}) {
+            const lead = await Lead.create({ contact: { name: `Test Lead ${tag}`, email: `${runId}-lead-${tag}@example.test` }, source: "verify-script", ...overrides });
+            createdLeadIds.push(lead._id);
+            return lead;
+        }
+
+        const agent = await createActor("MARKETING_AGENT", "agent");
+        const manager = await createActor("MARKETING_MANAGER", "manager");
+        const plainUser = await createActor("USER", "plain");
+        const agentId = String(agent.mongoUser._id);
+
+        // ═══════════ /api/staff ═══════════
+        await test("STAFF AUTH: unauthenticated -> 401", async () => {
+            const res = mockRes();
+            await staffHandler(mockReq({}), res);
+            assert.strictEqual(res.statusCode, 401);
+        });
+        await test("STAFF AUTH: plain USER -> 403", async () => {
+            const res = mockRes();
+            await staffHandler(mockReq({ cookie: plainUser.cookie }), res);
+            assert.strictEqual(res.statusCode, 403);
+        });
+        await test("STAFF: internal role -> 200, returns internal-role users only, shaped {id,name,email,role}", async () => {
+            const res = mockRes();
+            await staffHandler(mockReq({ cookie: agent.cookie }), res);
+            assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+            const ids = res.body.data.map((s) => s.id);
+            assert.ok(ids.includes(String(agent.mongoUser._id)), "must include the agent");
+            assert.ok(ids.includes(String(manager.mongoUser._id)), "must include the manager");
+            assert.ok(!ids.includes(String(plainUser.mongoUser._id)), "must NOT include a plain USER");
+            const entry = res.body.data.find((s) => s.id === agentId);
+            assert.deepStrictEqual(Object.keys(entry).sort(), ["email", "id", "name", "role"]);
+        });
+
+        // ═══════════ /api/leads/assignment-summary ═══════════
+        await createLead("active-1", { assignedTo: agentId, status: "new" });
+        await createLead("active-2", { assignedTo: agentId, status: "contacted" });
+        await createLead("nurturing-1", { assignedTo: agentId, status: "nurturing" });
+        await createLead("converted-1", { assignedTo: agentId, status: "converted" });
+        await createLead("unassigned-1", { assignedTo: null, status: "new" });
+
+        const overdueFollowUp = await FollowUp.create({ leadId: createdLeadIds[0], assignedTo: agentId, type: "call", dueAt: new Date(Date.now() - 2 * 86400000), status: "pending" });
+        createdFollowUpIds.push(overdueFollowUp._id);
+        const todayFollowUp = await FollowUp.create({ leadId: createdLeadIds[1], assignedTo: agentId, type: "call", dueAt: new Date(), status: "pending" });
+        createdFollowUpIds.push(todayFollowUp._id);
+        const futureFollowUp = await FollowUp.create({ leadId: createdLeadIds[2], assignedTo: agentId, type: "call", dueAt: new Date(Date.now() + 5 * 86400000), status: "pending" });
+        createdFollowUpIds.push(futureFollowUp._id);
+        const completedOverdue = await FollowUp.create({ leadId: createdLeadIds[0], assignedTo: agentId, type: "call", dueAt: new Date(Date.now() - 5 * 86400000), status: "completed" });
+        createdFollowUpIds.push(completedOverdue._id);
+
+        await test("ASSIGNMENT-SUMMARY AUTH: unauthenticated -> 401", async () => {
+            const res = mockRes();
+            await assignmentSummaryHandler(mockReq({}), res);
+            assert.strictEqual(res.statusCode, 401);
+        });
+        await test("ASSIGNMENT-SUMMARY: correct activeLeads/nurturingLeads/totalLeads/todayFollowUps/overdueFollowUps/unassigned", async () => {
+            const res = mockRes();
+            await assignmentSummaryHandler(mockReq({ cookie: agent.cookie }), res);
+            assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+            const row = res.body.data.agents.find((a) => a.agentId === agentId);
+            assert.ok(row, "agent must appear in the summary");
+            assert.strictEqual(row.activeLeads, 2, "new + contacted");
+            assert.strictEqual(row.nurturingLeads, 1);
+            assert.strictEqual(row.totalLeads, 4, "active(2) + nurturing(1) + converted(1), unassigned lead excluded");
+            assert.strictEqual(row.todayFollowUps, 1);
+            assert.strictEqual(row.overdueFollowUps, 1, "completed follow-up must not count even though its dueAt is in the past");
+            assert.ok(res.body.data.unassigned >= 1, "at least the one unassigned lead created above");
+        });
+
+        // ═══════════ /api/leads/work-queue ═══════════
+        const inboundComm = await Communication.create({ leadId: createdLeadIds[1], channel: "whatsapp", direction: "inbound", type: "general" });
+        createdCommIds.push(inboundComm._id);
+
+        await test("WORK-QUEUE AUTH: unauthenticated -> 401", async () => {
+            const res = mockRes();
+            await workQueueHandler(mockReq({}), res);
+            assert.strictEqual(res.statusCode, 401);
+        });
+        await test("WORK-QUEUE: bucket assignment is correct for overdue/today/upcoming/nurturing", async () => {
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
+            assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+            const byId = new Map(res.body.data.leads.map((l) => [l.id, l]));
+            assert.strictEqual(byId.get(String(createdLeadIds[0])).bucket, "overdue", "has an overdue pending follow-up, wins over its own 'new' status");
+            assert.strictEqual(byId.get(String(createdLeadIds[1])).bucket, "today");
+            assert.strictEqual(byId.get(String(createdLeadIds[2])).bucket, "upcoming", "has a future pending follow-up, wins over 'nurturing' status");
+            assert.strictEqual(byId.get(String(createdLeadIds[3])).bucket, "noNextAction", "converted, no pending follow-up");
+        });
+        await test("WORK-QUEUE: summary reflects full (unfiltered-by-bucket) scope", async () => {
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId } }), res);
+            assert.strictEqual(res.body.data.summary.overdue, 1);
+            assert.strictEqual(res.body.data.summary.today, 1);
+            assert.strictEqual(res.body.data.summary.upcoming, 1);
+            assert.strictEqual(res.body.data.summary.noNextAction, 1);
+        });
+        await test("WORK-QUEUE: bucket filter narrows leads[] but not summary", async () => {
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, bucket: "overdue" } }), res);
+            assert.strictEqual(res.body.data.leads.length, 1);
+            assert.strictEqual(res.body.data.leads[0].bucket, "overdue");
+            assert.strictEqual(res.body.data.summary.today, 1, "summary must still show the full scope, not just the filtered bucket");
+        });
+        await test("WORK-QUEUE: lastInboundCommunicationAt is set only when the most recent communication was inbound", async () => {
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
+            const withComm = res.body.data.leads.find((l) => l.id === String(createdLeadIds[1]));
+            assert.ok(withComm.lastInboundCommunicationAt, "lead with an inbound communication must have it set");
+            const withoutComm = res.body.data.leads.find((l) => l.id === String(createdLeadIds[0]));
+            assert.strictEqual(withoutComm.lastInboundCommunicationAt, null);
+        });
+        await test("WORK-QUEUE: pagination meta is correct", async () => {
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "2", page: "1" } }), res);
+            assert.strictEqual(res.body.data.leads.length, 2);
+            assert.strictEqual(res.body.data.pagination.total, 4, "4 of the 5 created leads are assignedTo this agent — unassigned-1 correctly excluded");
+            assert.strictEqual(res.body.data.pagination.totalPages, 2);
+        });
+        await test("WORK-QUEUE: no N+1 — exactly one Lead.aggregate-driven response per call regardless of lead count (structural: only two aggregate() calls in the whole handler)", () => {
+            const fs = require("fs");
+            const src = fs.readFileSync(path.join(ROOT, "api", "leads", "work-queue.js"), "utf8");
+            const matches = src.match(/Lead\.aggregate\(/g) || [];
+            assert.strictEqual(matches.length, 2, "exactly one aggregate for summary, one for the paginated leads — never one query per lead");
+        });
+
+        // ── CLEANUP ──
+        await FollowUp.deleteMany({ _id: { $in: createdFollowUpIds } });
+        await Communication.deleteMany({ _id: { $in: createdCommIds } });
+        await Lead.deleteMany({ _id: { $in: createdLeadIds } });
+        await User.deleteMany({ _id: { $in: createdUserIds } });
+        console.log(`\nCleanup complete. Created during this run: ${createdUserIds.length} users, ${createdLeadIds.length} leads, ${createdFollowUpIds.length} follow-ups, ${createdCommIds.length} communications (all removed).`);
+    }
+
+    console.log(`\n${passed} passed, ${failed} failed, ${skipped} skipped`);
+    if (failed > 0) {
+        console.log("\nFailures:");
+        failures.forEach((f) => console.log(`  - ${f.name}: ${f.message}`));
+        process.exitCode = 1;
+    }
+}
+
+main().catch((err) => {
+    console.error("FATAL:", err);
+    process.exitCode = 1;
+});

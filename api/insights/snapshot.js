@@ -1,7 +1,7 @@
 // GET /api/insights/snapshot — the single data feed for the whole /insight
-// dashboard, live and historical alike. Same TEMPORARY RBAC bypass as
+// dashboard, live and historical alike. Internal roles only, same gate as
 // api/insights/market.js and api/insights/overview.js (see
-// api/_lib/insightsDevAuth.js).
+// api/_lib/insightsDevAuth.js, Milestone 22).
 //
 // ?date=YYYY-MM-DD (default: today, IST):
 //   - date === today  -> mode:"live". Calls getMarketIntelligence() directly

@@ -298,7 +298,7 @@ export default function UniversityHousingPage() {
               </div>
               <p className="uh-university-info-count">
                 {loading
-                  ? "Searching…"
+                  ? "Finding nearby accommodation…"
                   : error
                     ? "Unable to load properties right now."
                     : !university.city

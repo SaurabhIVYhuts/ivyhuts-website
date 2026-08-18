@@ -11,8 +11,12 @@ import BookingSection from "./components/sections/BookingSection";
 import { getInsightsOverview, getInsightsSnapshot } from "../../services/insightsApi";
 import "./insight-theme.css";
 
-// /insight access is temporarily unrestricted for now.
-// Backend auth is also bypassed in api/_lib/insightsDevAuth.js.
+// /insight itself has no route-level login gate — an unauthenticated visitor
+// can still load this page shell, but every data endpoint it calls
+// (api/insights/overview.js, market.js, snapshot.js, snapshot-dates.js) now
+// requires an internal-role session (see api/_lib/insightsDevAuth.js,
+// Milestone 22), so the actual analytics data is protected regardless. Cookies
+// are same-origin and attach automatically; no fetch() change was needed here.
 
 export default function InsightPage() {
   const [activeTab, setActiveTab] = useState("market");

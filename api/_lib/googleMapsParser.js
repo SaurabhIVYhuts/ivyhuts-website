@@ -76,8 +76,9 @@
 //
 // Only an explicit host allow-list is recognized. This module never fetches
 // the URL itself, so there is no SSRF surface here — short links
-// (goo.gl/maps/*, maps.app.goo.gl/*) are reported as isShortLink:true and
-// resolved by the separate googleMapsShortLinkResolver.js, never here.
+// (goo.gl/maps/*, maps.app.goo.gl/*, share.google/*) are reported as
+// isShortLink:true and resolved by the separate
+// googleMapsShortLinkResolver.js, never here.
 "use strict";
 
 const { URL } = require("url");
@@ -92,10 +93,27 @@ const FULL_HOSTS = new Set(["google.com", "www.google.com", "maps.google.com"]);
 function classifyHost(url) {
     const host = url.hostname.toLowerCase();
     if (host === "maps.app.goo.gl") return "short";
+    if (host === "share.google") return "short"; // share.google/<token> — same "no coordinates in the URL text" shape as maps.app.goo.gl, resolved the same way (see googleMapsShortLinkResolver.js)
     if (host === "goo.gl") return url.pathname.toLowerCase().startsWith("/maps") ? "short" : null;
     if (host === "maps.google.com") return "full";
     if (FULL_HOSTS.has(host)) return url.pathname.toLowerCase().startsWith("/maps") ? "full" : null;
     return null;
+}
+
+// Hosts trusted as INTERMEDIATE hops while walking a short link's redirect
+// chain (see followRedirectChain() in googleMapsShortLinkResolver.js) —
+// deliberately broader than classifyHost()'s "short"/"full" classification
+// above. A real redirect chain (share.google's in particular) can pass
+// through a Google host+path that is neither a short-link host nor yet a
+// `/maps` path (e.g. an interstitial `google.com/...` hop) before landing on
+// the final canonical Maps URL. This set is ONLY ever consulted to decide
+// whether to keep following a redirect — the chain's FINAL landing spot must
+// still classify as "full" via classifyHost() above, so landing anywhere
+// else on this list, however Google-ish, is never itself treated as a
+// resolved location.
+const TRUSTED_REDIRECT_HOSTS = new Set(["share.google", "google.com", "www.google.com", "maps.google.com", "maps.app.goo.gl", "goo.gl"]);
+function isTrustedRedirectHost(hostname) {
+    return TRUSTED_REDIRECT_HOSTS.has(String(hostname || "").toLowerCase());
 }
 
 // Classifies a "full" Google Maps URL's SHAPE, so the right extraction
@@ -309,4 +327,4 @@ function parseGoogleMapsUrl(input) {
 // Exported so googleMapsShortLinkResolver.js can validate each redirect hop
 // against the EXACT SAME host allow-list/classification this parser already
 // uses — never a second, competing notion of "is this host Google Maps".
-module.exports = { parseGoogleMapsUrl, MAX_URL_LENGTH, classifyHost };
+module.exports = { parseGoogleMapsUrl, MAX_URL_LENGTH, classifyHost, isTrustedRedirectHost };

@@ -30,9 +30,9 @@ import { parseGoogleMapsUrl, MAX_URL_LENGTH } from "../../lib/googleMapsParser";
 //
 // A third input form rides the SEARCHING path above rather than adding a
 // new one: pasting a Google Maps link — either a full URL (coordinates/name
-// already in the URL text) or a maps.app.goo.gl/goo.gl short link (no
-// coordinates in the URL text; the server resolves the redirect first — see
-// api/_lib/googleMapsShortLinkResolver.js). Detection
+// already in the URL text) or a maps.app.goo.gl/goo.gl/share.google short
+// link (no coordinates in the URL text; the server resolves the redirect
+// first — see api/_lib/googleMapsShortLinkResolver.js). Detection
 // (src/lib/googleMapsParser.js) happens locally, before any network call, so
 // an obviously bad paste (wrong host, a full URL with no coordinates/name at
 // all) is answered instantly at zero AI/Nominatim/Amber/redirect-resolution
@@ -212,8 +212,8 @@ export default function UniversitySearchBox({ selected, onSelect, onClear, autoF
             if (searchState !== "idle") resetSearchResult();
           }}
           onFocus={() => setOpen(true)}
-          placeholder="Search university or paste a Google Maps link"
-          aria-label="Search your university or school, or paste a Google Maps link"
+          placeholder="Search university/school name or paste a Google Maps link"
+          aria-label="Search your university or school name, or paste a Google Maps link"
           autoComplete="off"
           autoFocus={autoFocus}
           maxLength={MAX_URL_LENGTH}
@@ -259,8 +259,8 @@ export default function UniversitySearchBox({ selected, onSelect, onClear, autoF
       {searchState === "searching" && (
         <div className="uh-search-suggestions uh-search-status" aria-live="polite" aria-busy="true">
           <Loader2 size={16} className="uh-search-spin" />{" "}
-          {/^https?:\/\//i.test(submittedQueryRef.current) && parseGoogleMapsUrl(submittedQueryRef.current).isShortLink
-            ? "Finding university…"
+          {/^https?:\/\//i.test(submittedQueryRef.current)
+            ? "Locating place…"
             : `Looking up "${submittedQueryRef.current}"…`}
         </div>
       )}
@@ -309,21 +309,21 @@ export default function UniversitySearchBox({ selected, onSelect, onClear, autoF
 
       {searchState === "invalid_maps_url" && (
         <div className="uh-search-suggestions uh-search-status uh-search-status-empty" aria-live="polite">
-          <p>This doesn't look like a valid Google Maps link. Please paste the full Google Maps URL.</p>
+          <p>That Google Maps link doesn't look valid. Please paste the complete Maps link.</p>
           <button type="button" className="uh-search-try-again" onClick={handleTryAgain}>Try again</button>
         </div>
       )}
 
       {searchState === "short_link_unresolved" && (
         <div className="uh-search-suggestions uh-search-status uh-search-status-empty" aria-live="polite">
-          <p>We couldn't open that Google Maps link. Please paste the full Google Maps link and try again.</p>
+          <p>We couldn't resolve that Google Maps location. Please try opening it in Google Maps and copying the link again.</p>
           <button type="button" className="uh-search-try-again" onClick={handleTryAgain}>Try again</button>
         </div>
       )}
 
       {searchState === "invalid_location" && (
         <div className="uh-search-suggestions uh-search-status uh-search-status-empty" aria-live="polite">
-          <p>We couldn't read a valid location from this Google Maps link.</p>
+          <p>We found the link, but couldn't identify the location. Please try the full university or school name.</p>
           <button type="button" className="uh-search-try-again" onClick={handleTryAgain}>Try again</button>
         </div>
       )}

@@ -26,6 +26,7 @@ const searchDataHandler = require("../api/search-data.js");
 const enquireHandler = require("../api/enquire.js");
 const studentPlannerHandler = require("../api/student-planner.js");
 const studentPlannerPptHandler = require("../api/student-planner-ppt.js");
+const propertiesSearchHandler = require("../api/properties/search.js");
 const authRoutes = {
     "/api/auth/signup": require("../api/auth/signup.js"),
     "/api/auth/login": require("../api/auth/login.js"),
@@ -40,12 +41,20 @@ const authRoutes = {
 // the more general dynamic one (/api/customers/:id) they'd otherwise be
 // shadowed by — same precedence rule Vercel itself applies.
 const businessRoutes = [
+    { pattern: "/api/staff", handler: require("../api/staff.js") },
     { pattern: "/api/customers", handler: require("../api/customers/index.js") },
     { pattern: "/api/customers/me", handler: require("../api/customers/me.js") },
     { pattern: "/api/customers/:id/lifecycle", handler: require("../api/customers/[id]/lifecycle.js") },
     { pattern: "/api/customers/:id", handler: require("../api/customers/[id].js") },
+    { pattern: "/api/leads/assignment-summary", handler: require("../api/leads/assignment-summary.js") },
+    { pattern: "/api/leads/work-queue", handler: require("../api/leads/work-queue.js") },
     { pattern: "/api/leads", handler: require("../api/leads/index.js") },
     { pattern: "/api/leads/:id/assignment", handler: require("../api/leads/[id]/assignment.js") },
+    { pattern: "/api/leads/:id/accommodation-curation", handler: require("../api/leads/[id]/accommodation-curation.js") },
+    { pattern: "/api/leads/:id/discovery", handler: require("../api/leads/[id]/discovery.js") },
+    { pattern: "/api/leads/:id/presentations/:presentationId/download", handler: require("../api/leads/[id]/presentations/[presentationId]/download.js") },
+    { pattern: "/api/leads/:id/presentations/:presentationId", handler: require("../api/leads/[id]/presentations/[presentationId]/index.js") },
+    { pattern: "/api/leads/:id/presentations", handler: require("../api/leads/[id]/presentations/index.js") },
     { pattern: "/api/leads/:id", handler: require("../api/leads/[id].js") },
     { pattern: "/api/enquiries", handler: require("../api/enquiries/index.js") },
     { pattern: "/api/enquiries/:id", handler: require("../api/enquiries/[id].js") },
@@ -123,6 +132,13 @@ const server = http.createServer(async (req, res) => {
         if (url.pathname === "/api/universities/resolve") {
             if (req.method === "POST") req.body = await readJsonBody(req);
             await universitiesResolveHandler(req, res);
+            return;
+        }
+        // Find Rooms search orchestration (Milestone 23.3) — GET only, but
+        // routed before an OPTIONS preflight ever reaches the catch-all
+        // amberHandler below (which would 400 on it, having no `type` param).
+        if (url.pathname === "/api/properties/search") {
+            await propertiesSearchHandler(req, res);
             return;
         }
         // Global search (GlobalSearchBar's autocomplete) — was missing from

@@ -7,7 +7,13 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
-const LEAD_STATUSES = ["new", "contacted", "qualified", "converted", "lost"];
+// "nurturing" added in Milestone 22 to match the CRM's existing
+// LEAD_STATUSES (src/types/lead.ts in ivyhuts-crm) — a lead not ready to
+// convert now but still a real prospect, distinct from "lost". This is the
+// single canonical definition; api/leads/index.js, api/leads/[id].js, and
+// User.js's denormalized lead.status all duplicate this exact array and
+// must be kept in sync if it ever changes again.
+const LEAD_STATUSES = ["new", "contacted", "qualified", "nurturing", "converted", "lost"];
 const LEAD_TEMPERATURES = ["cold", "warm", "hot"];
 
 const LeadSchema = new Schema(

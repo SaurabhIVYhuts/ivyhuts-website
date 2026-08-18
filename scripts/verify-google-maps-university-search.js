@@ -109,6 +109,7 @@ async function main() {
             "/!3d(-?\\d+(?:\\.\\d+)?)!4d(-?\\d+(?:\\.\\d+)?)/",
             "/@(-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)/",
             "maps.app.goo.gl",
+            'if (host === "share.google") return "short";',
             // urlType classification + the new URL-shape extraction strategies
             'path.includes("/place/")',
             'path.includes("/dir/")',
@@ -179,6 +180,19 @@ async function main() {
         const r = parseGoogleMapsUrl("https://maps.app.goo.gl/AbC123");
         assert.strictEqual(r.isGoogleMapsUrl, true);
         assert.strictEqual(r.isShortLink, true);
+    });
+
+    await test("PARSE: share.google/<token> is recognized as an unresolvable short link (same shape as maps.app.goo.gl — no coordinates in the URL text itself)", () => {
+        const r = parseGoogleMapsUrl("https://share.google/hActDvVq3l6396ZB7");
+        assert.strictEqual(r.isGoogleMapsUrl, true);
+        assert.strictEqual(r.isShortLink, true);
+        assert.strictEqual(r.latitude, null);
+        assert.strictEqual(r.name, null);
+    });
+
+    await test("PARSE: an unrelated host with a share.google-shaped path is never treated as Google Maps", () => {
+        const r = parseGoogleMapsUrl("https://not-share.google.evil.com/hActDvVq3l6396ZB7");
+        assert.strictEqual(r.isGoogleMapsUrl, false);
     });
 
     await test("PARSE: goo.gl WITHOUT a /maps path is not recognized (only goo.gl/maps/* is a Maps short link)", () => {
@@ -328,6 +342,16 @@ async function main() {
         await resolveHandler(req, res);
         assert.strictEqual(getStatus(), 200);
         assert.strictEqual(getBody().status, "short_link_unresolved");
+        assert.strictEqual(getBody().data, null);
+        assert.strictEqual(getBody().reason, "GOOGLE_MAPS_LINK_UNRESOLVED");
+    });
+
+    await test("ENDPOINT: a share.google link with a bogus/unresolvable token returns 'short_link_unresolved' with a null data payload — never treated as an invalid university name, never a fake university", async () => {
+        const { req, res, getStatus, getBody } = mockReqRes({ q: "https://share.google/ThisTokenDoesNotExist000000" });
+        await resolveHandler(req, res);
+        assert.strictEqual(getStatus(), 200);
+        assert.strictEqual(getBody().status, "short_link_unresolved");
+        assert.notStrictEqual(getBody().status, "not_found", "a share.google link must never fall through to the plain-text 'university name not found' path");
         assert.strictEqual(getBody().data, null);
         assert.strictEqual(getBody().reason, "GOOGLE_MAPS_LINK_UNRESOLVED");
     });

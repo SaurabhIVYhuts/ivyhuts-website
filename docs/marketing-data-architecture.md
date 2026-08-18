@@ -170,7 +170,7 @@ its own lifecycle independent of the person's profile.
 ```
 Lead
 ├── userId (nullable, ref User)
-├── status: new | contacted | qualified | converted | lost
+├── status: new | contacted | qualified | nurturing | converted | lost
 ├── temperature: cold | warm | hot
 ├── score, source, sourceDetails, assignedTo
 ├── firstContactAt, lastContactAt, convertedAt, lostAt, lostReason

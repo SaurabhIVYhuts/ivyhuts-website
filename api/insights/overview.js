@@ -1,6 +1,6 @@
-// GET /api/insights/overview — internal roles only in production (see
-// api/_lib/insightsDevAuth.js for the TEMPORARY local-dev RBAC bypass —
-// isolated to this file and api/insights/market.js only). Real CRM-derived
+// GET /api/insights/overview — internal roles only (MARKETING_AGENT,
+// MARKETING_MANAGER, ADMIN; see api/_lib/insightsDevAuth.js, Milestone 22).
+// Real CRM-derived
 // numbers for the /insight dashboard's KPI cards, funnel, trend chart and
 // lead-time section. See api/_lib/insightsCrm.js for how each number is
 // computed and api/_lib/inventoryStats.js for the one Amber-derived KPI
@@ -18,7 +18,7 @@ module.exports = withErrorHandling(async (req, res) => {
         return;
     }
     const identity = await authorizeInsights(req, res);
-    if (!identity) return; // authorizeInsights already sent 401/403 (production path only)
+    if (!identity) return; // authorizeInsights already sent 401/403
 
     const { from, to, city, source } = req.query;
 
