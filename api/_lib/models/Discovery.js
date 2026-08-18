@@ -33,6 +33,22 @@ const { Schema } = mongoose;
 
 const DISCOVERY_PRIORITY_FACTORS = ["budget", "distance", "travel_convenience", "amenities", "location", "property_quality", "other"];
 
+// Milestone 23.10 — where each of the three core requirements
+// (university/budget/sharing) actually came from. "lead_form" = the
+// original Facebook/enquiry submission; "agent" = typed directly into this
+// Discovery form; "meeting"/"transcript" = an agent read it off a meeting
+// or its transcript and entered it here themselves. This is provenance on
+// the CONFIRMED value only — there is no separate "suggested" value
+// anywhere in this schema, because nothing in this repository extracts
+// requirements automatically yet (no AI transcription exists — see
+// Meeting.js's header comment); inventing a suggestions[] field no code
+// path could ever populate would be exactly the "speculative
+// infrastructure" Milestone 23.10 says not to build. A meeting with an
+// available transcript is instead surfaced to the agent as a prompt to
+// come back and update these fields themselves (see
+// src/components/discovery/DiscoverySection.tsx).
+const REQUIREMENT_SOURCES = ["lead_form", "agent", "meeting", "transcript"];
+
 const UniversitySnapshotSchema = new Schema(
     {
         id: { type: String, required: true },
@@ -71,6 +87,16 @@ const DiscoverySchema = new Schema(
         priorities: { type: [String], enum: DISCOVERY_PRIORITY_FACTORS, default: [] },
         notes: { type: String, default: null },
 
+        // Provenance for the three core requirements only — see this
+        // file's header comment. Each key independently nullable (a field
+        // can be filled in without anyone having recorded where it came
+        // from, e.g. every pre-23.10 Discovery document).
+        requirementSources: {
+            university: { type: String, enum: REQUIREMENT_SOURCES, default: null },
+            budget: { type: String, enum: REQUIREMENT_SOURCES, default: null },
+            sharing: { type: String, enum: REQUIREMENT_SOURCES, default: null },
+        },
+
         // Identity always from the authenticated session
         // (api/_lib/businessAuth.js) — never the request body. createdBy is
         // set once via $setOnInsert; updatedBy on every save.
@@ -86,3 +112,4 @@ const DiscoverySchema = new Schema(
 
 module.exports = mongoose.models.Discovery || mongoose.model("Discovery", DiscoverySchema);
 module.exports.DISCOVERY_PRIORITY_FACTORS = DISCOVERY_PRIORITY_FACTORS;
+module.exports.REQUIREMENT_SOURCES = REQUIREMENT_SOURCES;

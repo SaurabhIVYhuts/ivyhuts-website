@@ -8,6 +8,10 @@ const Lead = require("../_lib/models/Lead");
 const Enquiry = require("../_lib/models/Enquiry");
 const FollowUp = require("../_lib/models/FollowUp");
 const Communication = require("../_lib/models/Communication");
+const Meeting = require("../_lib/models/Meeting");
+const Discovery = require("../_lib/models/Discovery");
+const AccommodationCuration = require("../_lib/models/AccommodationCuration");
+const Presentation = require("../_lib/models/Presentation");
 const { toSafeLead } = require("../_lib/leadView");
 const { recordEvent } = require("../_lib/events");
 const { withErrorHandling, requireObjectId, notFound, badRequest, parseEnumParam, parseNumberParam, parseJsonBody } = require("../_lib/validation");
@@ -25,13 +29,88 @@ const LEAD_TEMPERATURES = ["cold", "warm", "hot"];
 // (assignment has its own dedicated route with its own validation).
 const IMMUTABLE_FIELDS = new Set(["_id", "id", "createdAt", "updatedAt", "assignedTo", "userId"]);
 
+// Milestone 23.11 — every flag below is derived from a REAL persisted
+// record, never fabricated. Each rule is deliberately stricter than "does
+// a related record exist at all" wherever that distinction matters (Part
+// 8's own warning: activity happened != the stage is complete):
+//   - hasCompletedMeeting requires status==="completed", not merely
+//     "a meeting was scheduled" — a still-upcoming meeting hasn't happened.
+//   - hasConfirmedRequirements requires university + budget + currency +
+//     an EXPLICIT numeric sharing value on Discovery — deliberately NOT
+//     the looser "derived from roomPreference text" fallback the CRM's own
+//     deriveFindRoomsRequirements() uses to unlock Find Rooms (that
+//     fallback exists specifically to show a "please confirm" nudge, i.e.
+//     it is NOT itself confirmed — see src/lib/findRooms/requirements.ts).
+//     A lead can therefore be "ready for Find Rooms" (client-side gate)
+//     before this journey stage reads complete — that's intentional, not
+//     a bug: this stage means genuinely confirmed, not merely usable.
+//   - hasCuratedProperties requires an AccommodationCuration with at least
+//     one property, not merely a saved-but-empty shortlist.
+//   - hasReadyPresentation requires a Presentation with status==="READY" —
+//     GENERATING/FAILED never count, and existence alone is never treated
+//     as "the customer received it" (this repo has no send-confirmation
+//     event for a presentation at all, so the stage stops at "generated").
+//   - "Rooms searched" has NO independent persisted evidence anywhere:
+//     GET /api/properties/search is a stateless, unlogged orchestration
+//     query (see api/properties/search.js) — nothing records that a
+//     search happened. Rather than fabricate that signal, this journey
+//     collapses "searched" and "curated" into hasCuratedProperties, which
+//     IS real evidence (an agent can only reach Save Shortlist by having
+//     gone through Find Rooms first).
+function buildJourneyFlags({ lead, meetings, discovery, curation, presentations, followUps, hasOutboundCommunication }) {
+    const hasConfirmedRequirements = Boolean(
+        discovery &&
+            discovery.student &&
+            discovery.student.university &&
+            discovery.accommodation &&
+            (discovery.accommodation.budgetMin != null || discovery.accommodation.budgetMax != null) &&
+            discovery.accommodation.currency &&
+            discovery.accommodation.sharing != null &&
+            discovery.accommodation.sharing > 0
+    );
+
+    return {
+        hasAssignment: Boolean(lead.assignedTo),
+        hasOutboundCommunication,
+        hasCompletedMeeting: meetings.some((m) => m.status === "completed"),
+        hasConfirmedRequirements,
+        hasCuratedProperties: Boolean(curation && Array.isArray(curation.properties) && curation.properties.length > 0),
+        hasReadyPresentation: presentations.some((p) => p.status === "READY"),
+        hasAnyFollowUp: followUps.length > 0,
+        hasPendingFollowUp: followUps.some((f) => f.status === "pending"),
+    };
+}
+
 async function buildLeadDetail(lead) {
-    const [enquiries, followUps, communications] = await Promise.all([
+    const [enquiries, followUps, communications, hasOutboundCommunication, meetings, discovery, curation, presentations] = await Promise.all([
         Enquiry.find({ leadId: lead._id }).sort({ createdAt: -1 }).limit(10).select("status source property contact createdAt"),
-        FollowUp.find({ leadId: lead._id }).sort({ dueAt: 1 }).limit(10).select("type priority dueAt status notes"),
+        // Unbounded (a lead realistically has a handful of follow-ups, never
+        // thousands) — journey/completion flags need the FULL set, not just
+        // the 10 most recent, or hasPendingFollowUp could read wrong.
+        FollowUp.find({ leadId: lead._id }).sort({ dueAt: 1 }).select("type priority dueAt status notes"),
         Communication.find({ leadId: lead._id }).sort({ createdAt: -1 }).limit(10).select("channel direction type status createdAt"),
+        // A separate, unbounded existence check — a heavily-communicated
+        // lead's single outbound message could easily fall outside the 10
+        // most recent (all-inbound) shown above; the journey flag must
+        // still see it (same "full collection, not just the recent window"
+        // rule the original CRM design called for).
+        Communication.exists({ leadId: lead._id, direction: "outbound" }).then(Boolean),
+        Meeting.find({ leadId: lead._id }).select("status"),
+        Discovery.findOne({ leadId: lead._id }).select("student.university accommodation.budgetMin accommodation.budgetMax accommodation.currency accommodation.sharing"),
+        AccommodationCuration.findOne({ leadId: lead._id }).select("properties"),
+        Presentation.find({ leadId: lead._id }).select("status"),
     ]);
-    return { ...toSafeLead(lead), enquiries, followUps, communications };
+
+    // lastInboundCommunicationAt — computed for free from the same
+    // already-fetched, already-sorted (createdAt desc) `communications`
+    // list: its first element IS the most recent communication. Never
+    // persisted separately (Milestone 23.9/23.11: "one authoritative source
+    // of truth") — this is that source, recomputed fresh on every GET.
+    const lastInboundCommunicationAt = communications[0] && communications[0].direction === "inbound" ? communications[0].createdAt : null;
+
+    const journey = buildJourneyFlags({ lead, meetings, discovery, curation, presentations, followUps, hasOutboundCommunication });
+
+    return { ...toSafeLead(lead), enquiries, followUps, communications, lastInboundCommunicationAt, journey };
 }
 
 async function handleGet(req, res, id) {

@@ -46,7 +46,20 @@ async function fetchAvailabilityCount(available, source) {
 // previous aggregate to fall back on; the caller should retry shortly, and
 // that is NOT the same as a real failure.
 async function getInventoryStats() {
-    const aggregate = await sharedGet(AGGREGATE_KEY);
+    // This read was previously outside the try/catch below, so a Redis
+    // hiccup here threw straight out as an uncaught RedisUnavailableError —
+    // contradicting this function's own "never throws" contract and 503ing
+    // every caller (e.g. /api/insights/snapshot's live mode) on a transient
+    // Upstash blip. Same degrade as the rest of this function: treat a
+    // failed read as "no aggregate to trust yet" and fall through to a live
+    // fetch attempt.
+    let aggregate;
+    try {
+        aggregate = await sharedGet(AGGREGATE_KEY);
+    } catch (err) {
+        log(`inventory-stats aggregate read failed: ${err.message}`);
+        aggregate = null;
+    }
     if (isFresh(aggregate)) {
         return { ready: true, total: aggregate.total, soldOut: aggregate.soldOut, remaining: aggregate.remaining, stale: false };
     }

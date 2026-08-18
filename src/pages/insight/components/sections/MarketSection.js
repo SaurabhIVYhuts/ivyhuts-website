@@ -83,7 +83,7 @@ export default function MarketSection({ market, overview, loading, error, onRetr
   const shareData = useMemo(() => {
     if (!market) return [];
     if (shareDimension === "country") return (market.countries || []).slice(0, 10).map((c) => ({ label: c.country, value: c.soldOut, id: c.country }));
-    if (shareDimension === "city") return cachedCities.slice(0, 10).map((c) => ({ label: c.city, sublabel: c.country, value: c.soldOut, id: c.city }));
+    if (shareDimension === "city") return cachedCities.slice(0, 10).map((c) => ({ label: c.city, sublabel: c.country, value: c.soldOut, id: `${c.city}-${c.country}` }));
     if (shareDimension === "postcode") return (market.postcodes || []).slice(0, 10).map((p) => ({ label: p.postcode, sublabel: p.city, value: p.soldOut, id: p.postcode }));
     return (market.properties || []).slice(0, 10).map((p) => ({ label: p.name, sublabel: p.city, value: p.minPrice ?? 0, id: p.id || p.slug, currency: p.currency }));
   }, [market, shareDimension, cachedCities]);
@@ -213,13 +213,21 @@ export default function MarketSection({ market, overview, loading, error, onRetr
               </tr>
             </thead>
             <tbody>
-              {cachedCities.map((c, i) => (
-                <React.Fragment key={c.city}>
-                  <tr className={i === 0 ? "insight-table-row-top" : ""} onClick={() => setExpandedCity(expandedCity === c.city ? null : c.city)}>
+              {cachedCities.map((c, i) => {
+                // Real Amber inventory has genuinely same-named cities in
+                // different countries (e.g. London, UK and London, Ontario,
+                // Canada — confirmed live in the crawl data) — `c.city` alone
+                // is not a unique identifier for either the React key or the
+                // expand/collapse toggle below (both London rows would
+                // otherwise expand together). Country disambiguates it.
+                const cityKey = `${c.city}-${c.country}`;
+                return (
+                <React.Fragment key={cityKey}>
+                  <tr className={i === 0 ? "insight-table-row-top" : ""} onClick={() => setExpandedCity(expandedCity === cityKey ? null : cityKey)}>
                     <td>{i + 1}</td>
                     <td>{c.country}</td>
                     <td className="insight-table-expand-cell">
-                      {expandedCity === c.city ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      {expandedCity === cityKey ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       {c.city}
                     </td>
                     <td>{c.soldOut}</td>
@@ -227,7 +235,7 @@ export default function MarketSection({ market, overview, loading, error, onRetr
                     <td>{crawlSoldOutCounted ? `${Math.round((c.soldOut / crawlSoldOutCounted) * 100)}%` : "—"}</td>
                     <td>{c.avgAskingPrice != null ? `${c.currency || ""}${c.avgAskingPrice.toLocaleString()}` : "—"}</td>
                   </tr>
-                  {expandedCity === c.city && (
+                  {expandedCity === cityKey && (
                     <tr className="insight-table-drilldown-row">
                       <td colSpan={7}>
                         <table className="insight-table insight-table-nested">
@@ -260,7 +268,8 @@ export default function MarketSection({ market, overview, loading, error, onRetr
                     </tr>
                   )}
                 </React.Fragment>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -306,7 +315,7 @@ export default function MarketSection({ market, overview, loading, error, onRetr
         </p>
         <ol className="insight-opportunity-list">
           {opportunities.map((c, i) => (
-            <li key={c.city}>
+            <li key={`${c.city}-${c.country}`}>
               <span className="insight-opportunity-rank">#{i + 1}</span>
               <div className="insight-opportunity-body">
                 <strong>

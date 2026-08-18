@@ -35,3 +35,10 @@ FollowUpSchema.index({ assignedTo: 1, dueAt: 1 });
 FollowUpSchema.index({ status: 1, dueAt: 1 });
 
 module.exports = mongoose.models.FollowUp || mongoose.model("FollowUp", FollowUpSchema);
+// Milestone 23.11 — exposed as static exports (same convention as
+// Discovery.js/Meeting.js/AccommodationCuration.js) so
+// api/leads/[id]/follow-ups/*.js can validate against these same enums
+// without redeclaring them.
+module.exports.FOLLOWUP_TYPES = FOLLOWUP_TYPES;
+module.exports.FOLLOWUP_PRIORITIES = FOLLOWUP_PRIORITIES;
+module.exports.FOLLOWUP_STATUSES = FOLLOWUP_STATUSES;

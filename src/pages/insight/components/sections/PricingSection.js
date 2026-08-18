@@ -72,7 +72,7 @@ export default function PricingSection({ market, loading, error, onRetry, onRese
       market
         ? market.cities
             .filter((c) => c.cached && c.total > 0 && c.avgAskingPrice != null)
-            .map((c) => ({ city: c.city, avgAskingPrice: c.avgAskingPrice, soldOutRate: c.soldOutRate, currency: c.currency }))
+            .map((c) => ({ city: c.city, country: c.country, avgAskingPrice: c.avgAskingPrice, soldOutRate: c.soldOutRate, currency: c.currency }))
             .sort((a, b) => b.soldOutRate - a.soldOutRate)
             .slice(0, 10)
         : [],
@@ -141,7 +141,7 @@ export default function PricingSection({ market, loading, error, onRetry, onRese
             </thead>
             <tbody>
               {priceVsDemand.map((c) => (
-                <tr key={c.city}>
+                <tr key={`${c.city}-${c.country}`}>
                   <td>{c.city}</td>
                   <td>{Math.round(c.soldOutRate * 100)}%</td>
                   <td>

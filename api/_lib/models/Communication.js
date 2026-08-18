@@ -34,3 +34,9 @@ CommunicationSchema.index({ leadId: 1, createdAt: -1 });
 CommunicationSchema.index({ agentId: 1, createdAt: -1 });
 
 module.exports = mongoose.models.Communication || mongoose.model("Communication", CommunicationSchema);
+// Milestone 23.11 — exposed as static exports (same convention as
+// Discovery.js/Meeting.js/AccommodationCuration.js) so
+// api/leads/[id]/communications/*.js can validate against these same
+// enums without redeclaring them.
+module.exports.CHANNELS = CHANNELS;
+module.exports.DIRECTIONS = DIRECTIONS;

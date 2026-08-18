@@ -28,6 +28,7 @@ const studentPlannerHandler = require("../api/student-planner.js");
 const studentPlannerPptHandler = require("../api/student-planner-ppt.js");
 const propertiesSearchHandler = require("../api/properties/search.js");
 const cityListingsHandler = require("../api/city-listings.js");
+const metaWebhookHandler = require("../api/leads/meta/webhook.js");
 const authRoutes = {
     "/api/auth/signup": require("../api/auth/signup.js"),
     "/api/auth/login": require("../api/auth/login.js"),
@@ -53,6 +54,13 @@ const businessRoutes = [
     { pattern: "/api/leads/:id/assignment", handler: require("../api/leads/[id]/assignment.js") },
     { pattern: "/api/leads/:id/accommodation-curation", handler: require("../api/leads/[id]/accommodation-curation.js") },
     { pattern: "/api/leads/:id/discovery", handler: require("../api/leads/[id]/discovery.js") },
+    { pattern: "/api/leads/:id/meetings/:meetingId", handler: require("../api/leads/[id]/meetings/[meetingId]/index.js") },
+    { pattern: "/api/leads/:id/meetings", handler: require("../api/leads/[id]/meetings/index.js") },
+    { pattern: "/api/leads/:id/communications/:communicationId", handler: require("../api/leads/[id]/communications/[communicationId]/index.js") },
+    { pattern: "/api/leads/:id/communications", handler: require("../api/leads/[id]/communications/index.js") },
+    { pattern: "/api/leads/:id/follow-ups/:followUpId", handler: require("../api/leads/[id]/follow-ups/[followUpId]/index.js") },
+    { pattern: "/api/leads/:id/follow-ups", handler: require("../api/leads/[id]/follow-ups/index.js") },
+    { pattern: "/api/leads/:id/whatsapp/messages", handler: require("../api/leads/[id]/whatsapp/messages.js") },
     { pattern: "/api/leads/:id/presentations/:presentationId/download", handler: require("../api/leads/[id]/presentations/[presentationId]/download.js") },
     { pattern: "/api/leads/:id/presentations/:presentationId", handler: require("../api/leads/[id]/presentations/[presentationId]/index.js") },
     { pattern: "/api/leads/:id/presentations", handler: require("../api/leads/[id]/presentations/index.js") },
@@ -64,6 +72,8 @@ const businessRoutes = [
     { pattern: "/api/events", handler: require("../api/events/index.js") },
     { pattern: "/api/insights/overview", handler: require("../api/insights/overview.js") },
     { pattern: "/api/insights/market", handler: require("../api/insights/market.js") },
+    { pattern: "/api/insights/snapshot-dates", handler: require("../api/insights/snapshot-dates.js") },
+    { pattern: "/api/insights/snapshot", handler: require("../api/insights/snapshot.js") },
 ].map((route) => ({
     ...route,
     paramNames: (route.pattern.match(/:([^/]+)/g) || []).map((p) => p.slice(1)),
@@ -168,6 +178,18 @@ const server = http.createServer(async (req, res) => {
         // lesson as /api/search above.
         if (url.pathname === "/api/search-data") {
             await searchDataHandler(req, res);
+            return;
+        }
+        // Meta Lead Ads webhook (Milestone 23.10) — deliberately NOT routed
+        // through the generic businessMatch dispatcher below, which would
+        // call readJsonBody() and consume/re-serialize the request stream
+        // before the handler ever saw it. This handler verifies an HMAC
+        // signature over the EXACT raw bytes Meta sent (see its own header
+        // comment) and reads that raw stream itself — routed here, before
+        // anything else touches req's body, mirrors production's
+        // `config.api.bodyParser = false` behavior under plain Node http.
+        if (url.pathname === "/api/leads/meta/webhook") {
+            await metaWebhookHandler(req, res);
             return;
         }
         if (Object.prototype.hasOwnProperty.call(authRoutes, url.pathname)) {

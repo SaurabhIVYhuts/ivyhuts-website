@@ -92,6 +92,10 @@ async function main() {
         const User = require(path.join(ROOT, "api", "_lib", "models", "User"));
         const FollowUp = require(path.join(ROOT, "api", "_lib", "models", "FollowUp"));
         const Communication = require(path.join(ROOT, "api", "_lib", "models", "Communication"));
+        const Meeting = require(path.join(ROOT, "api", "_lib", "models", "Meeting"));
+        const Discovery = require(path.join(ROOT, "api", "_lib", "models", "Discovery"));
+        const AccommodationCuration = require(path.join(ROOT, "api", "_lib", "models", "AccommodationCuration"));
+        const Presentation = require(path.join(ROOT, "api", "_lib", "models", "Presentation"));
 
         await connectToDatabase();
         console.log("\nMongoDB connection established for live verification.\n");
@@ -232,6 +236,159 @@ async function main() {
             assert.strictEqual(res.body.data.pagination.total, 4, "4 of the 5 created leads are assignedTo this agent — unassigned-1 correctly excluded");
             assert.strictEqual(res.body.data.pagination.totalPages, 2);
         });
+        // ═══════════ WORK-QUEUE: Milestone 23.12 pipeline buckets ═══════════
+        const createdMeetingIds = [];
+        const createdDiscoveryIds = [];
+        const createdCurationIds = [];
+        const createdPresentationIds = [];
+
+        const meetingTodayLead = await createLead("meeting-today", { assignedTo: agentId, status: "contacted" });
+        const meetingToday = await Meeting.create({ leadId: meetingTodayLead._id, status: "scheduled", scheduledAt: new Date() });
+        createdMeetingIds.push(meetingToday._id);
+
+        const discoveryIncompleteLead = await createLead("discovery-incomplete", { assignedTo: agentId, status: "contacted" });
+        const incompleteDiscovery = await Discovery.create({ leadId: discoveryIncompleteLead._id, student: { university: "University of Hertfordshire" } });
+        createdDiscoveryIds.push(incompleteDiscovery._id);
+
+        const readyForFindRoomsLead = await createLead("ready-find-rooms", { assignedTo: agentId, status: "qualified" });
+        const confirmedDiscovery = await Discovery.create({
+            leadId: readyForFindRoomsLead._id,
+            student: { university: "University of Hertfordshire" },
+            accommodation: { budgetMin: 150, budgetMax: 250, currency: "GBP", sharing: 2 },
+        });
+        createdDiscoveryIds.push(confirmedDiscovery._id);
+
+        // A presentation can only realistically exist after Discovery +
+        // curation (that's the actual product flow — see Presentation's own
+        // model comment) — this fixture reflects that chain so it lands in
+        // presentationNoFollowUp specifically, not an earlier pipeline gap.
+        const presentationNoFollowUpLead = await createLead("presentation-no-followup", { assignedTo: agentId, status: "qualified" });
+        const presDiscovery = await Discovery.create({
+            leadId: presentationNoFollowUpLead._id,
+            student: { university: "University of Hertfordshire" },
+            accommodation: { budgetMin: 150, budgetMax: 250, currency: "GBP", sharing: 2 },
+        });
+        createdDiscoveryIds.push(presDiscovery._id);
+        const presCuration = await AccommodationCuration.create({
+            leadId: presentationNoFollowUpLead._id,
+            criteriaSnapshot: { university: { name: "University of Hertfordshire" }, sharing: 2 },
+            properties: [{ provider: "uhomes", propertyId: "uhomes:id:2", name: "Test Property 2", availability: "available" }],
+        });
+        createdCurationIds.push(presCuration._id);
+        const readyPresentation = await Presentation.create({
+            leadId: presentationNoFollowUpLead._id, version: 1, title: "V1", status: "READY",
+            file: { filename: "x.pptx", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", sizeBytes: 10 },
+        });
+        createdPresentationIds.push(readyPresentation._id);
+
+        // Control: a lead with confirmed requirements AND a curated shortlist
+        // AND a READY presentation AND an existing follow-up must fall
+        // through every new bucket to noNextAction — proving the pipeline
+        // buckets are genuinely conditional, not always-on.
+        const fullyHandledLead = await createLead("fully-handled", { assignedTo: agentId, status: "qualified" });
+        const fullDiscovery = await Discovery.create({
+            leadId: fullyHandledLead._id,
+            student: { university: "University of Hertfordshire" },
+            accommodation: { budgetMin: 150, budgetMax: 250, currency: "GBP", sharing: 2 },
+        });
+        createdDiscoveryIds.push(fullDiscovery._id);
+        const fullCuration = await AccommodationCuration.create({
+            leadId: fullyHandledLead._id,
+            criteriaSnapshot: { university: { name: "University of Hertfordshire" }, sharing: 2 },
+            properties: [{ provider: "uhomes", propertyId: "uhomes:id:1", name: "Test Property", availability: "available" }],
+        });
+        createdCurationIds.push(fullCuration._id);
+        const fullPresentation = await Presentation.create({
+            leadId: fullyHandledLead._id, version: 1, title: "V1", status: "READY",
+            file: { filename: "x.pptx", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", sizeBytes: 10 },
+        });
+        createdPresentationIds.push(fullPresentation._id);
+        const fullFollowUp = await FollowUp.create({ leadId: fullyHandledLead._id, assignedTo: agentId, type: "call", dueAt: new Date(Date.now() + 10 * 86400000), status: "completed", completedAt: new Date() });
+        createdFollowUpIds.push(fullFollowUp._id);
+
+        await test("WORK-QUEUE: a lead with a same-day scheduled meeting buckets as meetingToday, ahead of 'today' follow-ups", async () => {
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
+            const lead = res.body.data.leads.find((l) => l.id === String(meetingTodayLead._id));
+            assert.strictEqual(lead.bucket, "meetingToday");
+            assert.ok(lead.nextMeeting, "nextMeeting must be populated for display");
+        });
+
+        await test("WORK-QUEUE: a contacted lead with an incomplete Discovery buckets as discoveryIncomplete", async () => {
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
+            const lead = res.body.data.leads.find((l) => l.id === String(discoveryIncompleteLead._id));
+            assert.strictEqual(lead.bucket, "discoveryIncomplete");
+        });
+
+        await test("WORK-QUEUE: a qualified lead with confirmed requirements but no curated properties buckets as readyForFindRooms", async () => {
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
+            const lead = res.body.data.leads.find((l) => l.id === String(readyForFindRoomsLead._id));
+            assert.strictEqual(lead.bucket, "readyForFindRooms");
+        });
+
+        await test("WORK-QUEUE: a READY presentation with NO follow-up ever recorded buckets as presentationNoFollowUp", async () => {
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
+            const lead = res.body.data.leads.find((l) => l.id === String(presentationNoFollowUpLead._id));
+            assert.strictEqual(lead.bucket, "presentationNoFollowUp");
+        });
+
+        await test("WORK-QUEUE: a fully-handled lead (requirements + curation + presentation + a completed follow-up) falls through every pipeline bucket to noNextAction", async () => {
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
+            const lead = res.body.data.leads.find((l) => l.id === String(fullyHandledLead._id));
+            assert.strictEqual(lead.bucket, "noNextAction", "everything is genuinely done — no pipeline gap left to surface");
+        });
+
+        await test("WORK-QUEUE: a converted lead with no Discovery is NOT reclassified into discoveryIncomplete (terminal leads are excluded from pipeline buckets)", async () => {
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
+            const lead = res.body.data.leads.find((l) => l.id === String(createdLeadIds[3])); // converted-1
+            assert.strictEqual(lead.bucket, "noNextAction");
+        });
+
+        await test("WORK-QUEUE: a nurturing lead with no Discovery is NOT reclassified into discoveryIncomplete", async () => {
+            const nurturingNoDiscoveryLead = await createLead("nurturing-no-discovery", { assignedTo: agentId, status: "nurturing" });
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
+            const lead = res.body.data.leads.find((l) => l.id === String(nurturingNoDiscoveryLead._id));
+            assert.strictEqual(lead.bucket, "nurturing");
+        });
+
+        // Milestone 23.13 — found via end-to-end integration testing: a lead
+        // whose `status` was never manually advanced past "new" (nothing in
+        // this codebase auto-advances it) was bucketing as "new" forever,
+        // even after being fully worked through presentation + follow-up.
+        await test("WORK-QUEUE: a lead still literally status='new' but with real outbound contact is NEVER bucketed as 'new' again", async () => {
+            const staleStatusLead = await createLead("stale-status-new", { assignedTo: agentId, status: "new" });
+            const comm = await Communication.create({ leadId: staleStatusLead._id, channel: "phone", direction: "outbound", type: "call", agentId });
+            createdCommIds.push(comm._id);
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
+            const lead = res.body.data.leads.find((l) => l.id === String(staleStatusLead._id));
+            assert.notStrictEqual(lead.bucket, "new", "outbound contact happened — this is no longer an untouched new lead, regardless of the literal status string");
+            // No Discovery/curation/presentation exist for this lead either
+            // — with real contact evidence but nothing else done, it must
+            // now surface as needing Discovery.
+            assert.strictEqual(lead.bucket, "discoveryIncomplete");
+        });
+        await test("WORK-QUEUE: a genuinely untouched status='new' lead (no outbound contact at all) still buckets as 'new'", async () => {
+            const freshLead = await createLead("genuinely-new", { assignedTo: agentId, status: "new" });
+            const res = mockRes();
+            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
+            const lead = res.body.data.leads.find((l) => l.id === String(freshLead._id));
+            assert.strictEqual(lead.bucket, "new", "sanity check — the fix must not make EVERY new lead stop bucketing as new");
+        });
+
+        await test("WORK-QUEUE: Lead.score is never referenced anywhere in the bucket/priority logic (structural — no invented scoring algorithm)", () => {
+            const fs = require("fs");
+            const src = fs.readFileSync(path.join(ROOT, "api", "leads", "work-queue.js"), "utf8");
+            const stripComments = src.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+            assert.ok(!/\$score|"\$?score"|\.score\b/.test(stripComments.replace(/lastInboundCommunicationAt|scoreMin|scoreMax/g, "")), "work-queue.js must never read Lead.score for bucket derivation");
+        });
+
         await test("WORK-QUEUE: no N+1 — exactly one Lead.aggregate-driven response per call regardless of lead count (structural: only two aggregate() calls in the whole handler)", () => {
             const fs = require("fs");
             const src = fs.readFileSync(path.join(ROOT, "api", "leads", "work-queue.js"), "utf8");
@@ -242,6 +399,10 @@ async function main() {
         // ── CLEANUP ──
         await FollowUp.deleteMany({ _id: { $in: createdFollowUpIds } });
         await Communication.deleteMany({ _id: { $in: createdCommIds } });
+        await Meeting.deleteMany({ _id: { $in: createdMeetingIds } });
+        await Discovery.deleteMany({ _id: { $in: createdDiscoveryIds } });
+        await AccommodationCuration.deleteMany({ _id: { $in: createdCurationIds } });
+        await Presentation.deleteMany({ _id: { $in: createdPresentationIds } });
         await Lead.deleteMany({ _id: { $in: createdLeadIds } });
         await User.deleteMany({ _id: { $in: createdUserIds } });
         console.log(`\nCleanup complete. Created during this run: ${createdUserIds.length} users, ${createdLeadIds.length} leads, ${createdFollowUpIds.length} follow-ups, ${createdCommIds.length} communications (all removed).`);

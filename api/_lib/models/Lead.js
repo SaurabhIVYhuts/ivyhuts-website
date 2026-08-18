@@ -22,7 +22,13 @@ const LeadSchema = new Schema(
         status: { type: String, enum: LEAD_STATUSES, default: "new" },
         temperature: { type: String, enum: LEAD_TEMPERATURES, default: "cold" },
         score: { type: Number, default: 0 },
-        source: { type: String, default: null }, // e.g. "find-rooms-form", "contact-form", "signup"
+        source: { type: String, default: null }, // e.g. "find-rooms-form", "contact-form", "signup", "facebook_lead_ads"
+        // Milestone 23.10 — the id Meta (or any future external lead
+        // source) assigns to a single lead submission, e.g. Meta's
+        // `leadgen_id`. This is the ONLY dedup key for external intake; do
+        // not add a second one (see api/leads/meta/webhook.js). The unique
+        // index is declared below with the rest of this schema's indexes.
+        externalLeadId: { type: String, default: null },
         // Free-form details about the source, including campaign attribution
         // (e.g. { campaign: "spring-2026" }) — no dedicated `campaign` field
         // was added since this Mixed bag already covers it without schema churn.
@@ -86,5 +92,10 @@ LeadSchema.index({ "property.city": 1 });
 // archivedAt: query pattern = every list query excludes archived leads by
 // default (see api/leads/index.js) — this is that filter's index.
 LeadSchema.index({ archivedAt: 1 });
+// externalLeadId: query pattern = dedup lookup on every webhook delivery
+// (api/leads/meta/webhook.js). `sparse` so the uniqueness constraint only
+// applies to documents where this is actually set — every existing/
+// non-external Lead keeps `null` here with no conflict between them.
+LeadSchema.index({ externalLeadId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.models.Lead || mongoose.model("Lead", LeadSchema);

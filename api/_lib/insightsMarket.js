@@ -29,7 +29,7 @@
 // `crawlProgress.complete` is true, so the full ~87-page catalog (at the
 // 6-requests/minute shared budget) finishes in a few minutes without ever
 // bursting Amber or blocking a single request on the whole crawl.
-const { sharedGet, sharedSet, acquireLock, releaseLock, log } = require("./sharedStore");
+const { sharedGet, sharedSet, acquireLock, releaseLock, RedisUnavailableError, log } = require("./sharedStore");
 const { fetchListings, RATE_BUDGET_PER_MINUTE, normalizeCityName } = require("./amberGateway");
 const { getInventoryStats } = require("./inventoryStats");
 const { connectToDatabase } = require("./mongodb");
@@ -435,6 +435,26 @@ async function loadCrawlState() {
     return state || freshCrawlState();
 }
 
+// Same graceful-degradation philosophy as amberGateway.js's
+// staleOnRedisFailure: a Redis blip mid-request must never surface as a hard
+// failure of the whole /insight dashboard. Unlike Amber's cache (which has a
+// stale copy to fall back to), the crawl state has no per-request fallback
+// but zero/fresh — so a Redis outage here temporarily narrows the
+// country/city/property breakdown to whatever this one response manages to
+// (re)fetch, rather than 503ing the entire dashboard. The authoritative
+// headline KPIs (siteWide, from getInventoryStats) are unaffected either way
+// — see buildFullBreakdown's own comment on why those never depend on this
+// crawl state.
+async function safeLoadCrawlState() {
+    try {
+        return await loadCrawlState();
+    } catch (err) {
+        if (!(err instanceof RedisUnavailableError)) throw err;
+        log(`[insightsMarket] action=CRAWL_STATE_LOAD_FAILED_REDIS_UNAVAILABLE error=${err.message}`);
+        return freshCrawlState();
+    }
+}
+
 async function saveCrawlState(state) {
     state.updatedAt = Date.now();
     await sharedSet(CRAWL_KEY, state, CRAWL_TTL_SECONDS);
@@ -605,14 +625,26 @@ async function advanceCrawlSide(state, sideKey, availableFlag, callBudget) {
 // (e.g. a manual refresh landing mid-background-poll) advance the crawl
 // once, not twice.
 async function advanceCrawl() {
-    const lockToken = await acquireLock(CRAWL_LOCK_KEY, CRAWL_LOCK_TTL_MS);
+    // A Redis blip on the lock acquire itself (not "lock held by someone
+    // else" — a genuine timeout/outage) previously threw straight out of
+    // this function as an uncaught RedisUnavailableError, 503ing the whole
+    // /insight dashboard. Same degrade as the lock-busy branch below: serve
+    // whatever's currently loadable rather than fail the request.
+    let lockToken;
+    try {
+        lockToken = await acquireLock(CRAWL_LOCK_KEY, CRAWL_LOCK_TTL_MS);
+    } catch (err) {
+        if (!(err instanceof RedisUnavailableError)) throw err;
+        log(`[insightsMarket] action=CRAWL_LOCK_ACQUIRE_FAILED_REDIS_UNAVAILABLE error=${err.message}`);
+        return safeLoadCrawlState();
+    }
     if (!lockToken) {
         // Someone else is already advancing the crawl right now — just
         // return whatever's currently persisted rather than double-fetching.
-        return loadCrawlState();
+        return safeLoadCrawlState();
     }
     try {
-        const state = await loadCrawlState();
+        const state = await safeLoadCrawlState();
         if (state.soldOut.done && state.available.done) {
             // Nothing left to fetch, but still keep the lightweight
             // search-facing summaries (see LOCATION_INDEX_KEY/SEARCH_DATA_KEY
@@ -629,7 +661,16 @@ async function advanceCrawl() {
         const usedSoldOut = await advanceCrawlSide(state, "soldOut", false, Math.ceil(PAGES_PER_ADVANCE / 2));
         const usedAvailable = await advanceCrawlSide(state, "available", true, PAGES_PER_ADVANCE - usedSoldOut);
         if (usedSoldOut + usedAvailable > 0) {
-            await saveCrawlState(state);
+            try {
+                await saveCrawlState(state);
+            } catch (err) {
+                if (!(err instanceof RedisUnavailableError)) throw err;
+                // We have a perfectly good in-memory state with real,
+                // freshly-fetched pages in hand — Redis merely failed to
+                // *persist* it for the next call. Still return it to this
+                // request; the next advance just re-fetches these same pages.
+                log(`[insightsMarket] action=CRAWL_STATE_SAVE_FAILED_REDIS_UNAVAILABLE error=${err.message}`);
+            }
             await saveLocationIndex(state);
             await saveSearchData(state);
         }

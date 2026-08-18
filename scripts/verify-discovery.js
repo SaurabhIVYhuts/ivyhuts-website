@@ -162,6 +162,22 @@ async function main() {
         assert.deepStrictEqual(setPaths, { "accommodation.sharing": null });
     });
 
+    // ══════════════════ VALIDATION: REQUIREMENT PROVENANCE (Milestone 23.10, pure) ══════════════════
+    await test("PROVENANCE: each of the four valid sources is accepted", () => {
+        for (const source of ["lead_form", "agent", "meeting", "transcript"]) {
+            handler.validateRequirementSources({ university: source, budget: source, sharing: source });
+        }
+    });
+    await test("PROVENANCE: null is a valid (unset) source", () => {
+        handler.validateRequirementSources({ university: null, budget: null, sharing: null });
+    });
+    await test("PROVENANCE: an invalid source value is rejected", () => {
+        assert.throws(
+            () => handler.validateRequirementSources({ university: "ai_guess", budget: null, sharing: null }),
+            (err) => err.code === "VALIDATION_ERROR" && /requirementSources\.university/.test(err.message)
+        );
+    });
+
     // ══════════════════════ MONGODB-DEPENDENT: AUTH / CRUD / SECURITY / LEGACY ══════════════════════
     const MONGODB_URI = process.env.MONGODB_URI;
     const dbName = MONGODB_URI ? getDbNameFromUri(MONGODB_URI) : "";
@@ -279,6 +295,48 @@ async function main() {
             const res = mockRes();
             await handler(mockReq({ method: "GET", query: { id: String(leadA._id) }, cookie: agent.cookie }), res);
             assert.strictEqual(res.body.data.accommodation.sharing, 3);
+        });
+
+        // ── REQUIREMENT PROVENANCE (e2e, Milestone 23.10) ──
+        await test("PROVENANCE (e2e): PUT can set requirementSources independently of the values they describe", async () => {
+            const res = mockRes();
+            await handler(mockReq({ method: "PUT", query: { id: String(leadA._id) }, cookie: agent.cookie, body: { requirementSources: { university: "meeting", budget: "lead_form" } } }), res);
+            assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+            assert.strictEqual(res.body.data.requirementSources.university, "meeting");
+            assert.strictEqual(res.body.data.requirementSources.budget, "lead_form");
+            assert.strictEqual(res.body.data.requirementSources.sharing, null, "a source never mentioned in this call must stay null, not default to something");
+            // The values themselves must be completely unaffected by this call.
+            assert.strictEqual(res.body.data.accommodation.sharing, 3, "setting provenance must never change the requirement value itself");
+        });
+        await test("PROVENANCE (e2e): an unrelated update (notes only) leaves requirementSources untouched — no silent overwrite", async () => {
+            const before = await Discovery.findOne({ leadId: leadA._id });
+            const res = mockRes();
+            await handler(mockReq({ method: "PUT", query: { id: String(leadA._id) }, cookie: agent.cookie, body: { notes: "agent called back" } }), res);
+            assert.strictEqual(res.statusCode, 200);
+            assert.strictEqual(res.body.data.requirementSources.university, before.requirementSources.university);
+            assert.strictEqual(res.body.data.requirementSources.budget, before.requirementSources.budget);
+        });
+        await test("PROVENANCE (e2e): an explicit null clears a previously-set source", async () => {
+            const res = mockRes();
+            await handler(mockReq({ method: "PUT", query: { id: String(leadA._id) }, cookie: agent.cookie, body: { requirementSources: { university: null } } }), res);
+            assert.strictEqual(res.statusCode, 200);
+            assert.strictEqual(res.body.data.requirementSources.university, null);
+            assert.strictEqual(res.body.data.requirementSources.budget, "lead_form", "clearing one source must not clear the others");
+        });
+        await test("PROVENANCE (e2e): an invalid source value -> 400, and does not partially apply", async () => {
+            const before = await Discovery.findOne({ leadId: leadA._id });
+            const res = mockRes();
+            await handler(mockReq({ method: "PUT", query: { id: String(leadA._id) }, cookie: agent.cookie, body: { requirementSources: { sharing: "not_a_real_source" } } }), res);
+            assert.strictEqual(res.statusCode, 400);
+            const after = await Discovery.findOne({ leadId: leadA._id });
+            assert.strictEqual(after.requirementSources.sharing, before.requirementSources.sharing, "a rejected PUT must not partially persist any of its fields");
+        });
+        await test("PROVENANCE (e2e): a fresh Discovery document defaults every source to null (never guessed)", async () => {
+            const freshLead = await createLead("fresh-provenance");
+            const res = mockRes();
+            await handler(mockReq({ method: "PUT", query: { id: String(freshLead._id) }, cookie: agent.cookie, body: { notes: "first save" } }), res);
+            assert.strictEqual(res.statusCode, 200);
+            assert.deepStrictEqual(res.body.data.requirementSources, { university: null, budget: null, sharing: null });
         });
 
         // ── VALIDATION (e2e) ──

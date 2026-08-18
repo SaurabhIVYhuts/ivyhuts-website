@@ -65,6 +65,11 @@ function toSafeDiscovery(doc) {
         },
         priorities: doc.priorities,
         notes: doc.notes,
+        requirementSources: {
+            university: doc.requirementSources ? doc.requirementSources.university : null,
+            budget: doc.requirementSources ? doc.requirementSources.budget : null,
+            sharing: doc.requirementSources ? doc.requirementSources.sharing : null,
+        },
         createdBy: doc.createdBy ? String(doc.createdBy) : null,
         updatedBy: doc.updatedBy ? String(doc.updatedBy) : null,
         createdAt: doc.createdAt,
@@ -102,6 +107,7 @@ const ACCOMMODATION_KEYS = [
     "sharing",
     "distancePreference",
 ];
+const REQUIREMENT_SOURCE_KEYS = ["university", "budget", "sharing"];
 
 function validateUniversityResolved(value, label) {
     if (value === null || value === undefined) return;
@@ -178,6 +184,20 @@ function validateEffectiveStudent(student) {
     validateUniversityResolved(student.universityResolved, "student.universityResolved");
 }
 
+// Provenance is validated independently of the value it describes — a
+// caller can set requirementSources.budget without touching
+// accommodation.budgetMin/Max in the same call (e.g. an agent confirming
+// "yes, what the transcript said is right" after already having entered
+// the number earlier).
+function validateRequirementSources(sources) {
+    for (const key of REQUIREMENT_SOURCE_KEYS) {
+        const value = sources[key];
+        if (value != null && !Discovery.REQUIREMENT_SOURCES.includes(value)) {
+            throw badRequest("VALIDATION_ERROR", `requirementSources.${key} must be one of: ${Discovery.REQUIREMENT_SOURCES.join(", ")}, or null.`);
+        }
+    }
+}
+
 async function handleGet(req, res, leadId) {
     const identity = await requireRole(req, res, INTERNAL_ROLES);
     if (!identity) return;
@@ -213,12 +233,18 @@ async function handlePut(req, res, leadId) {
         ? existing.accommodation.toObject()
         : { budgetMin: null, budgetMax: null, currency: null, moveInDate: null, stayDurationMonths: null, preferredLocation: null, roomPreference: null, sharing: null, distancePreference: null };
 
+    const existingRequirementSources = existing && existing.requirementSources
+        ? existing.requirementSources.toObject()
+        : { university: null, budget: null, sharing: null };
+
     const setPaths = {};
     const effectiveStudent = mergeAndCollectSetPaths("student", existingStudent, body.student, STUDENT_KEYS, setPaths);
     const effectiveAccommodation = mergeAndCollectSetPaths("accommodation", existingAccommodation, body.accommodation, ACCOMMODATION_KEYS, setPaths);
+    const effectiveRequirementSources = mergeAndCollectSetPaths("requirementSources", existingRequirementSources, body.requirementSources, REQUIREMENT_SOURCE_KEYS, setPaths);
 
     validateEffectiveStudent(effectiveStudent);
     validateEffectiveAccommodation(effectiveAccommodation);
+    validateRequirementSources(effectiveRequirementSources);
 
     if (Object.prototype.hasOwnProperty.call(body, "priorities")) {
         if (!Array.isArray(body.priorities) || !body.priorities.every((p) => Discovery.DISCOVERY_PRIORITY_FACTORS.includes(p))) {
@@ -259,6 +285,7 @@ const handler = withErrorHandling(async (req, res) => {
 // api/properties/search.js and api/leads/[id]/accommodation-curation.js.
 handler.validateEffectiveAccommodation = validateEffectiveAccommodation;
 handler.validateEffectiveStudent = validateEffectiveStudent;
+handler.validateRequirementSources = validateRequirementSources;
 handler.mergeAndCollectSetPaths = mergeAndCollectSetPaths;
 handler.MAX_PAYLOAD_BYTES = MAX_PAYLOAD_BYTES;
 

@@ -7,19 +7,50 @@
 //
 // Bucket semantics (not specified anywhere else, so decided and recorded
 // here — mutually exclusive per lead, priority order matches
-// WORK_QUEUE_BUCKETS in the CRM type):
-//   overdue      — has a PENDING follow-up due before today
-//   today        — has a PENDING follow-up due today
-//   new          — status "new" (and didn't already match overdue/today)
-//   upcoming     — has a PENDING follow-up due after today (and didn't
-//                  already match a higher bucket)
-//   nurturing    — status "nurturing" (and didn't match a higher bucket)
-//   noNextAction — everything else (the catch-all)
+// WORK_QUEUE_BUCKETS in the CRM type). Milestone 23.12 extends the
+// original 6 buckets with 4 new operational-pipeline signals (meetingToday
+// / discoveryIncomplete / readyForFindRooms / presentationNoFollowUp),
+// reusing the SAME aggregation this route already runs rather than a
+// second/parallel queue system:
+//   overdue              — has a PENDING follow-up due before today
+//   meetingToday         — has a SCHEDULED (not completed/cancelled)
+//                           meeting whose scheduledAt falls today
+//   today                — has a PENDING follow-up due today
+//   new                  — status "new"
+//   discoveryIncomplete  — status is contacted/qualified/nurturing (i.e.
+//                           NOT "new" — that already won a higher bucket)
+//                           and Discovery does not yet have EXPLICIT
+//                           university+budget+currency+sharing confirmed.
+//                           Deliberately the same strict bar as
+//                           hasConfirmedRequirements in api/leads/[id].js's
+//                           buildJourneyFlags (Milestone 23.11) — a
+//                           roomPreference-derived guess does NOT count as
+//                           confirmed here either.
+//   readyForFindRooms    — requirements ARE confirmed, but no
+//                           AccommodationCuration with at least one
+//                           property exists yet (an empty/never-saved
+//                           shortlist counts as "not ready", matching
+//                           hasCuratedProperties' own rule)
+//   presentationNoFollowUp — a READY Presentation exists, but this lead has
+//                           NO FollowUp at all (never recorded one) — a
+//                           generated PPT is not the same as the customer
+//                           having been followed up with (Milestone 23.12
+//                           Part 8: "A generated PPT != delivered PPT")
+//   upcoming             — has a PENDING follow-up due after today (and
+//                          didn't already match a higher bucket)
+//   nurturing            — status "nurturing" (and didn't match a higher bucket)
+//   noNextAction         — everything else (the catch-all)
 // `summary` always reflects the full scope (status/source/assignedTo/
 // search filters applied, bucket NOT applied) — `leads` additionally
 // applies the `bucket` filter. This is why the aggregation runs twice
 // (BASE_STAGES shared, PAGINATED_STAGES vs SUMMARY_STAGES diverge only
 // after that point) rather than once.
+//
+// Lead.score is deliberately NOT used anywhere in this file — inspected
+// before writing this (Milestone 23.12 Part 5): it is a plain,
+// manually-PATCHable number with no automatic derivation anywhere in this
+// codebase, so it is not a reliable prioritization signal. Inventing a
+// scoring algorithm here was explicitly ruled out.
 //
 // lastInboundCommunicationAt (CRM Milestone 16's "Customer Replied"
 // signal) is computed here from Communication.direction — no such
@@ -35,7 +66,18 @@ const { sendSuccess } = require("../_lib/apiResponse");
 
 const INTERNAL_ROLES = ["MARKETING_AGENT", "MARKETING_MANAGER", "ADMIN"];
 const LEAD_STATUSES = ["new", "contacted", "qualified", "nurturing", "converted", "lost"];
-const WORK_QUEUE_BUCKETS = ["overdue", "today", "new", "upcoming", "nurturing", "noNextAction"];
+const WORK_QUEUE_BUCKETS = [
+    "overdue",
+    "meetingToday",
+    "today",
+    "new",
+    "discoveryIncomplete",
+    "readyForFindRooms",
+    "presentationNoFollowUp",
+    "upcoming",
+    "nurturing",
+    "noNextAction",
+];
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
 
@@ -56,10 +98,12 @@ function buildBaseMatch(query) {
     return match;
 }
 
-// Shared stages: attach nextFollowUp (earliest pending), lastCommunication
-// (most recent, any direction), and the computed `bucket` — used by both
-// the summary and paginated legs so the two can never disagree about what
-// bucket a given lead falls in.
+// Shared stages: attach nextFollowUp (earliest pending), nextMeeting
+// (earliest scheduled), lastCommunication (most recent, any direction),
+// pipeline-completion signals (Discovery/AccommodationCuration/Presentation
+// — Milestone 23.12), and the computed `bucket` — used by both the summary
+// and paginated legs so the two can never disagree about what bucket a
+// given lead falls in.
 function buildEnrichmentStages(todayStart, tomorrowStart) {
     return [
         {
@@ -76,6 +120,19 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
             },
         },
         { $addFields: { nextFollowUp: { $arrayElemAt: ["$_nextFollowUpArr", 0] } } },
+        // Milestone 23.12 — has this lead EVER had any follow-up at all
+        // (any status), distinct from `nextFollowUp` (pending, earliest
+        // only) — needed for the presentationNoFollowUp bucket ("no
+        // recorded follow-up" means none ever, not just none pending).
+        {
+            $lookup: {
+                from: "followups",
+                let: { leadId: "$_id" },
+                pipeline: [{ $match: { $expr: { $eq: ["$leadId", "$$leadId"] } } }, { $limit: 1 }, { $project: { _id: 1 } }],
+                as: "_anyFollowUpArr",
+            },
+        },
+        { $addFields: { _hasAnyFollowUp: { $gt: [{ $size: "$_anyFollowUpArr" }, 0] } } },
         {
             $lookup: {
                 from: "communications",
@@ -97,14 +154,133 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
                 },
             },
         },
+        // Milestone 23.13 — found via end-to-end integration testing (never
+        // caught by any single-feature test): Lead.status is a manually-set
+        // field an agent must explicitly change, and nothing in this
+        // codebase ever auto-advances it. A lead that's been fully worked
+        // (contacted, met, curated, presented, followed up) but whose
+        // status an agent simply never bothered to flip from "new" was
+        // bucketing as "new" forever — permanently hiding a fully-handled
+        // lead behind the wrong priority tile. The fix is NOT to
+        // auto-mutate status (every other write in this system is
+        // explicit, deliberate agent action, and this shouldn't be the one
+        // silent exception) — it's to require genuinely NO outbound contact
+        // yet before "new" wins, matching what "new" is actually supposed
+        // to mean ("nobody has reached out"), using evidence this
+        // aggregation already computes.
+        {
+            $lookup: {
+                from: "communications",
+                let: { leadId: "$_id" },
+                pipeline: [{ $match: { $expr: { $and: [{ $eq: ["$leadId", "$$leadId"] }, { $eq: ["$direction", "outbound"] }] } } }, { $limit: 1 }, { $project: { _id: 1 } }],
+                as: "_outboundCommunicationArr",
+            },
+        },
+        { $addFields: { _hasOutboundCommunication: { $gt: [{ $size: "$_outboundCommunicationArr" }, 0] } } },
+        // Milestone 23.12 — earliest still-SCHEDULED meeting (never
+        // completed/cancelled ones — those aren't "happening").
+        {
+            $lookup: {
+                from: "meetings",
+                let: { leadId: "$_id" },
+                pipeline: [
+                    { $match: { $expr: { $and: [{ $eq: ["$leadId", "$$leadId"] }, { $eq: ["$status", "scheduled"] }] } } },
+                    { $sort: { scheduledAt: 1 } },
+                    { $limit: 1 },
+                    { $project: { _id: 1, scheduledAt: 1 } },
+                ],
+                as: "_nextMeetingArr",
+            },
+        },
+        { $addFields: { nextMeeting: { $arrayElemAt: ["$_nextMeetingArr", 0] } } },
+        // Milestone 23.12 — requirements-confirmed check, mirroring
+        // api/leads/[id].js's buildJourneyFlags EXACTLY (same strict bar:
+        // explicit numeric sharing, never the roomPreference-derived
+        // fallback). Kept as its own small lookup rather than importing
+        // that route's function, since this is a Mongo pipeline stage, not
+        // reusable JS — the RULE is what's kept identical, documented in
+        // both places.
+        {
+            $lookup: {
+                from: "discoveries",
+                let: { leadId: "$_id" },
+                pipeline: [
+                    { $match: { $expr: { $eq: ["$leadId", "$$leadId"] } } },
+                    { $limit: 1 },
+                    {
+                        $project: {
+                            _id: 0,
+                            hasConfirmedRequirements: {
+                                $and: [
+                                    { $ne: ["$student.university", null] },
+                                    { $ne: ["$student.university", ""] },
+                                    { $or: [{ $ne: ["$accommodation.budgetMin", null] }, { $ne: ["$accommodation.budgetMax", null] }] },
+                                    { $ne: ["$accommodation.currency", null] },
+                                    { $ne: ["$accommodation.sharing", null] },
+                                    { $gt: ["$accommodation.sharing", 0] },
+                                ],
+                            },
+                        },
+                    },
+                ],
+                as: "_discoveryArr",
+            },
+        },
+        { $addFields: { hasConfirmedRequirements: { $ifNull: [{ $arrayElemAt: ["$_discoveryArr.hasConfirmedRequirements", 0] }, false] } } },
+        // Milestone 23.12 — a non-empty curated shortlist (same rule as
+        // hasCuratedProperties in buildJourneyFlags).
+        {
+            $lookup: {
+                from: "accommodationcurations",
+                let: { leadId: "$_id" },
+                pipeline: [
+                    { $match: { $expr: { $eq: ["$leadId", "$$leadId"] } } },
+                    { $limit: 1 },
+                    { $project: { _id: 0, hasProperties: { $gt: [{ $size: { $ifNull: ["$properties", []] } }, 0] } } },
+                ],
+                as: "_curationArr",
+            },
+        },
+        { $addFields: { hasCuratedProperties: { $ifNull: [{ $arrayElemAt: ["$_curationArr.hasProperties", 0] }, false] } } },
+        // Milestone 23.12 — at least one READY (never GENERATING/FAILED)
+        // presentation exists (same rule as hasReadyPresentation).
+        {
+            $lookup: {
+                from: "presentations",
+                let: { leadId: "$_id" },
+                pipeline: [
+                    { $match: { $expr: { $and: [{ $eq: ["$leadId", "$$leadId"] }, { $eq: ["$status", "READY"] }] } } },
+                    { $limit: 1 },
+                    { $project: { _id: 1 } },
+                ],
+                as: "_readyPresentationArr",
+            },
+        },
+        { $addFields: { hasReadyPresentation: { $gt: [{ $size: "$_readyPresentationArr" }, 0] } } },
         {
             $addFields: {
                 bucket: {
                     $switch: {
                         branches: [
                             { case: { $and: ["$nextFollowUp", { $lt: ["$nextFollowUp.dueAt", todayStart] }] }, then: "overdue" },
+                            { case: { $and: ["$nextMeeting", { $gte: ["$nextMeeting.scheduledAt", todayStart] }, { $lt: ["$nextMeeting.scheduledAt", tomorrowStart] }] }, then: "meetingToday" },
                             { case: { $and: ["$nextFollowUp", { $gte: ["$nextFollowUp.dueAt", todayStart] }, { $lt: ["$nextFollowUp.dueAt", tomorrowStart] }] }, then: "today" },
-                            { case: { $eq: ["$status", "new"] }, then: "new" },
+                            { case: { $and: [{ $eq: ["$status", "new"] }, { $eq: ["$_hasOutboundCommunication", false] }] }, then: "new" },
+                            // The three pipeline-progress buckets below only
+                            // apply to leads still being ACTIVELY worked —
+                            // never nurturing (an agent's own deliberate
+                            // "not right now" choice) or converted/lost
+                            // (terminal, nothing left to progress). A truly
+                            // untouched "new" lead (no outbound contact yet)
+                            // already matched the "new" branch above and
+                            // never reaches here, so this guard does NOT
+                            // need to re-check status=="new" itself — see
+                            // this file's Milestone 23.13 comment above
+                            // (_hasOutboundCommunication) for why a literal
+                            // status string is no longer trusted alone.
+                            { case: { $and: [{ $not: { $in: ["$status", ["nurturing", "converted", "lost"]] } }, { $eq: ["$hasConfirmedRequirements", false] }] }, then: "discoveryIncomplete" },
+                            { case: { $and: [{ $not: { $in: ["$status", ["nurturing", "converted", "lost"]] } }, { $eq: ["$hasCuratedProperties", false] }] }, then: "readyForFindRooms" },
+                            { case: { $and: [{ $not: { $in: ["$status", ["nurturing", "converted", "lost"]] } }, "$hasReadyPresentation", { $eq: ["$_hasAnyFollowUp", false] }] }, then: "presentationNoFollowUp" },
                             { case: { $and: ["$nextFollowUp", { $gte: ["$nextFollowUp.dueAt", tomorrowStart] }] }, then: "upcoming" },
                             { case: { $eq: ["$status", "nurturing"] }, then: "nurturing" },
                         ],
@@ -116,7 +292,18 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
     ];
 }
 
-const BUCKET_SORT_RANK = { overdue: 0, today: 1, new: 2, upcoming: 3, nurturing: 4, noNextAction: 5 };
+const BUCKET_SORT_RANK = {
+    overdue: 0,
+    meetingToday: 1,
+    today: 2,
+    new: 3,
+    discoveryIncomplete: 4,
+    readyForFindRooms: 5,
+    presentationNoFollowUp: 6,
+    upcoming: 7,
+    nurturing: 8,
+    noNextAction: 9,
+};
 
 module.exports = withErrorHandling(async (req, res) => {
     if (withCors(req, res)) return; // preflight handled
@@ -190,6 +377,7 @@ module.exports = withErrorHandling(async (req, res) => {
                                 lastContactAt: 1,
                                 lastInboundCommunicationAt: 1,
                                 nextFollowUp: 1,
+                                nextMeeting: 1,
                                 bucket: 1,
                             },
                         },
@@ -210,6 +398,7 @@ module.exports = withErrorHandling(async (req, res) => {
     const leads = facetResult.data.map((lead) => ({
         ...lead,
         nextFollowUp: lead.nextFollowUp || null,
+        nextMeeting: lead.nextMeeting || null,
         lastInboundCommunicationAt: lead.lastInboundCommunicationAt || null,
     }));
 
