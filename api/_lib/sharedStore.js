@@ -86,11 +86,40 @@ class RedisUnavailableError extends Error {
     }
 }
 
+// A single Upstash REST call normally completes in well under a second —
+// but nothing here previously bounded it, so a slow or unreachable Redis
+// endpoint could hang a call far longer than that, silently burning a big
+// chunk (or all) of a caller's own upstream deadline before ever reaching
+// the point of throwing RedisUnavailableError and falling back to the
+// already-safe degraded paths built around that error. CONFIRMED LIVE: a
+// single sharedSet() write was observed taking long enough that, even
+// though the real Amber call it wrapped around had already returned
+// successfully in under a second, fetchListings' own pagination
+// (amberGateway.js) had no time budget left to even attempt a second Amber
+// page — silently defeating that fix under real network conditions, not
+// just failing to help. Bounded so a slow/hanging Redis endpoint fails fast
+// into the existing fallback paths instead of eating time they were never
+// meant to spend.
+const REDIS_TIMEOUT_MS = Number(process.env.REDIS_TIMEOUT_MS) || 3000;
+
+async function redisFetch(url, options) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REDIS_TIMEOUT_MS);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } catch (err) {
+        if (err.name === "AbortError") throw new Error(`Upstash request did not respond within ${REDIS_TIMEOUT_MS}ms`);
+        throw err;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
 async function redisCommand(...args) {
     const url = `${UPSTASH_URL}/${args.map(encodeURIComponent).join("/")}`;
     let res;
     try {
-        res = await fetch(url, { headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` } });
+        res = await redisFetch(url, { headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` } });
     } catch (err) {
         throw new RedisUnavailableError(err);
     }
@@ -105,7 +134,7 @@ async function redisCommand(...args) {
 async function redisCommandPost(commandArray) {
     let res;
     try {
-        res = await fetch(UPSTASH_URL, {
+        res = await redisFetch(UPSTASH_URL, {
             method: "POST",
             headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, "Content-Type": "application/json" },
             body: JSON.stringify(commandArray),

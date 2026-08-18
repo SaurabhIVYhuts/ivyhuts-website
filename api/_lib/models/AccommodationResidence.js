@@ -60,6 +60,26 @@ const AccommodationResidenceSchema = new Schema(
         // getNearbyUniversities() for the extraction itself.
         nearbyUniversities: { type: [String], default: [] },
         available: { type: Boolean, default: true },
+        // Added when this index started backing the general property browse/
+        // search page (api/city-listings.js), not just the Planner's compact
+        // recommendation card — that page's cards show amenity chips, badges,
+        // a room-count line and nearby-place distances, none of which the
+        // original narrow shape above carried. Same "real data, never
+        // fabricated" rule as every other field here: extracted verbatim from
+        // Amber's own response by mapAmberItemToResidence, just not captured
+        // until now. Existing rows backfill gradually as the background
+        // full-catalog crawl (api/_lib/insightsMarket.js) and real page views
+        // (index-on-read, api/amber.js) re-touch them — never all at once,
+        // since re-fetching every already-indexed property live would blow
+        // past Amber's rate limit.
+        amenities: { type: [String], default: [] },
+        badges: { type: [String], default: [] },
+        offerText: { type: String, default: null },
+        billsIncluded: { type: Boolean, default: false },
+        roomsCount: { type: Number, default: null },
+        roomTypes: { type: [String], default: [] },
+        nearbyPlaces: { type: [{ place: String, distance: String, _id: false }], default: [] },
+        socialShortlisted: { type: String, default: null },
     },
     { timestamps: true }
 );

@@ -370,7 +370,28 @@ export function selectCheapestAvailableRoomType(roomTypes) {
     }));
   if (!candidates.length) return null;
 
-  candidates.sort((a, b) => {
+  // Prefer tenancy-backed candidates over a bare room-aggregate price
+  // whenever ANY exist on this property — a room-aggregate price
+  // (price.source === "room") means the room had ZERO real tenancies, so
+  // RoomTypeCard.js structurally has no Enquire button to offer for it (that
+  // button only ever renders per-tenancy) — a customer literally cannot act
+  // on that specific room regardless of Amber's raw `available` flag. This
+  // matters because a bare aggregate can be wrong in a way real tenancy data
+  // never is: confirmed live on a real property (Halsmere Studios, London,
+  // Amber id 133206) — "Diamond Studio Plus" appeared THREE times, all
+  // `available: true`, all £100/week, all with zero tenancies (a phantom-
+  // duplicate pattern — see dedupeRoomChildren's own header) while every
+  // genuinely tenancy-backed room on the same property started at £410. The
+  // aggregate £100 won the naive cheapest-price comparison and became the
+  // advertised "From" price — real money-and-trust risk under the site's
+  // Lowest Price Guarantee, since a customer had no way to actually enquire
+  // about the £100 option. Only falls back to room-aggregate candidates when
+  // NONE of the property's rooms have tenancy data at all (a genuinely
+  // simple, tenancy-less listing with no richer data to prefer instead).
+  const tenancyBacked = candidates.filter((c) => c.priceSource === "tenancy");
+  const pool = tenancyBacked.length > 0 ? tenancyBacked : candidates;
+
+  pool.sort((a, b) => {
     const aw = weeklyEquivalentPrice(a.amount, a.duration);
     const bw = weeklyEquivalentPrice(b.amount, b.duration);
     if (aw != null && bw != null) return aw - bw; // normal case: comparable durations, compare fairly
@@ -378,7 +399,7 @@ export function selectCheapestAvailableRoomType(roomTypes) {
     if (bw != null) return 1;
     return a.amount - b.amount; // both unrankable (e.g. both "term") — last-resort raw compare; same property, same currency in every real example seen
   });
-  return candidates[0];
+  return pool[0];
 }
 
 // Builds the mapped room-type array once — shared by every caller below so
@@ -556,12 +577,55 @@ function mapRoomType(child) {
   };
 }
 
+// Tenancy-backed-and-available first, then aggregate-only-available, then
+// sold out — cheapest (weekly-equivalent) first within each tier. Mirrors
+// sortTenancies' own reasoning one level up, PLUS selectCheapestAvailableRoomType's
+// tenancy-backed-over-aggregate precedence (see that function's own header
+// for the Halsmere Studios case this tier ordering closes): without the
+// tenancy-tier split, a room whose "available" price is really a zero-
+// tenancy aggregate (no Enquire button ever renders for it — RoomTypeCard.js
+// only shows one per tenancy) could still sort ahead of the actual selected/
+// advertised room purely by having a numerically lower aggregate number,
+// recreating the exact same "list doesn't match the sidebar price" confusion
+// this function was written to prevent, just in the opposite direction.
+// Confirmed live: Halsmere Studios, London had THREE identical zero-tenancy
+// "Diamond Studio Plus" entries at £100 (Amber's own site shows the correct
+// £410) that would otherwise render first, ahead of the real £410 selection.
+// Separately, mapAmberPropertyDetails' roomTypes previously rendered in
+// Amber's raw order entirely, which can bury the one room type matching the
+// advertised "From" price deep in a long, mostly-sold-out list — confirmed
+// live on AXO Waterloo, London: its true cheapest available room, "Silver
+// Twin Room" at £203/week (exactly matching the sidebar price), was 11th of
+// 15 room types, sandwiched between six sold-out entries ranging £232-£555.
+// Only affects the visible list order here — buildRoomTypes() below (which
+// feeds selectCheapestAvailableRoomType for the listing-card price) already
+// scans the full array regardless of order, so this has zero effect on
+// which price gets selected, only on the order a human sees them rendered in.
+function sortRoomTypes(roomTypes) {
+  const tier = (rt) => {
+    if (!rt.available) return 2;
+    return rt.price?.source === "tenancy" ? 0 : 1;
+  };
+  return [...roomTypes].sort((a, b) => {
+    const ta = tier(a);
+    const tb = tier(b);
+    if (ta !== tb) return ta - tb;
+    if (ta === 2) return 0; // sold out: relative order doesn't matter
+    const aw = a.price?.from != null ? weeklyEquivalentPrice(a.price.from, a.price.duration) : null;
+    const bw = b.price?.from != null ? weeklyEquivalentPrice(b.price.from, b.price.duration) : null;
+    if (aw != null && bw != null) return aw - bw;
+    if (aw != null) return -1;
+    if (bw != null) return 1;
+    return (a.price?.from ?? Infinity) - (b.price?.from ?? Infinity);
+  });
+}
+
 export function mapAmberPropertyDetails(raw) {
   if (!raw || typeof raw !== "object") return null;
 
   const address = getAddress(raw);
   const { badges, offerText, billsIncluded } = getBadges(raw);
-  const roomTypes = dedupeRoomChildren(raw.children).map(mapRoomType).filter(Boolean);
+  const roomTypes = sortRoomTypes(dedupeRoomChildren(raw.children).map(mapRoomType).filter(Boolean));
   // The SAME cheapest-available-room decision the listing card uses (see
   // mapAmberPropertyToListing below) — computed from this page's own
   // already-built roomTypes (no duplicate parsing), so the property-detail
@@ -829,4 +893,87 @@ export function mapAmberPropertyToListing(raw) {
 export function safeListingList(rawArray) {
   if (!Array.isArray(rawArray)) return [];
   return rawArray.map(mapAmberPropertyToListing).filter(Boolean);
+}
+
+// Adapter for the Mongo-backed browse/search path (api/city-listings.js,
+// src/services/amberApi.js's getCityListings) — produces the SAME "listing"
+// shape mapAmberPropertyToListing does, so ListingCard.js/CompactPropertyCard.js
+// need no changes, but from AccommodationResidence's already-reduced summary
+// doc (see api/_lib/models/AccommodationResidence.js) instead of a full raw
+// Amber item. That doc deliberately never stored amenities/room-tenancy
+// detail/social proof/full address (see its own header comment on why — this
+// index exists to avoid duplicating that), so those fields come back empty/
+// null here rather than fabricated; the property detail page (opened via
+// `slug`) still does its own full, live, per-property Amber fetch and shows
+// the complete picture there. This is the exact same "may be a little thin
+// until you open it" tradeoff the Student Planner's own residence cards
+// already accept for the same underlying data.
+function mapResidenceDocToListing(doc) {
+  if (!doc || typeof doc !== "object") return null;
+  const id = doc.propertyId ?? null;
+  const lat = doc.latitude;
+  const lng = doc.longitude;
+  const hasCoords = typeof lat === "number" && typeof lng === "number" && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+  const locality = doc.city ? titleCase(doc.city) : "";
+  const addressParts = [locality, doc.country].filter(Boolean);
+
+  return {
+    id,
+    slug: doc.slug || null,
+    name: doc.propertyName || "Student Accommodation",
+    address: { line: "", locality, country: doc.country || "", postcode: "", full: addressParts.join(", ") },
+    coordinates: hasCoords ? { lat, lng } : null,
+    image: doc.image || null,
+    images: doc.image ? [{ url: doc.image, caption: "" }] : [],
+    price: {
+      from: Number.isFinite(doc.price?.amount) ? doc.price.amount : null,
+      to: null,
+      original: null,
+      currency: doc.price?.currency || "",
+      duration: doc.priceDuration || "",
+      deposit: null,
+    },
+    priceWeekly: Number.isFinite(doc.priceWeekly) ? doc.priceWeekly : null,
+    isSoldOut: doc.available === false,
+    selectedRoomType: null,
+    distances: {
+      // Rounded to 1 decimal (same convention accommodationIndex.js's own
+      // toOutputShape uses for this same field) — the stored value is a
+      // parsed float (see parseDistanceKm), unlike the live-Amber path's
+      // distances.cityCentre, which is Amber's own already-formatted
+      // display string ("0.5 km") and never needed rounding.
+      cityCentre: Number.isFinite(doc.distanceToCentreKm) ? `${Math.round(doc.distanceToCentreKm * 10) / 10} km` : null,
+      nearby: Array.isArray(doc.nearbyPlaces) ? doc.nearbyPlaces.slice(0, 4).map((d) => ({ place: d.place, distance: d.distance })) : [],
+    },
+    amenities: {
+      shown: Array.isArray(doc.amenities) ? doc.amenities.slice(0, 6) : [],
+      moreCount: Array.isArray(doc.amenities) ? Math.max(0, doc.amenities.length - 6) : 0,
+      all: Array.isArray(doc.amenities) ? doc.amenities : [],
+    },
+    badges: Array.isArray(doc.badges) ? doc.badges : [],
+    offerText: doc.offerText || "",
+    billsIncluded: !!doc.billsIncluded,
+    rooms: {
+      count: Number.isFinite(doc.roomsCount) ? doc.roomsCount : null,
+      activeCount: null,
+      bedroomCount: null,
+      bathroomCount: null,
+      types: Array.isArray(doc.roomTypes) && doc.roomTypes.length ? doc.roomTypes : (doc.roomType ? [doc.roomType] : []),
+    },
+    moveInOptions: [],
+    stayDurationOptions: [],
+    rating: Number.isFinite(doc.rating) ? { overall: doc.rating, categories: [] } : null,
+    social: { shortlisted: doc.socialShortlisted || null, recentEnquiries: null, recentBooking: null },
+    available: doc.available !== false,
+    detailUrl: null,
+    // Not read by any component today — a hook for a future "may be a few
+    // hours old" affordance, since this card came from the background index
+    // rather than a fresh live Amber call (see this function's own header).
+    fromIndex: true,
+  };
+}
+
+export function safeResidenceListingList(docs) {
+  if (!Array.isArray(docs)) return [];
+  return docs.map(mapResidenceDocToListing).filter(Boolean);
 }

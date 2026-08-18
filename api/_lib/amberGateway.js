@@ -615,8 +615,25 @@ function matchesCity(item, cityLower) {
 const FALLBACK_SUSPICIOUS_MATCH_THRESHOLD = 5;
 const FALLBACK_MAX_EXTRA_PAGES = 2;
 
+// A city whose filtered query looks completely healthy on page 1 (every/
+// most returned items genuinely belong to it) was still being truncated at
+// whatever that ONE page happened to contain — CONFIRMED LIVE: London
+// reported only 38 properties through this pipeline while Amber's own site
+// lists 80+ for the same city, because a "healthy" page 1 short-circuited
+// straight to `return` with no attempt to check whether page 2 existed.
+// Every city with more genuine inventory than fits on a single 50-item page
+// hit this same silent cap — not a one-off, which matches it being reported
+// as happening "every time". This bound lets fetchListings keep asking for
+// more pages of the SAME (working) filtered query as long as Amber keeps
+// sending full pages back, instead of stopping after the first one. 12
+// pages (~600 properties at the 50/page cap) comfortably covers even
+// Amber's largest single-city markets while staying well short of a
+// full-catalog crawl (~86 pages).
+const FILTERED_PAGINATION_MAX_PAGES = 12;
+
 async function fetchListings(params, priority, source) {
     const deadlineAt = Date.now() + AMBER_FETCH_TIMEOUT_MS;
+    const requestedLimit = Math.min(50, Number(params.limit) || 50);
     const primary = await fetchAmber({ type: "listings", params, priority, source, deadlineAt });
     if (!params.city) return primary;
 
@@ -624,18 +641,43 @@ async function fetchListings(params, priority, source) {
     const cityLower = normalizeCityName(params.city);
     const matchedPrimary = primaryItems.filter((item) => matchesCity(item, cityLower));
 
-    if (matchedPrimary.length > 0 && matchedPrimary.length === primaryItems.length) {
-        // Every item Amber's own filter returned genuinely belongs to this
-        // city — no reason to distrust it or spend extra budget looking further.
-        return primary;
-    }
-    if (matchedPrimary.length >= FALLBACK_SUSPICIOUS_MATCH_THRESHOLD) {
-        // Amber returned a mix, but a healthy number of genuine matches —
-        // keep only those, same as before. Not suspicious enough to warrant
-        // spending extra Amber budget chasing a handful of possible extras.
+    const primaryTrustworthy = matchedPrimary.length > 0 &&
+        (matchedPrimary.length === primaryItems.length || matchedPrimary.length >= FALLBACK_SUSPICIOUS_MATCH_THRESHOLD);
+    if (primaryTrustworthy) {
+        // Page 1's filtered result looks genuine — keep it, but don't assume
+        // it's the WHOLE city just because it's trustworthy. If Amber sent a
+        // full page (== the requested limit), there may be more real matches
+        // sitting on page 2+ that were never asked for. Keep paging the same
+        // filtered query — each additional page independently re-verified via
+        // matchesCity(), exactly like page 1 — until a page comes back
+        // partial (the true end of this city's results), untrustworthy (stop
+        // chasing noise), or the page/deadline/budget bound is hit. Any
+        // failure mid-loop just stops early, same "never discard what's
+        // already real" contract as the sparse-fallback loop below.
+        const merged = new Map(matchedPrimary.map((item) => [item.id, item]));
+        let cacheStatus = primary.cacheStatus;
+        let page = Number(params.page) || 1;
+        let keepPaging = primaryItems.length >= requestedLimit;
+        while (keepPaging && page < FILTERED_PAGINATION_MAX_PAGES) {
+            page += 1;
+            let next;
+            try {
+                next = await fetchAmber({ type: "listings", params: { ...params, page }, priority, source: `${source}-paginate`, deadlineAt });
+            } catch (err) {
+                log(`source=${source} priority=${priority} action=PAGINATE_FAILED page=${page} error=${err.message}`);
+                break;
+            }
+            cacheStatus = next.cacheStatus;
+            const items = extractResultArray(next.data);
+            const matched = items.filter((item) => matchesCity(item, cityLower));
+            matched.forEach((item) => merged.set(item.id, item));
+            const pageTrustworthy = matched.length > 0 &&
+                (matched.length === items.length || matched.length >= FALLBACK_SUSPICIOUS_MATCH_THRESHOLD);
+            keepPaging = pageTrustworthy && items.length >= requestedLimit;
+        }
         return {
-            data: { message: primary.data?.message || "success", data: { result: matchedPrimary, meta: { count: matchedPrimary.length } } },
-            cacheStatus: primary.cacheStatus,
+            data: { message: primary.data?.message || "success", data: { result: Array.from(merged.values()), meta: { count: merged.size } } },
+            cacheStatus,
         };
     }
 

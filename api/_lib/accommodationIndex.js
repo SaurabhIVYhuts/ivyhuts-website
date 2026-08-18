@@ -24,6 +24,28 @@ const AccommodationResidence = require("./models/AccommodationResidence");
 const AccommodationIndexMeta = require("./models/AccommodationIndexMeta");
 const { fetchListings, fetchAmber, normalizeCityName } = require("./amberGateway");
 const { log } = require("./sharedStore");
+const { withTimeout } = require("./withTimeout");
+
+// CONFIRMED LIVE (production 504 on ivyhuts.com/properties?city=New York):
+// refreshCityIndex()'s own fetchListings() call already has an internal
+// AMBER_FETCH_TIMEOUT_MS (~25s) deadline for a SINGLE Amber attempt — but a
+// never-before-indexed city forces this refresh on every request, and
+// fetchListings' own pagination (amberGateway.js) can chain several
+// sequential Amber calls, each also subject to LOCK_POLL_INTERVALS_MS lock-
+// wait under concurrent traffic — the sum comfortably exceeds Vercel's own
+// function ceiling (vercel.json's maxDuration:30 for api/city-listings.js),
+// which then hard-kills the whole invocation (FUNCTION_INVOCATION_TIMEOUT,
+// a 504 with no JSON body at all — worse than "slow", it's un-parseable).
+// refreshCityIndex() itself never throws (see its own header), so wrapping
+// it here only ever protects against SLOW, never masks a real failure (see
+// withTimeout.js's own caveat on that distinction). 15s leaves comfortable
+// room, even in the worst case, for connectToDatabase()'s own up-to-10s
+// serverSelectionTimeoutMS (called separately, before this) plus the
+// following Mongo read and response serialization, safely inside the 30s
+// ceiling — a refresh that doesn't finish in time just means this request
+// serves whatever was already indexed (possibly nothing, "building"); the
+// refresh itself may still finish and persist in the background afterward.
+const REFRESH_TIMEOUT_MS = 15000;
 
 // Fresh (<30min) and stale-but-usable (<24h) are behaviorally identical here
 // — both just read Mongo with zero Amber attempts — so there is deliberately
@@ -114,6 +136,100 @@ function getRoomType(raw) {
     const unitTypes = Array.isArray(raw?.meta?.unit_types) ? raw.meta.unit_types : [];
     const first = unitTypes.find((t) => t && !/^\d/.test(t));
     return titleCase(first) || null;
+}
+
+// The four extractors below mirror src/services/amberMapper.js's
+// getAmenities/getBadges/getRooms/getSocialProof/getDistances — same
+// duplication rationale as this file's header comment already gives for
+// mapAmberItemToResidence as a whole (api/_lib is plain CommonJS, that file
+// is an ES module for CRA's build). Added so the general property browse/
+// search page's cards (api/city-listings.js) can show the same amenity
+// chips, badges, room count and nearby-place lines the live-Amber-sourced
+// cards already do — the original narrow shape here was deliberately built
+// only for the Planner's compact card, which never needed them.
+const AMENITY_STORE_LIMIT = 12;
+function getAmenitiesList(raw) {
+    const out = [];
+    const seen = new Set();
+    const add = (name) => {
+        const clean = (name || "").trim();
+        if (!clean) return;
+        const key = clean.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(clean);
+    };
+    if (Array.isArray(raw.features)) {
+        for (const category of raw.features) {
+            if (!category || !Array.isArray(category.values)) continue;
+            for (const v of category.values) if (v && v.name) add(v.name);
+        }
+    }
+    if (Array.isArray(raw.tags)) {
+        for (const t of raw.tags) {
+            if (typeof t !== "string" || t === "not_available") continue;
+            add(titleCase(t));
+        }
+    }
+    return out.slice(0, AMENITY_STORE_LIMIT);
+}
+
+function truthy(v) {
+    return v === true || v === "true" || v === 1 || v === "1";
+}
+
+function getBadgesInfo(raw) {
+    const cro = raw.meta?.cro_tags || {};
+    const badges = [];
+    if (truthy(cro.is_student_choice)) badges.push("Student's Choice");
+    if (truthy(cro.is_amber_exclusive)) badges.push("Exclusive");
+    if (truthy(cro.is_property_of_the_day)) badges.push("Property of the Day");
+    if (truthy(cro.is_filling_fast_v2) || truthy(cro.is_fast_filling)) badges.push("Filling Fast");
+    if (truthy(cro.is_immediate_move_in)) badges.push("Immediate Move-in");
+    if (truthy(cro.is_breakfast_included)) badges.push("Breakfast Included");
+    if (truthy(cro.is_budget_friendly)) badges.push("Budget Friendly");
+
+    const hasDiscount = truthy(cro.has_discounts);
+    const offerText = cro.amber_sale && typeof cro.amber_sale.offer === "string" ? cro.amber_sale.offer : null;
+    if (hasDiscount) badges.push("Offer Available");
+
+    const billsIncluded =
+        (Array.isArray(raw.features) && raw.features.some((f) => f && f.type === "bills_included")) ||
+        (Array.isArray(raw.tags) && raw.tags.some((t) => typeof t === "string" && t.toLowerCase().includes("bills_included")));
+    if (billsIncluded) badges.push("Bills Included");
+
+    const dualOccupancy = Array.isArray(raw.tags) && raw.tags.includes("dual_occupancy");
+    if (dualOccupancy) badges.push("Dual Occupancy");
+
+    return { badges, offerText, billsIncluded };
+}
+
+function getRoomsSummary(raw) {
+    const children = Array.isArray(raw.children) ? raw.children : [];
+    const unitTypes = new Set();
+    const addType = (t) => {
+        if (!t || /^\d/.test(t)) return; // skip cryptic bedroom-count codes like "1b", "3b"
+        unitTypes.add(titleCase(t));
+    };
+    (raw.meta?.unit_types || []).forEach(addType);
+    children.forEach((c) => addType(c?.meta?.unit_type));
+    return {
+        count: toNumber(raw.children_count) ?? children.length,
+        types: Array.from(unitTypes).slice(0, 4),
+    };
+}
+
+function getNearbyPlacesList(raw, limit = 4) {
+    const list = Array.isArray(raw?.meta?.distances) ? raw.meta.distances : [];
+    const cityCentre = list.find((d) => d && /city cent(re|er)/i.test(d.place || ""));
+    const nearby = list.filter((d) => d && d !== cityCentre && d.place && d.distance);
+    return nearby.slice(0, limit).map((d) => ({ place: d.place, distance: d.distance }));
+}
+
+function getSocialShortlisted(raw) {
+    const facts = Array.isArray(raw?.meta?.facts) ? raw.meta.facts : [];
+    const entry = facts.find((f) => f && f.name === "shortlisted_in_30days");
+    return entry?.value || null;
 }
 
 const WEEKS_PER_MONTH = 52 / 12;
@@ -272,6 +388,8 @@ function mapAmberItemToResidence(raw, normalizedCity) {
     const derived = deriveResidencePricing(raw);
     const priceAmount = derived.amount;
     const priceDuration = derived.duration;
+    const { badges, offerText, billsIncluded } = getBadgesInfo(raw);
+    const rooms = getRoomsSummary(raw);
     return {
         source: "amber",
         propertyId,
@@ -297,6 +415,14 @@ function mapAmberItemToResidence(raw, normalizedCity) {
         // NOT just the property's own coarse top-level flag, which can
         // disagree with tenancy-level truth in either direction.
         available: derived.available,
+        amenities: getAmenitiesList(raw),
+        badges,
+        offerText,
+        billsIncluded,
+        roomsCount: rooms.count,
+        roomTypes: rooms.types,
+        nearbyPlaces: getNearbyPlacesList(raw),
+        socialShortlisted: getSocialShortlisted(raw),
     };
 }
 
@@ -384,6 +510,15 @@ async function refreshCityIndex(normalizedCity, priority, source) {
 
 function readMongoResidences(normalizedCity) {
     return AccommodationResidence.find({ city: normalizedCity, available: true }).lean();
+}
+
+// Unlike readMongoResidences (Planner-only: available residences it might
+// recommend), the general browse/search page shows BOTH available and
+// sold-out properties (sold-out ones marked via `available`, same as the
+// live Amber pipeline it's replacing already did) — a student browsing a
+// city expects to see the whole picture, not just what's currently bookable.
+function readAllMongoResidences(normalizedCity) {
+    return AccommodationResidence.find({ city: normalizedCity }).lean();
 }
 
 function hasValidCoords(lat, lng) {
@@ -675,7 +810,11 @@ async function getCityResidences(city, { budget, accommodationPreference, priori
         // future truly-expired request do the one coordinated refresh").
         residenceDocs = await readMongoResidences(normalizedCity);
     } else {
-        const { residences: refreshed } = await refreshCityIndex(normalizedCity, priority, source);
+        const { residences: refreshed } = await withTimeout(
+            refreshCityIndex(normalizedCity, priority, source),
+            REFRESH_TIMEOUT_MS,
+            { residences: [], refreshed: false }
+        );
         residenceDocs = refreshed.length ? refreshed : await readMongoResidences(normalizedCity);
     }
 
@@ -689,8 +828,56 @@ async function getCityResidences(city, { budget, accommodationPreference, priori
     return { status: "ready", residences: ranked };
 }
 
+// The general property browse/search page's entry point (api/city-listings.js)
+// — same Mongo-first shape as getCityResidences above, but returns the WHOLE
+// known city inventory instead of a ranked top-RESULT_LIMIT recommendation
+// (there's no resolved university/budget to rank against on a plain city
+// browse, and hiding all but 5 properties would defeat the point).
+//
+// This is what actually fixes a city like London only ever showing whatever
+// Amber's own location filter + one page's worth of live pagination could
+// return (confirmed live: 38, capped by Amber's own filter recognizing only
+// that many — see amberGateway.js's fetchListings comment) despite Amber
+// genuinely having 200+ London properties: refreshCityIndex()'s persistence
+// is an upsert (see persistResidences), so it can only ADD to / update what's
+// already indexed, never shrink it. Reading Mongo again AFTER a refresh
+// therefore reflects the UNION of everything this city has ever had indexed
+// — from this refresh, from every earlier real page view (index-on-read, see
+// api/amber.js), and from the independent full-catalog crawl
+// (api/_lib/insightsMarket.js) — not just whatever this one, budget-limited
+// live call happened to find.
+async function getCityListings(city, { priority = "MEDIUM", source = "listings-page" } = {}) {
+    const normalizedCity = normalizeCityName(city);
+    if (!normalizedCity) return { status: "building", residences: [] };
+
+    try {
+        await connectToDatabase();
+    } catch (err) {
+        if (err instanceof MongoNotConfiguredError) return { status: "building", residences: [] };
+        throw err;
+    }
+
+    const meta = await AccommodationIndexMeta.findOne({ city: normalizedCity }).lean();
+    const now = Date.now();
+    const age = meta?.lastRefreshedAt ? now - new Date(meta.lastRefreshedAt).getTime() : Infinity;
+
+    if (!meta || age >= MAX_AGE_MS) {
+        // Bounded (see REFRESH_TIMEOUT_MS above) — a failed/slow Amber
+        // refresh just means this cycle's read below falls back to whatever
+        // was already indexed from before, same degrade-to-known-data
+        // contract as every other caller of this function, but WITHOUT
+        // risking the whole request past Vercel's function ceiling.
+        await withTimeout(refreshCityIndex(normalizedCity, priority, source), REFRESH_TIMEOUT_MS, null);
+    }
+
+    const residenceDocs = await readAllMongoResidences(normalizedCity);
+    if (!residenceDocs.length) return { status: "building", residences: [] };
+    return { status: "ready", residences: residenceDocs };
+}
+
 module.exports = {
     getCityResidences,
+    getCityListings,
     getOverrideResidences,
     rankResidences,
     mapAmberItemToResidence,

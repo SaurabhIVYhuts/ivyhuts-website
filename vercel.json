@@ -1,6 +1,7 @@
 {
   "functions": {
     "api/amber.js": { "maxDuration": 30 },
+    "api/city-listings.js": { "maxDuration": 30 },
     "api/student-planner.js": { "maxDuration": 30 },
     "api/student-planner-ppt.js": { "maxDuration": 15 },
     "api/insights/advance-crawl.js": { "maxDuration": 30 },

@@ -1,7 +1,7 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { getProperties, getPropertyBySlug, getPropertiesForCountry } from "../services/amberApi";
-import { safeListingList } from "../services/amberMapper";
+import { getProperties, getPropertyBySlug, getPropertiesForCountry, getCityListings } from "../services/amberApi";
+import { safeListingList, safeResidenceListingList } from "../services/amberMapper";
 import { addRecentSearch } from "../services/recentActivity";
 import { trackEvent } from "../lib/eventsApi";
 import { DESTINATIONS, findDestination, countryFullName, countryIsoCode } from "../data/destinations";
@@ -225,19 +225,26 @@ export default function PropertyListingPage() {
         if (city) {
           addRecentSearch(city);
           trackEvent("CITY_SEARCHED", { city, source: "listings-page" });
-          let data = await getProperties(city);
-          data = Array.isArray(data) ? data : [];
+          // Mongo-first (see api/city-listings.js / getCityListings): reads
+          // this site's already-indexed FULL city inventory — built up over
+          // time from real traffic + the background full-catalog crawl —
+          // instead of being capped at whatever one live, rate-limited Amber
+          // call/page can return right now (confirmed live: Amber's own
+          // location filter recognizes only a fraction of a big city's real
+          // inventory, e.g. 38 of 200+ for London).
+          const { residences } = await getCityListings(city, "MEDIUM", "listings-page");
+          let listings = safeResidenceListingList(residences);
 
-          // Amber's own location search doesn't recognize every city it
-          // actually has inventory in (see src/data/curatedCityProperties.js)
+          // A brand-new city with nothing indexed yet at all (not "Amber's
+          // filter under-recognizes it" — genuinely zero rows ever indexed)
           // — backfill known properties for the handful of cities where
           // that's confirmed, rather than showing an incorrect empty result.
-          const curatedSlugs = data.length === 0 ? CURATED_CITY_PROPERTIES[city.trim().toLowerCase()] : null;
+          const curatedSlugs = listings.length === 0 ? CURATED_CITY_PROPERTIES[city.trim().toLowerCase()] : null;
           if (curatedSlugs?.length) {
             const curated = await Promise.all(curatedSlugs.map((slug) => getPropertyBySlug(slug).catch(() => null)));
-            data = curated.filter(Boolean);
+            listings = safeListingList(curated.filter(Boolean));
           }
-          if (!cancelled) setRawProperties(data);
+          if (!cancelled) setRawProperties(listings);
         } else if (universityParam) {
           if (!resolvedUniversity) {
             if (!cancelled) { setRawProperties([]); setError({ message: `We don't recognize "${universityParam}" yet — try its full name, or browse by city instead.` }); }
@@ -252,10 +259,10 @@ export default function PropertyListingPage() {
           const overrideSlugs = resolvedUniversity?.accommodationOverride?.propertySlugs;
           if (Array.isArray(overrideSlugs) && overrideSlugs.length) {
             const items = await Promise.all(overrideSlugs.map((slug) => getPropertyBySlug(slug, "MEDIUM", "listings-university-override").catch(() => null)));
-            if (!cancelled) setRawProperties(items.filter(Boolean));
+            if (!cancelled) setRawProperties(safeListingList(items.filter(Boolean)));
           } else {
             const data = await getProperties(resolvedUniversity.city, 1, 50, "MEDIUM", "listings-university");
-            if (!cancelled) setRawProperties(Array.isArray(data) ? data : []);
+            if (!cancelled) setRawProperties(safeListingList(Array.isArray(data) ? data : []));
           }
         } else if (propertyParam) {
           // The guard above this function already ensures propertyResolution
@@ -263,7 +270,7 @@ export default function PropertyListingPage() {
           if (propertyResolution.status !== "resolved") { if (!cancelled) setRawProperties([]); return; }
           trackEvent("PROPERTY_SEARCHED", { property: propertyParam, source: "listings-page" });
           const data = await getProperties(propertyResolution.city, 1, 50, "MEDIUM", "listings-property");
-          if (!cancelled) setRawProperties(Array.isArray(data) ? data : []);
+          if (!cancelled) setRawProperties(safeListingList(Array.isArray(data) ? data : []));
         }
       } catch (err) {
         if (!cancelled) {
@@ -284,7 +291,11 @@ export default function PropertyListingPage() {
     return () => { cancelled = true; };
   }, [city, universityParam, resolvedUniversity, propertyParam, propertyResolution, hasActiveSearch]);
 
-  const baseListings = useMemo(() => safeListingList(rawProperties), [rawProperties]);
+  // `rawProperties` now always holds already-mapped "listing" shape objects
+  // (each load() branch above maps at fetch time — via safeResidenceListingList
+  // for the Mongo-backed city path, safeListingList for the raw-Amber paths)
+  // so it's used directly here rather than re-mapped a second time.
+  const baseListings = useMemo(() => (Array.isArray(rawProperties) ? rawProperties : []), [rawProperties]);
 
   // Real distance only when the resolved university has real coordinates —
   // never fabricated (same rule UniversityHousingPage/UniversityHousingMap
