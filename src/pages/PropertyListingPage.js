@@ -9,6 +9,7 @@ import { CURATED_CITY_PROPERTIES } from "../data/curatedCityProperties";
 import { USPS } from "../data/usps";
 import { resolveCampusUniversityByNameOrId } from "../lib/campusUniversityResolver";
 import { haversineKm, hasValidCoords } from "../lib/geoDistance";
+import { classifyPetPolicy } from "../lib/petPolicy";
 import useFilterState from "../hooks/useFilterState";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import SiteFooter from "../components/layout/SiteFooter";
@@ -338,6 +339,18 @@ export default function PropertyListingPage() {
       .map(([name]) => name);
   }, [listings]);
 
+  // Whether the current result set has ANY property with a real, stated pet
+  // policy — same "only show a filter the current data can actually answer"
+  // rule amenityOptions/nearOptions/etc. above already follow. Amber's own
+  // amenity text for this is free-form (confirmed live: "Pet Friendly", "No
+  // Pets Allowed", "Not Pet-Friendly", ... — 20+ real variants), so this
+  // can't be a literal-string amenity checkbox like the generic ones above;
+  // classifyPetPolicy normalizes all of them into just "allowed"/"not_allowed".
+  const petPolicyAvailable = useMemo(
+    () => listings.some((l) => classifyPetPolicy(l.amenities.all) != null),
+    [listings]
+  );
+
   const moveInOptions = useMemo(() => {
     const set = new Set();
     listings.forEach((l) => (l.moveInOptions || []).forEach((m) => set.add(m)));
@@ -397,12 +410,12 @@ export default function PropertyListingPage() {
 
   const filtersActive =
     filters.query || filters.minPrice || filters.maxPrice || filters.roomType ||
-    filters.billsOnly || filters.near || filters.amenities.length > 0 ||
+    filters.billsOnly || filters.petPolicy || filters.near || filters.amenities.length > 0 ||
     filters.moveInMonth || filters.stayDuration || filters.sortBy !== "recommended";
 
   const advancedFilterCount =
     (filters.minPrice ? 1 : 0) + (filters.maxPrice ? 1 : 0) + (filters.roomType ? 1 : 0) +
-    (filters.near ? 1 : 0) + (filters.amenities.length > 0 ? 1 : 0) +
+    (filters.petPolicy ? 1 : 0) + (filters.near ? 1 : 0) + (filters.amenities.length > 0 ? 1 : 0) +
     (filters.moveInMonth ? 1 : 0) + (filters.stayDuration ? 1 : 0);
 
   const filteredListings = useMemo(() => {
@@ -426,10 +439,11 @@ export default function PropertyListingPage() {
       const billsOk = !filters.billsOnly || l.billsIncluded;
       const nearOk = !filters.near || l.distances.nearby.some((d) => d.place === filters.near);
       const amenitiesOk = filters.amenities.every((a) => (l.amenities.all || []).includes(a));
+      const petOk = !filters.petPolicy || classifyPetPolicy(l.amenities.all) === filters.petPolicy;
       const moveInOk = !filters.moveInMonth || (l.moveInOptions || []).includes(filters.moveInMonth);
       const stayDurationOk = !filters.stayDuration || (l.stayDurationOptions || []).includes(filters.stayDuration);
 
-      return textMatch && minOk && maxOk && roomTypeOk && billsOk && nearOk && amenitiesOk && moveInOk && stayDurationOk;
+      return textMatch && minOk && maxOk && roomTypeOk && billsOk && petOk && nearOk && amenitiesOk && moveInOk && stayDurationOk;
     });
 
     const sorted = [...filtered];
@@ -733,10 +747,30 @@ export default function PropertyListingPage() {
                 </div>
               )}
 
-              {amenityOptions.length > 0 && (
+              {(amenityOptions.length > 0 || petPolicyAvailable) && (
                 <div className="toolbar-panel-group">
                   <span className="toolbar-panel-label">Amenities</span>
                   <div className="toolbar-amenity-list">
+                    {petPolicyAvailable && (
+                      <>
+                        <label className="toolbar-amenity-item">
+                          <input
+                            type="checkbox"
+                            checked={filters.petPolicy === "allowed"}
+                            onChange={(e) => setFilter("petPolicy")(e.target.checked ? "allowed" : "")}
+                          />
+                          Pets Allowed
+                        </label>
+                        <label className="toolbar-amenity-item">
+                          <input
+                            type="checkbox"
+                            checked={filters.petPolicy === "not_allowed"}
+                            onChange={(e) => setFilter("petPolicy")(e.target.checked ? "not_allowed" : "")}
+                          />
+                          Pets Not Allowed
+                        </label>
+                      </>
+                    )}
                     {amenityOptions.map((a) => (
                       <label key={a} className="toolbar-amenity-item">
                         <input type="checkbox" checked={filters.amenities.includes(a)} onChange={() => toggleAmenity(a)} />
@@ -1021,6 +1055,7 @@ export default function PropertyListingPage() {
         nearOptions={nearOptions}
         roomTypeOptions={roomTypeOptions}
         amenityOptions={amenityOptions}
+        petPolicyAvailable={petPolicyAvailable}
         moveInOptions={moveInOptions}
         stayDurationOptions={stayDurationOptions}
         priceBounds={priceBounds}

@@ -18,6 +18,9 @@ const FILTER_KEYS = {
   maxPrice: { param: "maxPrice", type: "string" },
   roomType: { param: "roomType", type: "string" },
   billsOnly: { param: "billsOnly", type: "bool" },
+  // "" (no filter) | "allowed" | "not_allowed" — mutually exclusive, so one
+  // string param rather than two independent booleans (see petPolicy.js).
+  petPolicy: { param: "pet", type: "string" },
   near: { param: "near", type: "string" },
   amenities: { param: "amenities", type: "list" },
   moveInMonth: { param: "moveInMonth", type: "string" },
@@ -26,7 +29,7 @@ const FILTER_KEYS = {
 };
 
 export const EMPTY_FILTERS = {
-  query: "", minPrice: "", maxPrice: "", roomType: "", billsOnly: false,
+  query: "", minPrice: "", maxPrice: "", roomType: "", billsOnly: false, petPolicy: "",
   near: "", amenities: [], moveInMonth: "", stayDuration: "", sortBy: "recommended",
 };
 
