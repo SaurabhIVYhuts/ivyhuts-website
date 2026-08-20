@@ -57,7 +57,12 @@ export default function SiteFooter() {
           <h4>Get in Touch</h4>
           <a href="mailto:contact@ivyhuts.com" className="footer-contact-row"><MailIcon /> contact@ivyhuts.com</a>
           <a href="https://wa.me/918847725089" target="_blank" rel="noopener noreferrer" className="footer-contact-row"><WhatsAppIcon /> +91 884 772 5089</a>
-          <Link to="/find-rooms">Find Accommodation</Link>
+          {/* Generic accommodation CTA (not a specific city/country link) —
+              University Housing is now the primary discovery experience
+              (Milestone 24 nav migration); /find-rooms remains linked
+              elsewhere in this file for the Destinations list, which
+              University Housing does not yet support (?country=). */}
+          <Link to="/university-housing">Find Accommodation</Link>
           <div className="footer-social-row">
             {SOCIAL_ICONS.map(({ key, label, Icon }) => {
               const href = socialLinks[key];
@@ -123,7 +128,7 @@ export default function SiteFooter() {
           <div className="footer-accordion-body">
             <a href="mailto:contact@ivyhuts.com" className="footer-contact-row"><MailIcon /> contact@ivyhuts.com</a>
             <a href="https://wa.me/918847725089" target="_blank" rel="noopener noreferrer" className="footer-contact-row"><WhatsAppIcon /> +91 884 772 5089</a>
-            <Link to="/find-rooms">Find Accommodation</Link>
+            <Link to="/university-housing">Find Accommodation</Link>
             <div className="footer-social-row">
               {SOCIAL_ICONS.map(({ key, label, Icon }) => {
                 const href = socialLinks[key];

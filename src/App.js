@@ -35,6 +35,37 @@ function MapRouteRedirect() {
   return <Navigate to={`/properties?${params.toString()}`} replace />;
 }
 
+/* ── FIND ROOM COMPATIBILITY ROUTE (Milestone 10) ──────────────────────────
+   /find-rooms and /properties are Find Room's legacy URLs. University
+   Housing is now the primary accommodation-discovery experience, but real,
+   evidence-based feature gaps still exist (see IVYHUTS_FIND_ROOM_FEATURE_PARITY.md):
+   University Housing has no city/country-only browsing mode and no filter
+   UI at all, both of which Find Room genuinely supports and real links
+   (the Footer's 16 country links, any bookmarked/shared filtered search)
+   depend on today.
+
+   Redirecting UNCONDITIONALLY would silently discard that real user intent
+   the moment a filter or city/country param was present — exactly what this
+   milestone's own brief prohibits ("do not silently discard user intent").
+   So the redirect is scoped to ONLY the one case with fully PROVEN parity:
+   a link carrying nothing but `?university=<id>` — University Housing
+   resolves that identically to Find Room's own `?university=` mode. Every
+   other case (bare browse, ?city=, ?country=, ?property=, or any filter
+   param) continues to render PropertyListingPage directly, unchanged. ── */
+const FIND_ROOM_FILTER_PARAM_KEYS = ["q", "minPrice", "maxPrice", "roomType", "billsOnly", "near", "amenities", "moveInMonth", "stayDuration", "sortBy"];
+function FindRoomCompatibilityRoute() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const hasUniversity = params.has("university");
+  const hasUnsupportedParam =
+    params.has("city") || params.has("country") || params.has("property") ||
+    FIND_ROOM_FILTER_PARAM_KEYS.some((key) => params.has(key));
+  if (hasUniversity && !hasUnsupportedParam) {
+    return <Navigate to={`/university-housing?${params.toString()}`} replace />;
+  }
+  return <PropertyListingPage />;
+}
+
 /* ── SCROLL TO TOP ON ROUTE CHANGE ── */
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -70,7 +101,7 @@ function App() {
         <Suspense fallback={<div className="route-loading"><div className="route-loading-spinner" aria-label="Loading" /></div>}>
           <Routes>
             <Route path="/"               element={<HomePage />} />
-            <Route path="/find-rooms"     element={<PropertyListingPage />} />
+            <Route path="/find-rooms"     element={<FindRoomCompatibilityRoute />} />
             <Route path="/property/:slug" element={<PropertyDetailPage />} />
             <Route path="/life-abroad"    element={<LifeAbroadPage />} />
             <Route path="/list-your-stay" element={<ListYourStayPage />} />
@@ -82,7 +113,7 @@ function App() {
             <Route path="/privacy"        element={<PrivacyPage />} />
             <Route path="/login"          element={<LoginPage />} />
             <Route path="/wishlist"       element={<WishlistPage />} />
-            <Route path="/properties" element={<PropertyListingPage />} />
+            <Route path="/properties" element={<FindRoomCompatibilityRoute />} />
             <Route path="/properties/map" element={<MapRouteRedirect />} />
             <Route path="/find-rooms/map" element={<MapRouteRedirect />} />
             <Route path="/insight"    element={<InsightPage />} />

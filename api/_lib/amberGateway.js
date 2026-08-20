@@ -158,7 +158,18 @@ function buildCacheKey(type, params) {
     // listings
     const city = normalizeCityName(params.city);
     const page = Number(params.page) || 1;
-    const limit = Number(params.limit) || 50;
+    // Clamped to Amber's own 50/page cap, same as buildAmberUrl() below —
+    // this key represents ONE raw Amber page, and two callers requesting the
+    // same page of the same city always get the exact same raw Amber
+    // response regardless of how many TOTAL results either caller ultimately
+    // wants (Milestone 6 fix: a live user search, limit:50, and
+    // accommodationIndex.js's refreshCityIndex(), limit:150 as of this
+    // milestone, must share this page's cache entry rather than each paying
+    // for their own redundant Amber call for byte-identical page-1 data —
+    // see IVYHUTS_MILESTONE_6_INVENTORY_LOSS_REPORT.md, "cache behavior"). The
+    // caller's own uncapped total-target-count still lives only in
+    // fetchListings()'s own targetCount variable, never in this key.
+    const limit = Math.min(50, Number(params.limit) || 50);
     const availSuffix = params.available === true ? ":avail1" : params.available === false ? ":avail0" : "";
     return `amber:listings:${city || "all"}:p${page}:l${limit}${availSuffix}`;
 }
@@ -564,7 +575,14 @@ function matchesCity(item, cityLower) {
         if (item.location.city?.long_name) checks.push(item.location.city.long_name);
         if (item.location.country?.long_name) checks.push(item.location.country.long_name);
     }
-    if (item.name) checks.push(item.name);
+    // Milestone 15/16 (IVYHUTS_MILESTONE_15_CITY_ATTRIBUTION_AUDIT_REPORT.md,
+    // IVYHUTS_MILESTONE_16_CITY_MATCHING_FIX_REPORT.md): item.name deliberately
+    // NOT included here. Confirmed live: a property's own brand/display name
+    // can contain an unrelated city's name as a substring ("True Manchester
+    // Salford, Salford" — a Salford property — matched a "manchester" search
+    // solely because of its name), causing a real, reproducible misattribution.
+    // Matching is restricted to Amber's own structured location fields, which
+    // had zero observed false positives across all 472 audited properties.
     return checks.some((s) => typeof s === "string" && s.toLowerCase().includes(cityLower));
 }
 
@@ -632,10 +650,37 @@ const FALLBACK_MAX_EXTRA_PAGES = 2;
 const FILTERED_PAGINATION_MAX_PAGES = 12;
 
 async function fetchListings(params, priority, source) {
-    const deadlineAt = Date.now() + AMBER_FETCH_TIMEOUT_MS;
-    const requestedLimit = Math.min(50, Number(params.limit) || 50);
+    const startedAt = Date.now();
+    const deadlineAt = startedAt + AMBER_FETCH_TIMEOUT_MS;
+    // Milestone 6 fix (IVYHUTS_MILESTONE_6_INVENTORY_LOSS_REPORT.md, Phase 4):
+    // TWO different concepts were previously conflated into one clamped
+    // `requestedLimit` value:
+    //   pageSize   — is a given raw Amber PAGE "full"? This must stay capped
+    //                at 50, because Amber itself never returns more than 50
+    //                items per page (buildAmberUrl's own Math.min(50, ...)) —
+    //                a page of 50 looks "full" regardless of what the caller
+    //                ultimately wants in total.
+    //   targetCount — how many TOTAL genuinely-matching results does the
+    //                caller actually want across all merged pages? A user
+    //                search (University Housing/Find Room, limit:50) and a
+    //                full-inventory-refresh attempt (accommodationIndex.js's
+    //                refreshCityIndex(), which now requests more — see that
+    //                file's REFRESH_TARGET_COUNT) have GENUINELY DIFFERENT
+    //                answers to this question, and clamping both to 50 meant
+    //                a "refresh" attempt could never capture more than one
+    //                page per attempt no matter what it asked for — confirmed
+    //                live: refreshCityIndex()'s call, unchanged since
+    //                Milestone 3, always returned exactly 50 items even when
+    //                8 full pages of genuine matches were available in a
+    //                deterministic reproduction. This did NOT undo Milestone
+    //                3's fix (which remains fully intact for user searches,
+    //                whose targetCount is still 50 by default) — it only
+    //                restores the ABILITY for a caller to legitimately ask
+    //                for more, which nothing previously allowed.
+    const pageSize = Math.min(50, Number(params.limit) || 50);
+    const targetCount = Number(params.limit) || 50; // NOT clamped to 50 — mirrors the sparse-fallback loop below, which already got this right
     const primary = await fetchAmber({ type: "listings", params, priority, source, deadlineAt });
-    if (!params.city) return primary;
+    if (!params.city) return { ...primary, complete: true }; // no pagination loop attempted — nothing to be incomplete about
 
     const primaryItems = extractResultArray(primary.data);
     const cityLower = normalizeCityName(params.city);
@@ -646,18 +691,36 @@ async function fetchListings(params, priority, source) {
     if (primaryTrustworthy) {
         // Page 1's filtered result looks genuine — keep it, but don't assume
         // it's the WHOLE city just because it's trustworthy. If Amber sent a
-        // full page (== the requested limit), there may be more real matches
+        // full page (== pageSize) AND we still don't have `targetCount`
+        // genuinely-matching items yet, there may be more real matches
         // sitting on page 2+ that were never asked for. Keep paging the same
-        // filtered query — each additional page independently re-verified via
-        // matchesCity(), exactly like page 1 — until a page comes back
+        // filtered query — each additional page independently re-verified
+        // via matchesCity(), exactly like page 1 — until a page comes back
         // partial (the true end of this city's results), untrustworthy (stop
-        // chasing noise), or the page/deadline/budget bound is hit. Any
-        // failure mid-loop just stops early, same "never discard what's
-        // already real" contract as the sparse-fallback loop below.
+        // chasing noise), the caller's own target count is already satisfied
+        // by genuinely-matched results (Milestone 3's fix, preserved
+        // unchanged), or the page/deadline/budget bound is hit. Any failure
+        // mid-loop just stops early, same "never discard what's already
+        // real" contract as the sparse-fallback loop below.
         const merged = new Map(matchedPrimary.map((item) => [item.id, item]));
         let cacheStatus = primary.cacheStatus;
         let page = Number(params.page) || 1;
-        let keepPaging = primaryItems.length >= requestedLimit;
+        let pagesFetched = 1;
+        // Milestone 22/23 (deadline-fix): tracks WHY the pagination loop
+        // stopped, not just that it stopped — a caller deciding whether to
+        // mark a refresh "complete" needs to distinguish "we genuinely
+        // reached the end of this city's real Amber results" from "we gave
+        // up because the shared deadline/budget ran out mid-page." Both
+        // previously looked identical from the outside (same return shape,
+        // same cacheStatus) — a PAGINATE_FAILED break silently produced the
+        // same success response as a clean, complete pagination run, which
+        // is exactly how a deadline-truncated refresh could get marked
+        // "ok"/FRESH in AccommodationIndexMeta despite only capturing a
+        // fraction of the city (confirmed live: Derby's own refresh this
+        // session hit PAGINATE_FAILED at page 3 with 13/29+ real properties
+        // captured, and nothing downstream would have known).
+        let stoppedEarly = false;
+        let keepPaging = primaryItems.length >= pageSize && merged.size < targetCount;
         while (keepPaging && page < FILTERED_PAGINATION_MAX_PAGES) {
             page += 1;
             let next;
@@ -665,19 +728,28 @@ async function fetchListings(params, priority, source) {
                 next = await fetchAmber({ type: "listings", params: { ...params, page }, priority, source: `${source}-paginate`, deadlineAt });
             } catch (err) {
                 log(`source=${source} priority=${priority} action=PAGINATE_FAILED page=${page} error=${err.message}`);
+                stoppedEarly = true;
                 break;
             }
+            pagesFetched += 1;
             cacheStatus = next.cacheStatus;
             const items = extractResultArray(next.data);
             const matched = items.filter((item) => matchesCity(item, cityLower));
             matched.forEach((item) => merged.set(item.id, item));
             const pageTrustworthy = matched.length > 0 &&
                 (matched.length === items.length || matched.length >= FALLBACK_SUSPICIOUS_MATCH_THRESHOLD);
-            keepPaging = pageTrustworthy && items.length >= requestedLimit;
+            if (!pageTrustworthy && merged.size < targetCount) stoppedEarly = true; // ambiguous noise, not a confirmed true end
+            keepPaging = pageTrustworthy && items.length >= pageSize && merged.size < targetCount;
         }
+        // Hit the hard page cap while still genuinely wanting more — also not
+        // a confirmed true end of this city's real results.
+        if (keepPaging && page >= FILTERED_PAGINATION_MAX_PAGES) stoppedEarly = true;
+        const complete = !stoppedEarly;
+        log(`source=${source} priority=${priority} action=FETCH_LISTINGS_DONE city=${params.city} targetCount=${targetCount} pages=${pagesFetched} returned=${merged.size} complete=${complete} durationMs=${Date.now() - startedAt}`);
         return {
             data: { message: primary.data?.message || "success", data: { result: Array.from(merged.values()), meta: { count: merged.size } } },
             cacheStatus,
+            complete,
         };
     }
 
@@ -689,7 +761,10 @@ async function fetchListings(params, priority, source) {
     // matches (if any) are always preserved, never discarded.
     const merged = new Map(matchedPrimary.map((item) => [item.id, item]));
     let cacheStatus = primary.cacheStatus;
-    const targetCount = Number(params.limit) || 50;
+    // `targetCount` already computed once at the top of this function —
+    // reused here unchanged (this branch's own bound was already correct
+    // pre-Milestone-6; only the primary/trustworthy branch above conflated
+    // it with the page-size cap).
     for (let page = 1; page <= FALLBACK_MAX_EXTRA_PAGES && merged.size < targetCount; page++) {
         let fallback;
         try {
@@ -710,9 +785,16 @@ async function fetchListings(params, priority, source) {
         }
     }
     const result = Array.from(merged.values());
+    log(`source=${source} priority=${priority} action=FETCH_LISTINGS_DONE_FALLBACK city=${params.city} requestedLimit=${targetCount} returned=${result.length} durationMs=${Date.now() - startedAt}`);
     return {
         data: { message: primary.data?.message || "success", data: { result, meta: { count: result.length } } },
         cacheStatus,
+        // Always incomplete, unconditionally — this branch only ever samples
+        // a BOUNDED FALLBACK_MAX_EXTRA_PAGES (2) pages of the much larger
+        // unfiltered global catalog (Milestone 12/18's own established
+        // finding), never the whole city, regardless of whether this small
+        // loop finished cleanly or hit a mid-loop failure.
+        complete: false,
     };
 }
 

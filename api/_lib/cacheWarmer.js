@@ -17,8 +17,19 @@
 // It is deliberately NOT a queue, worker, or scheduler of its own — just a
 // small bounded function that a protected HTTP endpoint (api/warm-amber-cache.js)
 // calls. See that file for how it's triggered.
+//
+// Milestone 4 (IVYHUTS_MILESTONE_4_INVENTORY_REFRESH_REPORT.md) additive
+// change: this warmer now ALSO drains a small batch of cities real user
+// requests actually asked for while stale/missing (see accommodationIndex.js's
+// requestBackgroundRefresh/drainRefreshQueue) before its own pre-existing
+// curated-rotation logic runs. This is deliberately reusing the one cron
+// this codebase already has (vercel.json's `*/5 * * * *` schedule for this
+// same endpoint), not a new scheduler/queue/worker.
 const { sharedGet, sharedSet, peekRecentRequestCount, log } = require("./sharedStore");
 const { fetchListings, buildCacheKey, RATE_BUDGET_PER_MINUTE, RATE_WINDOW_MS, TTL, isUsable } = require("./amberGateway");
+const { drainRefreshQueue, attemptCityRefresh, classifyCityState } = require("./accommodationIndex");
+const AccommodationIndexMeta = require("./models/AccommodationIndexMeta");
+const { connectToDatabase, MongoNotConfiguredError } = require("./mongodb");
 
 // Curated warm-target pool: the UK cities from src/data/destinations.js, in
 // their declared order. Mirrored here (not imported) for the same reason
@@ -63,6 +74,13 @@ const WARM_BUDGET_THRESHOLD = Math.max(1, Math.floor(RATE_BUDGET_PER_MINUTE * WA
 const ROTATION_CURSOR_KEY = "amber:warm:cursor";
 const ROTATION_CURSOR_TTL_SECONDS = 30 * 24 * 60 * 60; // long-lived; just an index, not real data
 
+// Deliberately tiny and separate from WARM_BATCH_SIZE — queued cities are
+// real, demand-driven requests (a real user actually hit a missing/stale
+// city), so they're drained BEFORE the opportunistic curated rotation below,
+// but still capped small so a sudden burst of distinct cold cities can't
+// look anything like a traffic spike against Amber's own budget.
+const QUEUE_DRAIN_BATCH_SIZE = 2;
+
 async function readCursor() {
     const stored = await sharedGet(ROTATION_CURSOR_KEY);
     const n = Number(stored);
@@ -92,6 +110,60 @@ async function needsRefresh(city) {
     return !isUsable(cached, TTL.listings.maxAgeSeconds);
 }
 
+// Drains up to QUEUE_DRAIN_BATCH_SIZE cities real user requests actually
+// asked for (accommodationIndex.js's requestBackgroundRefresh) — this is the
+// mechanism that gradually closes the AccommodationIndexMeta coverage gap
+// (Milestone 2 measured 527/575 cities with no Meta document at all)
+// WITHOUT ever attempting all of them at once: only cities someone actually
+// searched for get queued in the first place, and only a couple drain per
+// 5-minute tick. Each candidate is re-checked against the SAME budget
+// threshold and the SAME classifyCityState() cooldown logic real requests
+// use, so a city that already recovered (or is in its failure cooldown) by
+// the time this tick runs is correctly skipped rather than blindly retried.
+async function drainQueuedCities(summary) {
+    let queued;
+    try {
+        queued = await drainRefreshQueue(QUEUE_DRAIN_BATCH_SIZE);
+    } catch (err) {
+        log(`[Warmer] action=QUEUE_DRAIN_FAILED error=${err.message}`);
+        return;
+    }
+    for (const city of queued) {
+        let usageNow;
+        try {
+            usageNow = await peekRecentRequestCount(RATE_WINDOW_MS);
+        } catch (err) {
+            log(`[Warmer] action=REDIS_UNAVAILABLE city=${city} source=queue — stopping queue drain`);
+            break;
+        }
+        if (usageNow >= WARM_BUDGET_THRESHOLD) {
+            log(`[Warmer] action=QUEUE_SKIPPED_BUDGET city=${city} usage=${usageNow}/${RATE_BUDGET_PER_MINUTE}`);
+            summary.skipped.push({ city, reason: "budget", source: "queue" });
+            continue;
+        }
+
+        let meta = null;
+        try {
+            await connectToDatabase();
+            meta = await AccommodationIndexMeta.findOne({ city }).lean();
+        } catch (err) {
+            if (!(err instanceof MongoNotConfiguredError)) log(`[Warmer] action=QUEUE_META_LOOKUP_FAILED city=${city} error=${err.message}`);
+            summary.skipped.push({ city, reason: "mongo_unavailable", source: "queue" });
+            continue;
+        }
+        const state = classifyCityState(meta, Date.now());
+        if (state === "FRESH" || state === "FAILED_COOLDOWN") {
+            log(`[Warmer] action=QUEUE_SKIPPED_${state} city=${city}`);
+            summary.skipped.push({ city, reason: state.toLowerCase(), source: "queue" });
+            continue;
+        }
+
+        log(`[Warmer] action=QUEUE_REFRESH city=${city}`);
+        const outcome = await attemptCityRefresh(city, "LOW", "cache-warmer-queue");
+        summary.warmed.push({ city, refreshed: outcome.refreshed, source: "queue" });
+    }
+}
+
 // Runs one bounded warming pass. Safe to call more than once concurrently or
 // in back-to-back invocations: every actual refresh still goes through
 // fetchListings' distributed lock, so two overlapping warm runs targeting the
@@ -99,6 +171,8 @@ async function needsRefresh(city) {
 // nothing worth refreshing does no network work at all.
 async function runCacheWarmer() {
     const summary = { considered: [], warmed: [], skipped: [] };
+
+    await drainQueuedCities(summary);
 
     let recentUsage;
     try {

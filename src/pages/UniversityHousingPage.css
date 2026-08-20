@@ -136,6 +136,22 @@
 .uh-university-info-body p { margin: 0; display: flex; align-items: center; gap: 5px; font-size: 0.86rem; color: var(--ink-softer); }
 .uh-university-info-count { font-size: 0.88rem; font-weight: 700; color: var(--brand-purple); }
 
+/* ── FILTER TOOLBAR (Milestone 22) ── */
+.uh-filter-toolbar {
+  max-width: 900px; margin: 0 auto 20px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  background: var(--surface-white); border-radius: var(--radius-xl);
+  padding: var(--space-3) var(--space-4); box-shadow: var(--shadow-sm);
+}
+.uh-filter-search {
+  flex: 1 1 200px; min-width: 160px; border: 1.5px solid var(--border-soft); border-radius: var(--radius-lg);
+  padding: 9px 12px; font-size: 0.86rem; color: var(--ink); background: var(--surface);
+}
+.uh-filter-toolbar select {
+  border: 1.5px solid var(--border-soft); border-radius: var(--radius-lg); padding: 9px 10px;
+  font-size: 0.86rem; color: var(--ink); background: var(--surface);
+}
+.uh-filter-checkbox { display: flex; align-items: center; gap: 6px; font-size: 0.84rem; color: var(--ink-softer); white-space: nowrap; }
+
 /* ── LOADING SKELETON ── */
 .uh-loading-skeleton { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .uh-loading-skeleton-map { height: 420px; border-radius: var(--radius-xl); background: linear-gradient(90deg, var(--surface) 25%, var(--border-soft) 50%, var(--surface) 75%); background-size: 200% 100%; animation: uh-shimmer 1.4s infinite; }

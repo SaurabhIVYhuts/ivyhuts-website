@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { getProperties, getPropertyBySlug, getPropertiesForCountry, getCityListings } from "../services/amberApi";
+import { getPropertyBySlug, getCountryListings, getCityListings } from "../services/amberApi";
 import { safeListingList, safeResidenceListingList } from "../services/amberMapper";
 import { addRecentSearch } from "../services/recentActivity";
 import { trackEvent } from "../lib/eventsApi";
@@ -9,6 +9,7 @@ import { CURATED_CITY_PROPERTIES } from "../data/curatedCityProperties";
 import { USPS } from "../data/usps";
 import { resolveCampusUniversityByNameOrId } from "../lib/campusUniversityResolver";
 import { haversineKm, hasValidCoords } from "../lib/geoDistance";
+import { applyListingFilters, sortListings, deriveFilterOptions } from "../lib/listingFilters";
 import { classifyPetPolicy } from "../lib/petPolicy";
 import useFilterState from "../hooks/useFilterState";
 import SiteNavbar from "../components/layout/SiteNavbar";
@@ -43,10 +44,6 @@ const BASE_SORT_OPTIONS = [
   { value: "rating_desc", label: "Rating: High to Low" },
 ];
 const DISTANCE_SORT_OPTION = { value: "distance", label: "Distance from University" };
-
-const UNIVERSITY_RE = /university|college/i;
-const AMENITY_OPTION_LIMIT = 16;
-const COUNTRY_SEARCH_MAX_CITIES = 6;
 
 /* ── SMALL INLINE ICONS (match the stroke-icon style used in the trust strip) ── */
 const FilterIcon = () => (
@@ -172,13 +169,13 @@ export default function PropertyListingPage() {
   const [countryPropertiesError, setCountryPropertiesError] = useState(false);
   const [countryPropertiesRequested, setCountryPropertiesRequested] = useState(false);
 
-  // Deliberately OPT-IN, not automatic on page load — a country page fans
-  // out to several cities at once (see getPropertiesForCountry), which is
-  // several real Amber requests. Auto-firing that on every country-browse
-  // visit was real, unwanted Amber traffic for content the user may not
-  // even scroll to; a click is an explicit signal they actually want it.
-  // Resets whenever the country itself changes, so switching countries
-  // doesn't show a stale country's properties or need a second click.
+  // Deliberately OPT-IN, not automatic on page load. Milestone 11 made this
+  // a single canonical Mongo query (zero Amber calls either way now — see
+  // getCountryListings() below) — kept opt-in regardless, since it's still
+  // real backend work for content the user may not even scroll to; a click
+  // is an explicit signal they actually want it. Resets whenever the
+  // country itself changes, so switching countries doesn't show a stale
+  // country's properties or need a second click.
   useEffect(() => { setCountryPropertiesRequested(false); setCountryProperties([]); setCountryPropertiesError(false); }, [countryParam]);
 
   useEffect(() => {
@@ -187,11 +184,19 @@ export default function PropertyListingPage() {
     trackEvent("COUNTRY_SEARCHED", { country: countryParam, source: "listings-page" });
     setCountryPropertiesLoading(true);
     setCountryPropertiesError(false);
+    // Milestone 11: canonical, Mongo-only country browse — ONE combined
+    // query across every curated city in this country (see
+    // amberApi.js's getCountryListings() and accommodationIndex.js's
+    // getCitiesListings() for why city names, not the country string
+    // itself, are the join key). Replaces the old getPropertiesForCountry()
+    // live-Amber per-city fan-out (was up to 6 real Amber calls per click,
+    // one per curated city) — zero Amber calls now, regardless of how many
+    // cities this country has.
     const cityNames = DESTINATIONS.filter((d) => d.country === countryParam).map((d) => d.name);
-    getPropertiesForCountry(cityNames, COUNTRY_SEARCH_MAX_CITIES, "listings-country")
-      .then((breakdown) => {
+    getCountryListings(cityNames, "MEDIUM", "listings-country")
+      .then(({ residences }) => {
         if (cancelled) return;
-        setCountryProperties(safeListingList(breakdown.flatMap((b) => b.items)));
+        setCountryProperties(safeResidenceListingList(residences));
       })
       .catch(() => { if (!cancelled) setCountryPropertiesError(true); })
       .finally(() => { if (!cancelled) setCountryPropertiesLoading(false); });
@@ -259,19 +264,39 @@ export default function PropertyListingPage() {
           // which properties a university with an override should show.
           const overrideSlugs = resolvedUniversity?.accommodationOverride?.propertySlugs;
           if (Array.isArray(overrideSlugs) && overrideSlugs.length) {
+            // EXPLICIT OVERRIDE — an intentional, curated, per-university
+            // exception (documented, not silent): this university's results
+            // are restricted to a specific known-property allowlist, which
+            // canonical Mongo inventory cannot express (it's a business
+            // decision about WHICH properties, not a freshness/completeness
+            // question) — same exact mechanism UniversityHousingPage.js's
+            // own override branch uses, reused here rather than
+            // reimplemented so the two pages can never disagree. This is the
+            // ONLY remaining live-Amber path in the university branch.
             const items = await Promise.all(overrideSlugs.map((slug) => getPropertyBySlug(slug, "MEDIUM", "listings-university-override").catch(() => null)));
             if (!cancelled) setRawProperties(safeListingList(items.filter(Boolean)));
           } else {
-            const data = await getProperties(resolvedUniversity.city, 1, 50, "MEDIUM", "listings-university");
-            if (!cancelled) setRawProperties(safeListingList(Array.isArray(data) ? data : []));
+            // Milestone 11: NORMAL BROWSE — canonical Mongo inventory for
+            // the resolved university's city, same getCityListings() call
+            // the ?city= branch above and University Housing (Milestone 9)
+            // already use. Zero Amber calls for a FRESH/STALE/EXPIRED-with-
+            // data city.
+            const { residences } = await getCityListings(resolvedUniversity.city, "MEDIUM", "listings-university");
+            if (!cancelled) setRawProperties(safeResidenceListingList(residences));
           }
         } else if (propertyParam) {
           // The guard above this function already ensures propertyResolution
           // is settled (resolved or not_found) by the time we get here.
           if (propertyResolution.status !== "resolved") { if (!cancelled) setRawProperties([]); return; }
           trackEvent("PROPERTY_SEARCHED", { property: propertyParam, source: "listings-page" });
-          const data = await getProperties(propertyResolution.city, 1, 50, "MEDIUM", "listings-property");
-          if (!cancelled) setRawProperties(safeListingList(Array.isArray(data) ? data : []));
+          // Milestone 11: canonical Mongo inventory for the resolved
+          // property's city (unchanged semantics — `?property=` has always
+          // meant "load that property's whole city, with the exact match
+          // pinned to the top by the existing sort logic below," never a
+          // single-property-only fetch — see the sortedListings comment
+          // further down for where the pinning happens).
+          const { residences } = await getCityListings(propertyResolution.city, "MEDIUM", "listings-property");
+          if (!cancelled) setRawProperties(safeResidenceListingList(residences));
         }
       } catch (err) {
         if (!cancelled) {
@@ -313,55 +338,27 @@ export default function PropertyListingPage() {
     });
   }, [baseListings, resolvedUniversity]);
 
-  const roomTypeOptions = useMemo(() => {
-    const set = new Set();
-    listings.forEach((l) => l.rooms.types.forEach((t) => set.add(t)));
-    return Array.from(set).sort();
-  }, [listings]);
-
-  // Derived from each property's real nearby-places data — not hardcoded.
-  const nearOptions = useMemo(() => {
-    const set = new Set();
-    listings.forEach((l) => l.distances.nearby.forEach((d) => {
-      if (UNIVERSITY_RE.test(d.place)) set.add(d.place);
-    }));
-    return Array.from(set).sort();
-  }, [listings]);
-
-  // Derived from each property's real full amenity list, ranked by how common
-  // they are across the current result set so the most useful ones surface first.
-  const amenityOptions = useMemo(() => {
-    const counts = new Map();
-    listings.forEach((l) => (l.amenities.all || []).forEach((a) => counts.set(a, (counts.get(a) || 0) + 1)));
-    return Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, AMENITY_OPTION_LIMIT)
-      .map(([name]) => name);
-  }, [listings]);
+  // Milestone 22: option derivation now lives in the shared
+  // src/lib/listingFilters.js (deriveFilterOptions) so University Housing
+  // computes its own filter dropdown options identically, rather than a
+  // second copy of this logic drifting out of sync.
+  const { roomTypeOptions, nearOptions, amenityOptions, moveInOptions, stayDurationOptions } = useMemo(
+    () => deriveFilterOptions(listings),
+    [listings]
+  );
 
   // Whether the current result set has ANY property with a real, stated pet
   // policy — same "only show a filter the current data can actually answer"
-  // rule amenityOptions/nearOptions/etc. above already follow. Amber's own
-  // amenity text for this is free-form (confirmed live: "Pet Friendly", "No
-  // Pets Allowed", "Not Pet-Friendly", ... — 20+ real variants), so this
-  // can't be a literal-string amenity checkbox like the generic ones above;
-  // classifyPetPolicy normalizes all of them into just "allowed"/"not_allowed".
+  // rule the shared deriveFilterOptions() above already follows for its own
+  // options. Amber's own amenity text for this is free-form (confirmed live:
+  // "Pet Friendly", "No Pets Allowed", "Not Pet-Friendly", ... — 20+ real
+  // variants), so this can't be a literal-string amenity checkbox like the
+  // generic ones above; classifyPetPolicy normalizes all of them into just
+  // "allowed"/"not_allowed".
   const petPolicyAvailable = useMemo(
     () => listings.some((l) => classifyPetPolicy(l.amenities.all) != null),
     [listings]
   );
-
-  const moveInOptions = useMemo(() => {
-    const set = new Set();
-    listings.forEach((l) => (l.moveInOptions || []).forEach((m) => set.add(m)));
-    return Array.from(set).sort((a, b) => new Date(a) - new Date(b));
-  }, [listings]);
-
-  const stayDurationOptions = useMemo(() => {
-    const set = new Set();
-    listings.forEach((l) => (l.stayDurationOptions || []).forEach((d) => set.add(d)));
-    return Array.from(set).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
-  }, [listings]);
 
   // Bounds/filter/sort all compare `priceWeekly` (amberMapper.js's
   // weekly-equivalent of price.from), not the raw amount — audit fix.
@@ -418,52 +415,18 @@ export default function PropertyListingPage() {
     (filters.petPolicy ? 1 : 0) + (filters.near ? 1 : 0) + (filters.amenities.length > 0 ? 1 : 0) +
     (filters.moveInMonth ? 1 : 0) + (filters.stayDuration ? 1 : 0);
 
+  // Milestone 22: filtering + sorting now delegate to the shared
+  // src/lib/listingFilters.js module (applyListingFilters/sortListings) —
+  // the exact same predicate/comparators as before, just factored out so
+  // University Housing can share them instead of reimplementing (Part 18).
   const filteredListings = useMemo(() => {
-    const q = (filters.query || "").toLowerCase().trim();
-    const filtered = listings.filter((l) => {
-      const haystack = [l.name, l.address.locality, l.address.country, ...l.distances.nearby.map((d) => d.place)]
-        .join(" ")
-        .toLowerCase();
-      const textMatch = !q || haystack.includes(q);
-
-      // Weekly-equivalent (see priceBounds above) — a raw price.from compare
-      // here previously excluded genuinely-in-budget monthly-billed
-      // properties (e.g. a real €900/month property, ~€184/week, wrongly
-      // failing a maxPrice=300 filter meant as "≤£300/week" purely because
-      // 900 &gt; 300 in raw terms).
-      const price = l.priceWeekly ?? l.price.from ?? 0;
-      const minOk = !filters.minPrice || price >= Number(filters.minPrice);
-      const maxOk = !filters.maxPrice || price <= Number(filters.maxPrice);
-
-      const roomTypeOk = !filters.roomType || l.rooms.types.includes(filters.roomType);
-      const billsOk = !filters.billsOnly || l.billsIncluded;
-      const nearOk = !filters.near || l.distances.nearby.some((d) => d.place === filters.near);
-      const amenitiesOk = filters.amenities.every((a) => (l.amenities.all || []).includes(a));
-      const petOk = !filters.petPolicy || classifyPetPolicy(l.amenities.all) === filters.petPolicy;
-      const moveInOk = !filters.moveInMonth || (l.moveInOptions || []).includes(filters.moveInMonth);
-      const stayDurationOk = !filters.stayDuration || (l.stayDurationOptions || []).includes(filters.stayDuration);
-
-      return textMatch && minOk && maxOk && roomTypeOk && billsOk && petOk && nearOk && amenitiesOk && moveInOk && stayDurationOk;
-    });
-
-    const sorted = [...filtered];
-    // Weekly-equivalent sort — see priceBounds' comment above. A raw
-    // price.from sort previously ranked a €800/month property (800) behind a
-    // £200/week one (200) even when the monthly property was actually
-    // cheaper per week.
-    if (filters.sortBy === "price_asc") sorted.sort((a, b) => (a.priceWeekly ?? a.price.from ?? Infinity) - (b.priceWeekly ?? b.price.from ?? Infinity));
-    else if (filters.sortBy === "price_desc") sorted.sort((a, b) => (b.priceWeekly ?? b.price.from ?? -Infinity) - (a.priceWeekly ?? a.price.from ?? -Infinity));
-    else if (filters.sortBy === "rating_desc") sorted.sort((a, b) => (b.rating?.overall ?? -1) - (a.rating?.overall ?? -1));
-    else if (filters.sortBy === "distance") sorted.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
-
-    // Priority ranking (spec): an exact resolved property match floats to
-    // the top regardless of sort — this IS the search result the user asked
-    // for, everything else is context around it. A stable sort leaves every
-    // other relative ordering untouched.
-    if (propertyParam && propertyResolution?.status === "resolved" && propertyResolution.slug) {
-      sorted.sort((a, b) => (a.slug === propertyResolution.slug ? -1 : 0) - (b.slug === propertyResolution.slug ? -1 : 0));
-    }
-    return sorted;
+    // Milestone 22 + pet-policy merge: applyListingFilters() (shared module)
+    // now also checks filters.petPolicy via classifyPetPolicy() — see
+    // src/lib/listingFilters.js — so this stays the single canonical
+    // implementation instead of a second copy reappearing here.
+    const filtered = applyListingFilters(listings, filters);
+    const pinnedSlug = propertyParam && propertyResolution?.status === "resolved" ? propertyResolution.slug : null;
+    return sortListings(filtered, filters.sortBy, { pinnedSlug });
   }, [listings, filters, propertyParam, propertyResolution]);
 
   // "Search this area" (map view only) narrows the already-fetched result

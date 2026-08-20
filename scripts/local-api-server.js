@@ -28,6 +28,8 @@ const studentPlannerHandler = require("../api/student-planner.js");
 const studentPlannerPptHandler = require("../api/student-planner-ppt.js");
 const propertiesSearchHandler = require("../api/properties/search.js");
 const cityListingsHandler = require("../api/city-listings.js");
+const countryListingsHandler = require("../api/country-listings.js");
+const universityHousingInventoryHandler = require("../api/university-housing/inventory.js");
 const metaWebhookHandler = require("../api/leads/meta/webhook.js");
 const authRoutes = {
     "/api/auth/signup": require("../api/auth/signup.js"),
@@ -149,6 +151,22 @@ const server = http.createServer(async (req, res) => {
         // lesson as /api/search and /api/search-data below.
         if (url.pathname === "/api/city-listings") {
             await cityListingsHandler(req, res);
+            return;
+        }
+        // Milestone 22 hotfix: /api/country-listings (Milestone 11) and
+        // /api/university-housing/inventory (Milestone 9) had the exact same
+        // "missing from this router entirely" gap as /api/city-listings once
+        // did (see that route's own comment above) — both silently fell
+        // through to amberHandler below, which 400s any request with no
+        // `type` param. This is a LOCAL-DEV-ONLY gap: real Vercel deployments
+        // route every api/*.js file automatically by filesystem path, so
+        // this never affected production/preview — only `npm start` locally.
+        if (url.pathname === "/api/country-listings") {
+            await countryListingsHandler(req, res);
+            return;
+        }
+        if (url.pathname === "/api/university-housing/inventory") {
+            await universityHousingInventoryHandler(req, res);
             return;
         }
         if (url.pathname === "/api/universities/resolve") {
