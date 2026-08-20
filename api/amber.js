@@ -45,7 +45,7 @@ const INDEX_ON_READ_TIMEOUT_MS = 1200;
 // wraps this whole call in withTimeout() — so neither a real error nor a
 // slow/hanging Mongo connection can ever delay the primary Amber response
 // the user is actually waiting on.
-async function indexOnRead(type, city, rawJson) {
+async function indexOnRead(type, city, slug, rawJson) {
     try {
         await connectToDatabase();
     } catch (err) {
@@ -61,7 +61,18 @@ async function indexOnRead(type, city, rawJson) {
             if (mapped.length) await persistResidences(normalizedCity, mapped);
         } else if (type === "detail") {
             const item = extractResultArray(rawJson)[0];
-            if (!item) return;
+            if (!item) {
+                // Amber just gave us a genuine (cacheStatus MISS, so this really
+                // hit upstream) empty result for this slug — the property no
+                // longer resolves live. Prune the stale mirror row so it stops
+                // showing up in city listings (readAllMongoResidences has no
+                // other way to learn a property is gone; persistResidences* only
+                // ever upserts, never deletes — see accommodationIndex.js). This
+                // is best-effort self-healing driven by real detail-page traffic,
+                // not a full sweep of the collection.
+                if (slug) await AccommodationResidence.deleteOne({ slug }).catch(() => {});
+                return;
+            }
             const normalizedCity = normalizeCityName(item?.location?.locality?.long_name || city);
             const mapped = mapAmberItemToResidence(item, normalizedCity);
             if (mapped) await persistResidences(normalizedCity, [mapped]);
@@ -180,7 +191,7 @@ module.exports = async (req, res) => {
         // for a busy city would be pure wasted Mongo load with zero new
         // information, since the upsert is idempotent on unchanged data anyway.
         if ((type === "listings" || type === "detail") && result.cacheStatus === "MISS") {
-            await withTimeout(indexOnRead(type, city, result.data), INDEX_ON_READ_TIMEOUT_MS, undefined);
+            await withTimeout(indexOnRead(type, city, slug, result.data), INDEX_ON_READ_TIMEOUT_MS, undefined);
             // Independent of indexOnRead's Mongo connection (pure Redis, so it
             // still runs even when Mongo is down/not configured) — grows the
             // search-facing country/city dataset from this same real response,
