@@ -15,6 +15,41 @@
   color: var(--ink);
 }
 
+/* ── ACCESS GATE (non-internal-role visitor to /insight) ── */
+.insight-gate {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.insight-gate-card {
+  max-width: 420px;
+  text-align: center;
+  background: var(--surface-white);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 48px 40px;
+}
+.insight-gate-card h1 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--brand-purple-deep);
+  margin: 0 0 12px;
+}
+.insight-gate-card p {
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+.insight-gate-link {
+  color: var(--brand-purple);
+  font-weight: 700;
+  text-decoration: none;
+}
+.insight-gate-link:hover {
+  text-decoration: underline;
+}
+
 /* ── SIDEBAR ── */
 .insight-sidebar {
   width: 240px;

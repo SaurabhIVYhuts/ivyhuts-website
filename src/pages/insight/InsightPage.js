@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import InsightSidebar from "./components/InsightSidebar";
 import InsightHeader from "./components/InsightHeader";
 import FilterBar, { rangeFromPreset } from "./components/FilterBar";
@@ -8,15 +9,35 @@ import MarketSection from "./components/sections/MarketSection";
 import PricingSection from "./components/sections/PricingSection";
 import PropertySection from "./components/sections/PropertySection";
 import BookingSection from "./components/sections/BookingSection";
-import { getInsightsOverview, getInsightsSnapshot } from "../../services/insightsApi";
+import { getInsightsOverview, getInsightsSnapshot, InsightsApiError } from "../../services/insightsApi";
 import "./insight-theme.css";
 
-// /insight itself has no route-level login gate — an unauthenticated visitor
-// can still load this page shell, but every data endpoint it calls
-// (api/insights/overview.js, market.js, snapshot.js, snapshot-dates.js) now
-// requires an internal-role session (see api/_lib/insightsDevAuth.js,
-// Milestone 22), so the actual analytics data is protected regardless. Cookies
-// are same-origin and attach automatically; no fetch() change was needed here.
+// Every data endpoint this page calls (api/insights/overview.js, market.js,
+// snapshot.js, snapshot-dates.js) already requires an internal-role session
+// server-side (see api/_lib/insightsDevAuth.js, Milestone 22) — that's the
+// real enforcement, not this component. What's added below is purely a UX
+// gate: instead of rendering the full dashboard chrome around empty/error
+// data for a visitor the server is already rejecting, the very first 401/403
+// response from either endpoint short-circuits render into a clean
+// "sign in required" / "admin access required" screen. A bypass of this
+// client check (disabled JS, direct API calls, etc.) still gets nothing —
+// the API responses this reads FROM are the actual security boundary.
+function InsightAccessGate({ status }) {
+  const loggedOut = status === 401;
+  return (
+    <div className="insight-app insight-gate">
+      <div className="insight-gate-card">
+        <h1>{loggedOut ? "Sign in required" : "Admin access required"}</h1>
+        <p>
+          {loggedOut
+            ? "You need to sign in with an internal team account to view this page."
+            : "This page is restricted to internal team members. Your account doesn't have access."}
+        </p>
+        <Link to="/" className="insight-gate-link">← Back to ivyhuts.com</Link>
+      </div>
+    </div>
+  );
+}
 
 export default function InsightPage() {
   const [activeTab, setActiveTab] = useState("market");
@@ -36,6 +57,9 @@ export default function InsightPage() {
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [errorMarket, setErrorMarket] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // null = not yet determined; {status: 401|403} once a data endpoint has
+  // confirmed this visitor can't be here — see InsightAccessGate above.
+  const [accessDenied, setAccessDenied] = useState(null);
   // See the background-poll effect below for what this counts. A full
   // catalog crawl needs ~15 rounds at 6 pages/round for ~87 pages — capped
   // well above that for margin (skipped/failed rounds still count).
@@ -46,8 +70,12 @@ export default function InsightPage() {
     try {
       const data = await getInsightsOverview({ from: filters.from, to: filters.to, city: filters.city, source: filters.source });
       setOverview(data);
-    } catch {
-      // Silently ignored here — nothing on-screen depends solely on this
+    } catch (err) {
+      if (err instanceof InsightsApiError && (err.status === 401 || err.status === 403)) {
+        setAccessDenied({ status: err.status });
+        return;
+      }
+      // Otherwise silently ignored — nothing on-screen depends solely on this
       // fetch succeeding (Market Intelligence's opportunity ranking simply
       // falls back to a demand signal of 0 if `overview` never loads).
     }
@@ -65,8 +93,12 @@ export default function InsightPage() {
       try {
         const data = await getInsightsSnapshot({ date: selectedDate || undefined, country: filters.country, city: filters.city });
         setMarket(data);
-      } catch {
-        if (!background) setErrorMarket(true);
+      } catch (err) {
+        if (err instanceof InsightsApiError && (err.status === 401 || err.status === 403)) {
+          setAccessDenied({ status: err.status });
+        } else if (!background) {
+          setErrorMarket(true);
+        }
       } finally {
         if (!background) setLoadingMarket(false);
       }
@@ -120,6 +152,21 @@ export default function InsightPage() {
   // on missing arrays. Market/Booking read the raw `market` object directly
   // so they can show the specific "no snapshot for this date" message.
   const marketForLegacyTabs = market && market.available !== false ? market : null;
+
+  if (accessDenied) {
+    return <InsightAccessGate status={accessDenied.status} />;
+  }
+
+  // Still waiting on the first response from either data endpoint — hold off
+  // on rendering the dashboard shell so a denied visitor never even briefly
+  // sees the sidebar/filters flash before InsightAccessGate takes over.
+  if (loadingMarket && !market && !errorMarket) {
+    return (
+      <div className="route-loading">
+        <div className="route-loading-spinner" aria-label="Loading" />
+      </div>
+    );
+  }
 
   return (
     <div className="insight-app">
