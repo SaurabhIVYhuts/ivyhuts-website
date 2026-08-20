@@ -503,7 +503,7 @@ export default function PropertyListingPage() {
 
   return (
     <div className="properties-page-wrap">
-      <div className="desktop-only">
+      <div className="desktop-only plp-navbar-wrap">
         <SiteNavbar />
       </div>
 
