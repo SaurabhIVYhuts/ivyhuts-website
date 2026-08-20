@@ -343,23 +343,64 @@ export async function getCityListings(city, priority = "MEDIUM", source = "listi
     return { status: body.status, residences: Array.isArray(body.residences) ? body.residences : [] };
 }
 
-// Amber has no "search by country" endpoint — only fetch-by-city. A country
-// search is therefore a bounded fan-out of the exact same getProperties()
-// call every other page already uses, one per city, each independently
-// cached/deduped by the gateway. `maxCities` caps the fan-out (the caller
-// passes a handful of that country's curated cities, see
-// src/data/destinations.js) so panning to a big country can never itself
-// spike the shared Amber budget; LOW priority means the gateway will skip
-// any of these outright rather than let them compete with a real single-city
-// page a user is waiting on. Returns one entry per requested city (even an
-// empty one) so the caller can tell "no inventory in this city yet" apart
-// from "never asked".
+// Milestone 9 — University Housing's own canonical-inventory read, calling
+// GET /api/university-housing/inventory (api/_lib/accommodationInventoryService.js,
+// Milestone 8's canonical service, wired to a real consumer here for the
+// first time). Same Mongo-first shape/contract as getCityListings() above —
+// deliberately a SEPARATE endpoint (not a reuse of /api/city-listings) so
+// University Housing gets its own request-tracing/logging surface distinct
+// from Find Room's, even though both ultimately read the same canonical
+// AccommodationResidence collection via the same underlying function. This
+// is University Housing's normal-browse path now — it makes ZERO Amber
+// listing calls itself; any refresh happens via the existing controlled
+// background/bounded-first-look mechanism inside the canonical service, same
+// as Find Room already relies on.
+export async function getUniversityHousingInventory(city, priority = "MEDIUM", source = "university-housing") {
+    const url = `/api/university-housing/inventory?${new URLSearchParams({ city, priority, source }).toString()}`;
+    const res = await fetch(url);
+    let body;
+    try {
+        body = await res.json();
+    } catch {
+        throw new Error("University Housing inventory endpoint unavailable (is the app running via `vercel dev`?)");
+    }
+    if (!res.ok || !body.ok) throw new Error(body?.message || "Failed to fetch university housing inventory");
+    return { status: body.status, residences: Array.isArray(body.residences) ? body.residences : [] };
+}
+
+// Amber has no "search by country" endpoint — only fetch-by-city. Kept as a
+// live-Amber fallback (unused by PropertyListingPage.js as of Milestone 11 —
+// see getCountryListings() below, the canonical replacement — but left in
+// place per this project's own "do not delete prematurely" convention until
+// no other caller could plausibly need a live per-city fan-out).
 export async function getPropertiesForCountry(cities, maxCities = 6, source = "country-search") {
     const targets = (cities || []).slice(0, maxCities);
     const results = await Promise.all(
         targets.map((city) => getProperties(city, 1, 50, "LOW", source).catch(() => []))
     );
     return targets.map((city, i) => ({ city, items: Array.isArray(results[i]) ? results[i] : [] }));
+}
+
+// Milestone 11 — canonical, Mongo-only country browse. Calls
+// GET /api/country-listings (api/_lib/accommodationInventoryService.js's
+// getCountryInventory(), wrapping accommodationIndex.js's getCitiesListings())
+// with the SAME city list the caller already derived from
+// src/data/destinations.js — zero Amber calls, one combined Mongo query
+// across every city, replacing getPropertiesForCountry()'s old per-city live
+// fan-out. Same {status, residences} shape as getCityListings()/
+// getUniversityHousingInventory(), mapped via safeResidenceListingList().
+export async function getCountryListings(cityNames, priority = "MEDIUM", source = "listings-country") {
+    const cities = (cityNames || []).join(",");
+    const url = `/api/country-listings?${new URLSearchParams({ cities, priority, source }).toString()}`;
+    const res = await fetch(url);
+    let body;
+    try {
+        body = await res.json();
+    } catch {
+        throw new Error("Country listings endpoint unavailable (is the app running via `vercel dev`?)");
+    }
+    if (!res.ok || !body.ok) throw new Error(body?.message || "Failed to fetch country listings");
+    return { status: body.status, residences: Array.isArray(body.residences) ? body.residences : [] };
 }
 
 export async function getPropertyBySlug(slug, priority = "HIGH", source = "property-detail") {

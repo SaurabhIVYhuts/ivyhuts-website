@@ -13,11 +13,15 @@ const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHut
 // Login button at the bottom instead of Amber's own. Find Rooms and
 // Placement Podcast are folded in here since neither has a bottom-tab slot
 // anymore (see MobileBottomNav.js).
+// Milestone 10: University Housing listed ahead of Find Rooms — now the
+// primary accommodation-discovery experience. Find Rooms is kept (not
+// removed): real, unmigrated capability still lives there (see
+// IVYHUTS_FIND_ROOM_FEATURE_PARITY.md).
 const PRIMARY_ROWS = [
   { label: "Support", href: WA_HREF, external: true, Icon: Headset },
   { label: "Shortlist", to: "/wishlist", Icon: Heart },
-  { label: "Find Rooms", to: "/find-rooms", Icon: Search },
   { label: "University Housing", to: "/university-housing", Icon: GraduationCap },
+  { label: "Find Rooms", to: "/find-rooms", Icon: Search },
   { label: "Placement Podcast", to: "/life-abroad", Icon: Mic },
 ];
 const PARTNER_ROWS = [

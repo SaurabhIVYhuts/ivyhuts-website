@@ -67,16 +67,23 @@ function PropertyRow({ property, active, onSelect }) {
   );
 }
 
-const SORT_OPTIONS = [
+// Milestone 22: default kept as a fallback for any caller that doesn't pass
+// its own `sortOptions` (none currently do — UniversityHousingPage.js always
+// passes the shared BASE_SORT_OPTIONS/DISTANCE_SORT_OPTION list, matching
+// Find Room's own sort menu) — never hardcode a second sort-option list.
+const DEFAULT_SORT_OPTIONS = [
+  { value: "recommended", label: "Recommended" },
   { value: "distance", label: "Distance from university" },
   { value: "price_asc", label: "Price: Low to High" },
   { value: "price_desc", label: "Price: High to Low" },
+  { value: "rating_desc", label: "Rating: High to Low" },
 ];
 
 export default function PropertyListPanel({
-  properties, selectedId, onSelectProperty, sortBy, onSortChange,
+  properties, selectedId, onSelectProperty, sortBy, onSortChange, sortOptions,
   hasMore, loadingMore, onLoadMore, university,
 }) {
+  const options = sortOptions || DEFAULT_SORT_OPTIONS;
   return (
     <div className="uh-list-panel">
       <div className="uh-list-panel-toolbar">
@@ -84,7 +91,7 @@ export default function PropertyListPanel({
         <label className="uh-list-panel-sort">
           Sort
           <select value={sortBy} onChange={(e) => onSortChange(e.target.value)}>
-            {SORT_OPTIONS.filter((o) => o.value !== "distance" || university).map((o) => (
+            {options.filter((o) => o.value !== "distance" || university).map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
