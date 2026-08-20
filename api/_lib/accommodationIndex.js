@@ -444,7 +444,7 @@ function resolvePropertyAvailability(raw) {
 function deriveResidencePricing(raw) {
     const children = dedupeRoomChildren(raw?.children);
     if (children.length) {
-        let best = null;
+        const candidates = [];
         for (const child of children) {
             const tenancies = Array.isArray(child.children) ? child.children : [];
             if (!isChildRoomAvailable(child, tenancies)) continue;
@@ -456,12 +456,37 @@ function deriveResidencePricing(raw) {
                     amount: toNumber(cheapestTenancy.pricing.price),
                     currency: currencySymbol(cheapestTenancy.pricing.currency) || currencySymbol(roomPricing.currency),
                     duration: normalizeDuration(cheapestTenancy.pricing.duration) || normalizeDuration(roomPricing.duration),
+                    source: "tenancy",
                 }
-                : { amount: toNumber(roomPricing.min_price ?? roomPricing.price), currency: currencySymbol(roomPricing.currency), duration: normalizeDuration(roomPricing.duration) };
+                : { amount: toNumber(roomPricing.min_price ?? roomPricing.price), currency: currencySymbol(roomPricing.currency), duration: normalizeDuration(roomPricing.duration), source: "room" };
             // amount > 0, not just Number.isFinite — never fabricate/select
             // a zero or negative "price" (item 14).
             if (!Number.isFinite(candidate.amount) || candidate.amount <= 0) continue;
+            candidates.push(candidate);
+        }
+        if (!candidates.length) return { amount: null, currency: null, duration: null, available: false };
 
+        // Prefer tenancy-backed candidates over a bare room-aggregate price
+        // (source: "room" — a room with ZERO real tenancies, so nothing to
+        // actually enquire/book against) whenever any tenancy-backed
+        // candidate exists at all — mirrors src/services/amberMapper.js's
+        // selectCheapestAvailableRoomType fix. Confirmed live: Halsmere
+        // Studios, London had "Diamond Studio Plus" listed 3 times, all
+        // available:true, all £100/week, all with zero tenancies (a phantom
+        // duplicate — see dedupeRoomChildren's own header) — the OLD
+        // amount-only comparison here let £100 win over the real £410
+        // tenancy-backed rooms, which is exactly what this index then
+        // served to every visitor of the city-listings/search page until
+        // the next re-index, even after the SAME bug was already fixed in
+        // the live-Amber path (amberMapper.js) — this file is a separate
+        // CommonJS twin, not shared code, so that earlier fix never reached
+        // this indexer. Only falls back to room-aggregate candidates when
+        // NONE of the property's rooms have tenancy data at all.
+        const tenancyBacked = candidates.filter((c) => c.source === "tenancy");
+        const pool = tenancyBacked.length > 0 ? tenancyBacked : candidates;
+
+        let best = null;
+        for (const candidate of pool) {
             if (!best) { best = candidate; continue; }
             const candidateWeekly = computePriceWeekly(candidate.amount, candidate.duration);
             const bestWeekly = computePriceWeekly(best.amount, best.duration);
@@ -469,9 +494,7 @@ function deriveResidencePricing(raw) {
             else if (candidateWeekly != null && bestWeekly == null) { best = candidate; }
             else if (candidateWeekly == null && bestWeekly == null && candidate.amount < best.amount) { best = candidate; }
         }
-        return best
-            ? { amount: best.amount, currency: best.currency, duration: best.duration, available: true }
-            : { amount: null, currency: null, duration: null, available: false };
+        return { amount: best.amount, currency: best.currency, duration: best.duration, available: true };
     }
 
     // No room-type breakdown at all — only positive evidence (the

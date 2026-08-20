@@ -14,7 +14,7 @@ import "./MobileFilterSheet.css";
 export default function MobileFilterSheet({
   open, onClose,
   filters, setFilter, toggleAmenity, clearFilters,
-  nearOptions = [], roomTypeOptions = [], amenityOptions = [], moveInOptions = [], stayDurationOptions = [],
+  nearOptions = [], roomTypeOptions = [], amenityOptions = [], moveInOptions = [], stayDurationOptions = [], petPolicyAvailable = false,
   priceBounds, priceCurrency = "", priceDuration = "",
   resultCount = 0,
   initialFocusSection = null,
@@ -102,10 +102,30 @@ export default function MobileFilterSheet({
             </section>
           )}
 
-          {amenityOptions.length > 0 && (
+          {(amenityOptions.length > 0 || petPolicyAvailable) && (
             <section className="mfs-section" data-section="amenities">
               <h3>Amenities</h3>
               <div className="mfs-amenity-grid">
+                {petPolicyAvailable && (
+                  <>
+                    <label className="mfs-amenity-chip">
+                      <input
+                        type="checkbox"
+                        checked={filters.petPolicy === "allowed"}
+                        onChange={(e) => setFilter("petPolicy")(e.target.checked ? "allowed" : "")}
+                      />
+                      Pets Allowed
+                    </label>
+                    <label className="mfs-amenity-chip">
+                      <input
+                        type="checkbox"
+                        checked={filters.petPolicy === "not_allowed"}
+                        onChange={(e) => setFilter("petPolicy")(e.target.checked ? "not_allowed" : "")}
+                      />
+                      Pets Not Allowed
+                    </label>
+                  </>
+                )}
                 {amenityOptions.map((a) => (
                   <label key={a} className="mfs-amenity-chip">
                     <input type="checkbox" checked={filters.amenities.includes(a)} onChange={() => toggleAmenity(a)} />

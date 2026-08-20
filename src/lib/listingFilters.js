@@ -4,6 +4,8 @@
 // copy drifting out of sync (Part 18's explicit instruction). Operates on the
 // shared "listing" shape both safeListingList()/safeResidenceListingList()
 // (src/services/amberMapper.js) already produce — no new shape introduced.
+import { classifyPetPolicy } from "./petPolicy";
+
 const UNIVERSITY_RE = /university|college/i;
 const AMENITY_OPTION_LIMIT = 16;
 
@@ -26,12 +28,13 @@ export function applyListingFilters(listings, filters) {
 
     const roomTypeOk = !filters.roomType || (l.rooms?.types || []).includes(filters.roomType);
     const billsOk = !filters.billsOnly || l.billsIncluded;
+    const petOk = !filters.petPolicy || classifyPetPolicy(l.amenities?.all) === filters.petPolicy;
     const nearOk = !filters.near || (l.distances?.nearby || []).some((d) => d.place === filters.near);
     const amenitiesOk = (filters.amenities || []).every((a) => (l.amenities?.all || []).includes(a));
     const moveInOk = !filters.moveInMonth || (l.moveInOptions || []).includes(filters.moveInMonth);
     const stayDurationOk = !filters.stayDuration || (l.stayDurationOptions || []).includes(filters.stayDuration);
 
-    return textMatch && minOk && maxOk && roomTypeOk && billsOk && nearOk && amenitiesOk && moveInOk && stayDurationOk;
+    return textMatch && minOk && maxOk && roomTypeOk && billsOk && petOk && nearOk && amenitiesOk && moveInOk && stayDurationOk;
   });
 }
 

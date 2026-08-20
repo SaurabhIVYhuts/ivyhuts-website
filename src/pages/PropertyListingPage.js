@@ -10,6 +10,7 @@ import { USPS } from "../data/usps";
 import { resolveCampusUniversityByNameOrId } from "../lib/campusUniversityResolver";
 import { haversineKm, hasValidCoords } from "../lib/geoDistance";
 import { applyListingFilters, sortListings, deriveFilterOptions } from "../lib/listingFilters";
+import { classifyPetPolicy } from "../lib/petPolicy";
 import useFilterState from "../hooks/useFilterState";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import SiteFooter from "../components/layout/SiteFooter";
@@ -346,6 +347,19 @@ export default function PropertyListingPage() {
     [listings]
   );
 
+  // Whether the current result set has ANY property with a real, stated pet
+  // policy — same "only show a filter the current data can actually answer"
+  // rule the shared deriveFilterOptions() above already follows for its own
+  // options. Amber's own amenity text for this is free-form (confirmed live:
+  // "Pet Friendly", "No Pets Allowed", "Not Pet-Friendly", ... — 20+ real
+  // variants), so this can't be a literal-string amenity checkbox like the
+  // generic ones above; classifyPetPolicy normalizes all of them into just
+  // "allowed"/"not_allowed".
+  const petPolicyAvailable = useMemo(
+    () => listings.some((l) => classifyPetPolicy(l.amenities.all) != null),
+    [listings]
+  );
+
   // Bounds/filter/sort all compare `priceWeekly` (amberMapper.js's
   // weekly-equivalent of price.from), not the raw amount — audit fix.
   // Listings genuinely bill in different periods (UK properties are usually
@@ -393,12 +407,12 @@ export default function PropertyListingPage() {
 
   const filtersActive =
     filters.query || filters.minPrice || filters.maxPrice || filters.roomType ||
-    filters.billsOnly || filters.near || filters.amenities.length > 0 ||
+    filters.billsOnly || filters.petPolicy || filters.near || filters.amenities.length > 0 ||
     filters.moveInMonth || filters.stayDuration || filters.sortBy !== "recommended";
 
   const advancedFilterCount =
     (filters.minPrice ? 1 : 0) + (filters.maxPrice ? 1 : 0) + (filters.roomType ? 1 : 0) +
-    (filters.near ? 1 : 0) + (filters.amenities.length > 0 ? 1 : 0) +
+    (filters.petPolicy ? 1 : 0) + (filters.near ? 1 : 0) + (filters.amenities.length > 0 ? 1 : 0) +
     (filters.moveInMonth ? 1 : 0) + (filters.stayDuration ? 1 : 0);
 
   // Milestone 22: filtering + sorting now delegate to the shared
@@ -406,6 +420,10 @@ export default function PropertyListingPage() {
   // the exact same predicate/comparators as before, just factored out so
   // University Housing can share them instead of reimplementing (Part 18).
   const filteredListings = useMemo(() => {
+    // Milestone 22 + pet-policy merge: applyListingFilters() (shared module)
+    // now also checks filters.petPolicy via classifyPetPolicy() — see
+    // src/lib/listingFilters.js — so this stays the single canonical
+    // implementation instead of a second copy reappearing here.
     const filtered = applyListingFilters(listings, filters);
     const pinnedSlug = propertyParam && propertyResolution?.status === "resolved" ? propertyResolution.slug : null;
     return sortListings(filtered, filters.sortBy, { pinnedSlug });
@@ -692,10 +710,30 @@ export default function PropertyListingPage() {
                 </div>
               )}
 
-              {amenityOptions.length > 0 && (
+              {(amenityOptions.length > 0 || petPolicyAvailable) && (
                 <div className="toolbar-panel-group">
                   <span className="toolbar-panel-label">Amenities</span>
                   <div className="toolbar-amenity-list">
+                    {petPolicyAvailable && (
+                      <>
+                        <label className="toolbar-amenity-item">
+                          <input
+                            type="checkbox"
+                            checked={filters.petPolicy === "allowed"}
+                            onChange={(e) => setFilter("petPolicy")(e.target.checked ? "allowed" : "")}
+                          />
+                          Pets Allowed
+                        </label>
+                        <label className="toolbar-amenity-item">
+                          <input
+                            type="checkbox"
+                            checked={filters.petPolicy === "not_allowed"}
+                            onChange={(e) => setFilter("petPolicy")(e.target.checked ? "not_allowed" : "")}
+                          />
+                          Pets Not Allowed
+                        </label>
+                      </>
+                    )}
                     {amenityOptions.map((a) => (
                       <label key={a} className="toolbar-amenity-item">
                         <input type="checkbox" checked={filters.amenities.includes(a)} onChange={() => toggleAmenity(a)} />
@@ -980,6 +1018,7 @@ export default function PropertyListingPage() {
         nearOptions={nearOptions}
         roomTypeOptions={roomTypeOptions}
         amenityOptions={amenityOptions}
+        petPolicyAvailable={petPolicyAvailable}
         moveInOptions={moveInOptions}
         stayDurationOptions={stayDurationOptions}
         priceBounds={priceBounds}
