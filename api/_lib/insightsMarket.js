@@ -584,6 +584,11 @@ async function advanceCrawlSide(state, sideKey, availableFlag, callBudget) {
         const items = extractResultArray(json);
         const metaCount = Number.isFinite(json?.data?.meta?.count) ? json.data.meta.count : null;
         if (side.expectedTotal == null && metaCount != null) side.expectedTotal = metaCount;
+        // Amber's own pagination cursor: null once `current_page` is past its
+        // last real page. Distinct from `items.length === 0` (which can also
+        // mean a transient blip on a page that isn't actually the end) — this
+        // is Amber explicitly saying "there is nothing after this."
+        const noMorePages = json?.data?.meta?.next === null;
 
         for (const raw of items) bucketItem(state, raw, availableFlag);
         await persistCrawlItemsToSearchIndex(items);
@@ -606,6 +611,17 @@ async function advanceCrawlSide(state, sideKey, availableFlag, callBudget) {
         } else if (items.length === 0) {
             side.done = true;
         }
+        // `expectedTotal` is a snapshot from whichever page happened to be
+        // fetched first — on this resumable, rate-limited crawl that can be
+        // days before the last page is reached, and Amber's real inventory
+        // count drifts during that window (properties sell out / relist).
+        // Confirmed live: a stale expectedTotal that's now a few items higher
+        // than what's actually left made the crawl retry the same
+        // past-the-end page forever, never reaching `done`. Amber's own
+        // cursor (`noMorePages`, checked regardless of items.length) is
+        // always current, so it overrides a stale count instead of the crawl
+        // waiting on inventory that no longer exists.
+        if (!side.done && noMorePages) side.done = true;
 
         // Don't advance past a page that came back suspiciously empty while
         // we know there's more to find (expectedTotal not yet reached) — retry

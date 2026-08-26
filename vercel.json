@@ -20,14 +20,6 @@
   ],
   "crons": [
     {
-      "path": "/api/warm-amber-cache",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/insights/advance-crawl",
-      "schedule": "*/5 * * * *"
-    },
-    {
       "path": "/api/insights/daily-digest",
       "schedule": "30 2 * * *"
     }
