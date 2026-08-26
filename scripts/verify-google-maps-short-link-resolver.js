@@ -100,7 +100,7 @@ async function main() {
         assert.ok(resolverSrc.includes("classifyHost"));
     });
     await test("NO COMPETING RESOLVER: api/universities/resolve.js still routes through resolveGoogleMapsCandidate() only — no second university resolver was introduced", () => {
-        const src = readSource("api", "universities", "resolve.js");
+        const src = readSource("api", "_lib", "routes", "crm-tools", "universities-resolve.js");
         assert.ok(src.includes("resolveGoogleMapsCandidate"));
         assert.ok(!/shortLinkUniversityResolver/.test(src));
     });
@@ -377,7 +377,7 @@ async function main() {
                 };
             },
             async () => {
-                const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+                const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
                 const req = { method: "GET", query: { q: "https://share.google/DroppedPinTestToken2" } };
                 let statusCode = null;
                 let jsonBody = null;
@@ -468,7 +468,7 @@ async function main() {
         await withMockedFetch(
             async () => fakeResponse(302, { Location: "https://www.google.com/maps/place/University+of+Oxford/@51.7548,-1.2544,15z" }),
             async () => {
-                const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+                const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
                 const req = { method: "GET", query: { q: "https://goo.gl/maps/8m8kUB4Wg9VAaSPB7" } };
                 let jsonBody = null;
                 const res = {
@@ -525,7 +525,7 @@ async function main() {
         await withMockedFetch(
             async () => fakeResponse(302, { Location: "https://www.google.com/maps/place/University+of+Manchester/@53.4668,-2.2339,15z" }),
             async () => {
-                const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+                const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
                 const req = { method: "GET", query: { q: "https://share.google/endpoint-test-" + Date.now() } };
                 let jsonBody = null;
                 const res = {
@@ -617,7 +617,7 @@ async function main() {
     });
 
     await test("REGRESSION FIX: the full /api/universities/resolve endpoint resolves the short link end-to-end into a real institution with valid coordinates", async () => {
-        const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+        const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
         const req = { method: "GET", query: { q: FAILING_URL } };
         let statusCode = null;
         let jsonBody = null;
@@ -646,7 +646,7 @@ async function main() {
         const savedKey = process.env.ANTHROPIC_API_KEY;
         delete process.env.ANTHROPIC_API_KEY;
         try {
-            const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+            const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
             const req = { method: "GET", query: { q: FAILING_URL } };
             let jsonBody = null;
             const res = {
@@ -691,7 +691,7 @@ async function main() {
     });
 
     await test("REGRESSION FIX (share.google): the full /api/universities/resolve endpoint resolves the share.google link end-to-end, through the SAME resolveGoogleMapsCandidate() path as any other Google Maps URL — no second pipeline", async () => {
-        const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+        const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
         const req = { method: "GET", query: { q: FAILING_SHARE_URL } };
         let statusCode = null;
         let jsonBody = null;
@@ -727,7 +727,7 @@ async function main() {
     // share.google link, then the SAME haversineKm/hasValidCoords helpers
     // UniversityHousingPage.js/UniversityHousingMap.js already use.
     await test("END-TO-END (share.google): the resolved record is directly usable by getProperties(city) — a non-empty city string, exactly like any other resolved university", async () => {
-        const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+        const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
         const req = { method: "GET", query: { q: FAILING_SHARE_URL } };
         let jsonBody = null;
         const res = {
@@ -747,7 +747,7 @@ async function main() {
 
     await test("END-TO-END (share.google): the resolved coordinates are directly usable by the EXISTING distance calculator (haversineKm/hasValidCoords) — same functions UniversityHousingMap.js and the property-list distance column already use", async () => {
         const { haversineKm, hasValidCoords } = require(path.join(ROOT, "api", "_lib", "accommodationIndex.js"));
-        const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+        const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
         const req = { method: "GET", query: { q: FAILING_SHARE_URL } };
         let jsonBody = null;
         const res = {
@@ -780,7 +780,7 @@ async function main() {
             return originalFetch(url, opts);
         };
         try {
-            const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+            const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
             const req = { method: "GET", query: { q: FAILING_SHARE_URL } };
             const res = {
                 setHeader() {},
@@ -798,7 +798,7 @@ async function main() {
 
     // ══════════════════════ CONTROLLED FAILURE — bogus code, never a fake university ══════════════════════
     await test("CONTROLLED FAILURE: a syntactically valid but nonexistent short-link code fails closed with short_link_unresolved, never a fabricated university", async () => {
-        const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+        const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
         const req = { method: "GET", query: { q: "https://maps.app.goo.gl/ThisCodeDoesNotExist000000" } };
         let statusCode = null;
         let jsonBody = null;
@@ -821,7 +821,7 @@ async function main() {
 
     // ══════════════════════ REGRESSION — full URL path is untouched ══════════════════════
     await test("REGRESSION: a full (non-short) Google Maps URL still resolves exactly as before — the existing parser was never rewritten", async () => {
-        const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+        const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
         const FULL_URL =
             "https://www.google.com/maps/place/Technical+University+of+Munich/@48.1487646,11.5681764,17z/data=!3m1!4b1!4m6!3m5!1s0x479e7261336d8c11:0x79a04d44dc5bf19d!8m2!3d48.1487646!4d11.5681764";
         const req = { method: "GET", query: { q: FULL_URL } };

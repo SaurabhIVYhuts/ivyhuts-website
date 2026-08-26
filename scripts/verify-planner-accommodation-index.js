@@ -546,7 +546,7 @@ async function main() {
     });
 
     // ══════════════════════════ MILESTONE 5: PLANNER API — DEGREE BUILDING ══════════════════════════
-    const { buildDegreeResult } = require(path.join(ROOT, "api", "student-planner"));
+    const { buildDegreeResult } = require(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner"));
     await test("PLANNER DEGREE: valid degreeId returns ready status with structured data", () => {
         const result = buildDegreeResult("computer-science", null, null);
         assert.strictEqual(result.status, "ready");
@@ -597,7 +597,7 @@ async function main() {
         assert.strictEqual(buildDegreeResult.constructor.name, "Function", "must not be async — confirms it cannot itself await a fetch");
     });
     await test("PLANNER API: response wiring still includes every pre-existing top-level field alongside `degree`, `careers`, career-level `salary` AND `readiness` fields (backward compatible)", () => {
-        const src = require("fs").readFileSync(path.join(ROOT, "api", "student-planner.js"), "utf8");
+        const src = require("fs").readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner.js"), "utf8");
         ["ok: true", "status", "residences", "comparison: residences", "livingExpenses", "degree: degreeResult", "careers: careersWithReadiness", "salary: resolveSalaryForCareer", "readiness: resolveReadinessForCareer"].forEach((needle) => {
             assert.ok(src.includes(needle), `expected api/student-planner.js's response to still include "${needle}"`);
         });
@@ -976,7 +976,7 @@ async function main() {
 
     // ══════════════════════════ MILESTONE 7: PLANNER API — SALARY WIRING ══════════════════════════
     await test("PLANNER API: careersWithSalary attaches a `salary` object to every career, built from resolveSalaryForCareer keyed by career.id + effectiveCountry (structural)", () => {
-        const src = require("fs").readFileSync(path.join(ROOT, "api", "student-planner.js"), "utf8");
+        const src = require("fs").readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner.js"), "utf8");
         assert.ok(/careerId:\s*career\.id/.test(src), "salary must be keyed by career.id (the authoritative relationship), not career.title");
         assert.ok(/country:\s*effectiveCountry/.test(src), "salary must use the same effectiveCountry the Living Cost layer already resolves — the university's canonical country, not client-supplied text directly");
     });
@@ -1154,7 +1154,7 @@ async function main() {
         assert.strictEqual(career.readiness, undefined, "resolveReadinessForCareer itself must not attach `readiness` onto the input object");
     });
     await test("PLANNER API: careersWithReadiness attaches `readiness` to every career via resolveReadinessForCareer(career) — keyed off the SAME already-ranked/salaried career object, not a fresh lookup (structural)", () => {
-        const src = require("fs").readFileSync(path.join(ROOT, "api", "student-planner.js"), "utf8");
+        const src = require("fs").readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner.js"), "utf8");
         assert.ok(/readiness:\s*resolveReadinessForCareer\(career\)/.test(src), "readiness must be computed from the already-enriched career object, reusing its id/skills fields");
     });
 

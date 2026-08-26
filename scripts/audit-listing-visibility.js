@@ -28,7 +28,7 @@ require("dotenv").config({ path: path.join(ROOT, ".env") });
 const { connectToDatabase, disconnectFromDatabase } = require(path.join(ROOT, "api", "_lib", "mongodb"));
 const AccommodationResidence = require(path.join(ROOT, "api", "_lib", "models", "AccommodationResidence"));
 const accommodationIndex = require(path.join(ROOT, "api", "_lib", "accommodationIndex"));
-const cityListingsHandler = require(path.join(ROOT, "api", "city-listings.js"));
+const cityListingsHandler = require(path.join(ROOT, "api", "_lib", "routes", "content", "city-listings.js"));
 const { normalizeCityName } = require(path.join(ROOT, "api", "_lib", "amberGateway"));
 
 function parseArgs(argv) {

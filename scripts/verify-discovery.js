@@ -64,7 +64,7 @@ async function main() {
     console.log("=== IvyHuts Discovery Verification (Milestone 23.7) ===");
     console.log("Redis: forced in-memory fallback for this run.\n");
 
-    const handler = require(path.join(ROOT, "api", "leads", "[id]", "discovery.js"));
+    const handler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "discovery.js"));
 
     // ══════════════════════ VALIDATION (pure — no Mongo needed) ══════════════════════
     await test("VALIDATION: a valid effective accommodation state passes cleanly", () => {

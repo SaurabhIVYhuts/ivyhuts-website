@@ -52,16 +52,16 @@ async function main() {
     console.log("=== IvyHuts Follow-ups Verification (Milestone 23.11) ===");
     console.log("Redis: forced in-memory fallback for this run.\n");
 
-    const listHandler = require(path.join(ROOT, "api", "leads", "[id]", "follow-ups", "index.js"));
-    const singleHandler = require(path.join(ROOT, "api", "leads", "[id]", "follow-ups", "[followUpId]", "index.js"));
+    const listHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "follow-ups", "index.js"));
+    const singleHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "follow-ups", "[followUpId]", "index.js"));
 
     // ══════════════════════ STRUCTURAL ══════════════════════
     await test("STRUCTURAL: no reference to Amber anywhere in the routes (comments excluded)", () => {
         const fs = require("fs");
         const stripComments = (src) => src.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
         const files = [
-            path.join(ROOT, "api", "leads", "[id]", "follow-ups", "index.js"),
-            path.join(ROOT, "api", "leads", "[id]", "follow-ups", "[followUpId]", "index.js"),
+            path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "follow-ups", "index.js"),
+            path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "follow-ups", "[followUpId]", "index.js"),
         ];
         files.forEach((f) => assert.ok(!/\bamber\b/i.test(stripComments(fs.readFileSync(f, "utf8")))));
     });

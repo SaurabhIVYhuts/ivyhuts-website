@@ -241,7 +241,7 @@ async function main() {
             const src = fs.readFileSync(path.join(ROOT, "api", "_lib", f), "utf8");
             assert.ok(!/vamos/i.test(src));
         });
-        assert.ok(!/vamos/i.test(fs.readFileSync(path.join(ROOT, "api", "amber.js"), "utf8")));
+        assert.ok(!/vamos/i.test(fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "amber.js"), "utf8")));
     });
     await test("STRUCTURAL: the map component never calls the property API itself (moving/zooming/selecting never triggers a fetch) — it only ever renders the properties prop it was given", () => {
         assert.ok(!/getProperties\(|getPropertyBySlug\(|fetch\(/.test(mapSrc), "UniversityHousingMap.js must be a pure renderer, never a data-fetching component");

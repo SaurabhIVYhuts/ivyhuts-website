@@ -97,7 +97,7 @@ async function main() {
         ["api", "_lib", "googleMapsShortLinkResolver.js"],
         ["api", "_lib", "universityDiscovery.js"],
         ["api", "_lib", "universityResolveService.js"],
-        ["api", "universities", "resolve.js"],
+        ["api", "_lib", "routes", "crm-tools", "universities-resolve.js"],
         ["src", "components", "universityHousing", "UniversitySearchBox.js"],
     ];
     const forbiddenTokens = ["ESCP", "Ludwig Maximilian", "mFfwhHmyVKb24eAF6", "DrMWXNSbHTFmgv948"];
@@ -251,7 +251,7 @@ async function main() {
     });
 
     // ══════════════════════ MILESTONE TEST CASES (item 28) — real endpoint, real network ══════════════════════
-    const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+    const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
 
     async function resolveQuery(q) {
         const { req, res, getBody } = mockReqRes({ q });

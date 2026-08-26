@@ -72,7 +72,7 @@ async function main() {
     const CAMPUS_UNIVERSITIES = require(path.join(ROOT, "src", "data", "campusUniversities.json"));
     const { resolveUniversityById } = require(path.join(ROOT, "api", "_lib", "universityResolver"));
     const { getOverrideResidences } = require(path.join(ROOT, "api", "_lib", "accommodationIndex"));
-    const plannerHandler = require(path.join(ROOT, "api", "student-planner"));
+    const plannerHandler = require(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner"));
 
     // ── Mocked Amber: distinguishes a "detail" (canonical_name) call from a
     // "listings" (location_place_name) call, unlike the shared mock in
@@ -241,7 +241,7 @@ async function main() {
         assert.ok(!/connectToDatabase/.test(fnBody));
     });
     await test("STRUCTURAL: api/student-planner.js trusts the resolved university's own accommodationOverride, never a client-supplied override param", () => {
-        const src = fs.readFileSync(path.join(ROOT, "api", "student-planner.js"), "utf8");
+        const src = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner.js"), "utf8");
         assert.ok(/university\?\.accommodationOverride\?\.propertySlugs/.test(src));
         assert.ok(!req_query_has_override(src), "must never read an override list directly from req.query");
         function req_query_has_override(s) { return /req\.query[^;]*(override|propertySlugs)/i.test(s); }

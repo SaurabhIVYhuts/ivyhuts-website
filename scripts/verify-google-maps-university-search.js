@@ -95,7 +95,7 @@ async function main() {
         });
     }
     await test("AMBER ISOLATION: api/universities/resolve.js's Google Maps branch reuses resolveGoogleMapsCandidate() from the SAME service file — no second resolver, no new Amber-adjacent file", () => {
-        const src = readSource("api", "universities", "resolve.js");
+        const src = readSource("api", "_lib", "routes", "crm-tools", "universities-resolve.js");
         assert.ok(src.includes('require("../_lib/universityResolveService")'), "resolve.js must import the existing university resolver service, not a new one");
         assert.ok(src.includes("resolveGoogleMapsCandidate"), "resolve.js must route Google Maps candidates through resolveGoogleMapsCandidate()");
     });
@@ -325,7 +325,7 @@ async function main() {
     });
 
     // ══════════════════════ FULL ENDPOINT — mock req/res against api/universities/resolve.js ══════════════════════
-    const resolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
+    const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
 
     await test("ENDPOINT: a full Google Maps URL for a curated Tier 1 university resolves, with zero AI calls (Tier 1 never escalates)", async () => {
         delete process.env.ANTHROPIC_API_KEY; // prove AI isn't even reachable/needed for this path

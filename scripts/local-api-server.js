@@ -19,23 +19,23 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 const http = require("http");
 const { URL } = require("url");
-const amberHandler = require("../api/amber.js");
-const universitiesResolveHandler = require("../api/universities/resolve.js");
-const searchHandler = require("../api/search.js");
-const searchDataHandler = require("../api/search-data.js");
-const enquireHandler = require("../api/enquire.js");
-const studentPlannerHandler = require("../api/student-planner.js");
-const studentPlannerPptHandler = require("../api/student-planner-ppt.js");
-const propertiesSearchHandler = require("../api/properties/search.js");
-const cityListingsHandler = require("../api/city-listings.js");
-const countryListingsHandler = require("../api/country-listings.js");
-const universityHousingInventoryHandler = require("../api/university-housing/inventory.js");
+const amberHandler = require("../api/_lib/routes/content/amber.js");
+const universitiesResolveHandler = require("../api/_lib/routes/crm-tools/universities-resolve.js");
+const searchHandler = require("../api/_lib/routes/content/search.js");
+const searchDataHandler = require("../api/_lib/routes/content/search-data.js");
+const enquireHandler = require("../api/_lib/routes/content/enquire.js");
+const studentPlannerHandler = require("../api/_lib/routes/content/student-planner.js");
+const studentPlannerPptHandler = require("../api/_lib/routes/content/student-planner-ppt.js");
+const propertiesSearchHandler = require("../api/_lib/routes/crm-tools/properties-search.js");
+const cityListingsHandler = require("../api/_lib/routes/content/city-listings.js");
+const countryListingsHandler = require("../api/_lib/routes/content/country-listings.js");
+const universityHousingInventoryHandler = require("../api/_lib/routes/content/university-housing/inventory.js");
 const metaWebhookHandler = require("../api/leads/meta/webhook.js");
 const authRoutes = {
-    "/api/auth/signup": require("../api/auth/signup.js"),
-    "/api/auth/login": require("../api/auth/login.js"),
-    "/api/auth/logout": require("../api/auth/logout.js"),
-    "/api/auth/me": require("../api/auth/me.js"),
+    "/api/auth/signup": require("../api/_lib/routes/auth/signup.js"),
+    "/api/auth/login": require("../api/_lib/routes/auth/login.js"),
+    "/api/auth/logout": require("../api/_lib/routes/auth/logout.js"),
+    "/api/auth/me": require("../api/_lib/routes/auth/me.js"),
 };
 
 // Milestone 2 business API — mirrors Vercel's filesystem-based dynamic
@@ -45,37 +45,41 @@ const authRoutes = {
 // the more general dynamic one (/api/customers/:id) they'd otherwise be
 // shadowed by — same precedence rule Vercel itself applies.
 const businessRoutes = [
-    { pattern: "/api/staff", handler: require("../api/staff.js") },
-    { pattern: "/api/customers", handler: require("../api/customers/index.js") },
-    { pattern: "/api/customers/me", handler: require("../api/customers/me.js") },
-    { pattern: "/api/customers/:id/lifecycle", handler: require("../api/customers/[id]/lifecycle.js") },
-    { pattern: "/api/customers/:id", handler: require("../api/customers/[id].js") },
-    { pattern: "/api/leads/assignment-summary", handler: require("../api/leads/assignment-summary.js") },
-    { pattern: "/api/leads/work-queue", handler: require("../api/leads/work-queue.js") },
-    { pattern: "/api/leads", handler: require("../api/leads/index.js") },
-    { pattern: "/api/leads/:id/assignment", handler: require("../api/leads/[id]/assignment.js") },
-    { pattern: "/api/leads/:id/accommodation-curation", handler: require("../api/leads/[id]/accommodation-curation.js") },
-    { pattern: "/api/leads/:id/discovery", handler: require("../api/leads/[id]/discovery.js") },
-    { pattern: "/api/leads/:id/meetings/:meetingId", handler: require("../api/leads/[id]/meetings/[meetingId]/index.js") },
-    { pattern: "/api/leads/:id/meetings", handler: require("../api/leads/[id]/meetings/index.js") },
-    { pattern: "/api/leads/:id/communications/:communicationId", handler: require("../api/leads/[id]/communications/[communicationId]/index.js") },
-    { pattern: "/api/leads/:id/communications", handler: require("../api/leads/[id]/communications/index.js") },
-    { pattern: "/api/leads/:id/follow-ups/:followUpId", handler: require("../api/leads/[id]/follow-ups/[followUpId]/index.js") },
-    { pattern: "/api/leads/:id/follow-ups", handler: require("../api/leads/[id]/follow-ups/index.js") },
-    { pattern: "/api/leads/:id/whatsapp/messages", handler: require("../api/leads/[id]/whatsapp/messages.js") },
-    { pattern: "/api/leads/:id/presentations/:presentationId/download", handler: require("../api/leads/[id]/presentations/[presentationId]/download.js") },
-    { pattern: "/api/leads/:id/presentations/:presentationId", handler: require("../api/leads/[id]/presentations/[presentationId]/index.js") },
-    { pattern: "/api/leads/:id/presentations", handler: require("../api/leads/[id]/presentations/index.js") },
-    { pattern: "/api/leads/:id", handler: require("../api/leads/[id].js") },
-    { pattern: "/api/enquiries", handler: require("../api/enquiries/index.js") },
-    { pattern: "/api/enquiries/:id", handler: require("../api/enquiries/[id].js") },
-    { pattern: "/api/wishlist", handler: require("../api/wishlist/index.js") },
-    { pattern: "/api/wishlist/:propertyId", handler: require("../api/wishlist/[propertyId].js") },
-    { pattern: "/api/events", handler: require("../api/events/index.js") },
-    { pattern: "/api/insights/overview", handler: require("../api/insights/overview.js") },
-    { pattern: "/api/insights/market", handler: require("../api/insights/market.js") },
-    { pattern: "/api/insights/snapshot-dates", handler: require("../api/insights/snapshot-dates.js") },
-    { pattern: "/api/insights/snapshot", handler: require("../api/insights/snapshot.js") },
+    { pattern: "/api/staff", handler: require("../api/_lib/routes/crm-tools/staff.js") },
+    { pattern: "/api/admin/accommodation/inventory-health", handler: require("../api/_lib/routes/crm-tools/admin/accommodation/inventory-health.js") },
+    { pattern: "/api/customers", handler: require("../api/_lib/routes/customers/index.js") },
+    { pattern: "/api/customers/me", handler: require("../api/_lib/routes/customers/me.js") },
+    { pattern: "/api/customers/:id/lifecycle", handler: require("../api/_lib/routes/customers/[id]/lifecycle.js") },
+    { pattern: "/api/customers/:id", handler: require("../api/_lib/routes/customers/[id].js") },
+    { pattern: "/api/leads/assignment-summary", handler: require("../api/_lib/routes/leads/assignment-summary.js") },
+    { pattern: "/api/leads/work-queue", handler: require("../api/_lib/routes/leads/work-queue.js") },
+    { pattern: "/api/leads", handler: require("../api/_lib/routes/leads/index.js") },
+    { pattern: "/api/leads/:id/assignment", handler: require("../api/_lib/routes/leads/[id]/assignment.js") },
+    { pattern: "/api/leads/:id/accommodation-curation", handler: require("../api/_lib/routes/leads/[id]/accommodation-curation.js") },
+    { pattern: "/api/leads/:id/discovery", handler: require("../api/_lib/routes/leads/[id]/discovery.js") },
+    { pattern: "/api/leads/:id/meetings/:meetingId", handler: require("../api/_lib/routes/leads/[id]/meetings/[meetingId]/index.js") },
+    { pattern: "/api/leads/:id/meetings", handler: require("../api/_lib/routes/leads/[id]/meetings/index.js") },
+    { pattern: "/api/leads/:id/communications/:communicationId", handler: require("../api/_lib/routes/leads/[id]/communications/[communicationId]/index.js") },
+    { pattern: "/api/leads/:id/communications", handler: require("../api/_lib/routes/leads/[id]/communications/index.js") },
+    { pattern: "/api/leads/:id/follow-ups/:followUpId", handler: require("../api/_lib/routes/leads/[id]/follow-ups/[followUpId]/index.js") },
+    { pattern: "/api/leads/:id/follow-ups", handler: require("../api/_lib/routes/leads/[id]/follow-ups/index.js") },
+    { pattern: "/api/leads/:id/whatsapp/messages", handler: require("../api/_lib/routes/leads/[id]/whatsapp/messages.js") },
+    { pattern: "/api/leads/:id/presentations/:presentationId/download", handler: require("../api/_lib/routes/leads/[id]/presentations/[presentationId]/download.js") },
+    { pattern: "/api/leads/:id/presentations/:presentationId", handler: require("../api/_lib/routes/leads/[id]/presentations/[presentationId]/index.js") },
+    { pattern: "/api/leads/:id/presentations", handler: require("../api/_lib/routes/leads/[id]/presentations/index.js") },
+    { pattern: "/api/leads/:id", handler: require("../api/_lib/routes/leads/[id].js") },
+    { pattern: "/api/enquiries", handler: require("../api/_lib/routes/enquiries/index.js") },
+    { pattern: "/api/enquiries/:id", handler: require("../api/_lib/routes/enquiries/[id].js") },
+    { pattern: "/api/wishlist", handler: require("../api/_lib/routes/wishlist/index.js") },
+    { pattern: "/api/wishlist/:propertyId", handler: require("../api/_lib/routes/wishlist/[propertyId].js") },
+    { pattern: "/api/events", handler: require("../api/_lib/routes/content/events/index.js") },
+    { pattern: "/api/warm-amber-cache", handler: require("../api/_lib/routes/content/warm-amber-cache.js") },
+    { pattern: "/api/insights/overview", handler: require("../api/_lib/routes/insights/overview.js") },
+    { pattern: "/api/insights/market", handler: require("../api/_lib/routes/insights/market.js") },
+    { pattern: "/api/insights/snapshot-dates", handler: require("../api/_lib/routes/insights/snapshot-dates.js") },
+    { pattern: "/api/insights/snapshot", handler: require("../api/_lib/routes/insights/snapshot.js") },
+    { pattern: "/api/insights/daily-digest", handler: require("../api/_lib/routes/insights/daily-digest.js") },
+    { pattern: "/api/insights/advance-crawl", handler: require("../api/_lib/routes/insights/advance-crawl.js") },
 ].map((route) => ({
     ...route,
     paramNames: (route.pattern.match(/:([^/]+)/g) || []).map((p) => p.slice(1)),
