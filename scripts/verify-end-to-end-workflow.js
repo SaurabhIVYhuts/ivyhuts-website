@@ -123,19 +123,19 @@ async function main() {
     const FollowUp = require(path.join(ROOT, "api", "_lib", "models", "FollowUp"));
 
     const webhookHandler = require(path.join(ROOT, "api", "leads", "meta", "webhook.js"));
-    const leadHandler = require(path.join(ROOT, "api", "leads", "[id].js"));
-    const assignmentHandler = require(path.join(ROOT, "api", "leads", "[id]", "assignment.js"));
-    const meetingsListHandler = require(path.join(ROOT, "api", "leads", "[id]", "meetings", "index.js"));
-    const meetingsSingleHandler = require(path.join(ROOT, "api", "leads", "[id]", "meetings", "[meetingId]", "index.js"));
-    const discoveryHandler = require(path.join(ROOT, "api", "leads", "[id]", "discovery.js"));
-    const curationHandler = require(path.join(ROOT, "api", "leads", "[id]", "accommodation-curation.js"));
-    const presentationsListHandler = require(path.join(ROOT, "api", "leads", "[id]", "presentations", "index.js"));
-    const communicationsListHandler = require(path.join(ROOT, "api", "leads", "[id]", "communications", "index.js"));
-    const followUpsListHandler = require(path.join(ROOT, "api", "leads", "[id]", "follow-ups", "index.js"));
-    const followUpsSingleHandler = require(path.join(ROOT, "api", "leads", "[id]", "follow-ups", "[followUpId]", "index.js"));
-    const workQueueHandler = require(path.join(ROOT, "api", "leads", "work-queue.js"));
-    const universitiesResolveHandler = require(path.join(ROOT, "api", "universities", "resolve.js"));
-    const propertiesSearchHandler = require(path.join(ROOT, "api", "properties", "search.js"));
+    const leadHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id].js"));
+    const assignmentHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "assignment.js"));
+    const meetingsListHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "meetings", "index.js"));
+    const meetingsSingleHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "meetings", "[meetingId]", "index.js"));
+    const discoveryHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "discovery.js"));
+    const curationHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "accommodation-curation.js"));
+    const presentationsListHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "index.js"));
+    const communicationsListHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "communications", "index.js"));
+    const followUpsListHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "follow-ups", "index.js"));
+    const followUpsSingleHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "follow-ups", "[followUpId]", "index.js"));
+    const workQueueHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "work-queue.js"));
+    const universitiesResolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
+    const propertiesSearchHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "properties-search.js"));
 
     await connectToDatabase();
     console.log("\nMongoDB connection established for live verification.\n");

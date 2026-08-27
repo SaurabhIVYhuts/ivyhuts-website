@@ -72,7 +72,7 @@ async function main() {
         ["api", "_lib", "universityFuzzyMatch.js"],
         ["api", "_lib", "campusUniversityResolver.js"],
         ["api", "_lib", "models", "UniversityIndex.js"],
-        ["api", "universities", "resolve.js"],
+        ["api", "_lib", "routes", "crm-tools", "universities-resolve.js"],
     ];
     for (const segments of newLibFiles) {
         const relPath = segments.join("/");

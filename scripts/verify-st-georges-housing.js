@@ -228,7 +228,7 @@ async function main() {
             const src = fs.readFileSync(path.join(ROOT, "api", "_lib", f), "utf8");
             assert.ok(!/georges|sgul|tooting/i.test(src));
         });
-        const amberJsSrc = fs.readFileSync(path.join(ROOT, "api", "amber.js"), "utf8");
+        const amberJsSrc = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "amber.js"), "utf8");
         assert.ok(!/georges|sgul|tooting/i.test(amberJsSrc));
     });
     await test("AMBER ISOLATION: loading/resolving the curated dataset (including St George's) makes ZERO fetch() calls", () => {

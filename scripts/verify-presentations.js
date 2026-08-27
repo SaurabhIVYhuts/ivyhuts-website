@@ -103,9 +103,9 @@ async function main() {
     console.log("=== IvyHuts Presentations Verification (Milestone 23.8) ===");
     console.log("Redis: forced in-memory fallback for this run.\n");
 
-    const listHandler = require(path.join(ROOT, "api", "leads", "[id]", "presentations", "index.js"));
-    const singleHandler = require(path.join(ROOT, "api", "leads", "[id]", "presentations", "[presentationId]", "index.js"));
-    const downloadHandler = require(path.join(ROOT, "api", "leads", "[id]", "presentations", "[presentationId]", "download.js"));
+    const listHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "index.js"));
+    const singleHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "[presentationId]", "index.js"));
+    const downloadHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "[presentationId]", "download.js"));
     const {
         normalizeAccommodationCurationForPresentation,
         normalizeProperty,
@@ -121,9 +121,9 @@ async function main() {
             path.join(ROOT, "api", "_lib", "models", "Presentation.js"),
             path.join(ROOT, "api", "_lib", "pptNormalizeAccommodation.js"),
             path.join(ROOT, "api", "_lib", "pptBuilderAccommodation.js"),
-            path.join(ROOT, "api", "leads", "[id]", "presentations", "index.js"),
-            path.join(ROOT, "api", "leads", "[id]", "presentations", "[presentationId]", "index.js"),
-            path.join(ROOT, "api", "leads", "[id]", "presentations", "[presentationId]", "download.js"),
+            path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "index.js"),
+            path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "[presentationId]", "index.js"),
+            path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "[presentationId]", "download.js"),
         ];
         files.forEach((f) => assert.ok(!/\bamber\b/i.test(stripComments(fs.readFileSync(f, "utf8"))), `${f} must not reference Amber outside comments`));
     });
@@ -219,7 +219,7 @@ async function main() {
         const User = require(path.join(ROOT, "api", "_lib", "models", "User"));
         const AccommodationCuration = require(path.join(ROOT, "api", "_lib", "models", "AccommodationCuration"));
         const Presentation = require(path.join(ROOT, "api", "_lib", "models", "Presentation"));
-        const accommodationCurationHandler = require(path.join(ROOT, "api", "leads", "[id]", "accommodation-curation.js"));
+        const accommodationCurationHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "accommodation-curation.js"));
 
         await connectToDatabase();
         console.log("\nMongoDB connection established for live verification.\n");

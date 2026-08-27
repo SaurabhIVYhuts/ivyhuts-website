@@ -288,7 +288,7 @@ async function main() {
 
     // ══════════════════════ TEST 13 ══════════════════════
     await test("TEST 13: the inventory-health endpoint is protected by the existing internal-role auth mechanism (requireRole), not a new one", () => {
-        const src = fs.readFileSync(path.join(ROOT, "api", "admin", "accommodation", "inventory-health.js"), "utf8");
+        const src = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "admin", "accommodation", "inventory-health.js"), "utf8");
         assert.ok(/require\(["']\.\.\/\.\.\/_lib\/businessAuth["']\)/.test(src), "must import the EXISTING businessAuth module, not a new auth mechanism");
         assert.ok(/requireRole\(req, res, INTERNAL_ROLES\)/.test(src), "must call requireRole with the same pattern every other internal endpoint uses");
         assert.ok(/if \(!identity\) return;/.test(src), "must bail out immediately if requireRole did not grant access (401/403 already sent)");

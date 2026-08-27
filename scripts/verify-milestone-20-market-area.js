@@ -18,7 +18,7 @@ const { connectToDatabase, disconnectFromDatabase } = require(path.join(ROOT, "a
 const AccommodationResidence = require(path.join(ROOT, "api", "_lib", "models", "AccommodationResidence"));
 const { resolveMarketCities, MARKET_AREAS } = require(path.join(ROOT, "api", "_lib", "marketAreas"));
 const { getAccommodationInventory } = require(path.join(ROOT, "api", "_lib", "accommodationInventoryService"));
-const inventoryHandler = require(path.join(ROOT, "api", "university-housing", "inventory.js"));
+const inventoryHandler = require(path.join(ROOT, "api", "_lib", "routes", "content", "university-housing", "inventory.js"));
 
 let passed = 0, failed = 0, skipped = 0;
 async function test(name, fn) {

@@ -365,7 +365,7 @@ async function main() {
             const src = fs.readFileSync(path.join(ROOT, "api", "_lib", f), "utf8");
             assert.ok(!/selectCheapestAvailableRoomType|normalizeResidencePricing|deriveDisplayPricing/.test(src));
         });
-        const amberJsSrc = fs.readFileSync(path.join(ROOT, "api", "amber.js"), "utf8");
+        const amberJsSrc = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "amber.js"), "utf8");
         assert.ok(!/selectCheapestAvailableRoomType|normalizeResidencePricing|deriveDisplayPricing/.test(amberJsSrc));
     });
     await test("AMBER ISOLATION: computing normalized pricing for a batch of properties (simulated) makes ZERO fetch() calls", async () => {

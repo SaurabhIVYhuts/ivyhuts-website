@@ -87,9 +87,9 @@ async function main() {
     const User = require(path.join(ROOT, "api", "_lib", "models", "User"));
     const Wishlist = require(path.join(ROOT, "api", "_lib", "models", "Wishlist"));
     const UserEvent = require(path.join(ROOT, "api", "_lib", "models", "UserEvent"));
-    const wishlistIndex = require(path.join(ROOT, "api", "wishlist", "index.js"));
-    const wishlistItem = require(path.join(ROOT, "api", "wishlist", "[propertyId].js"));
-    const eventsIndex = require(path.join(ROOT, "api", "events", "index.js"));
+    const wishlistIndex = require(path.join(ROOT, "api", "_lib", "routes", "wishlist", "index.js"));
+    const wishlistItem = require(path.join(ROOT, "api", "_lib", "routes", "wishlist", "[propertyId].js"));
+    const eventsIndex = require(path.join(ROOT, "api", "_lib", "routes", "content", "events", "index.js"));
 
     await connectToDatabase();
     console.log("MongoDB connection established for live verification.\n");

@@ -55,7 +55,7 @@ async function main() {
     });
 
     await test("api/city-listings.js uses the shared getAccommodationInventory() service, not accommodationIndex directly", () => {
-        const src = fs.readFileSync(path.join(ROOT, "api", "city-listings.js"), "utf8");
+        const src = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "city-listings.js"), "utf8");
         assert.ok(src.includes("getAccommodationInventory"), "expected api/city-listings.js to call the Milestone 20 shared service");
         assert.ok(!/require\(["']\.\/_lib\/accommodationIndex["']\)/.test(src), "api/city-listings.js should not import accommodationIndex directly anymore");
     });
@@ -63,7 +63,7 @@ async function main() {
     // ── Real Mongo / real handler tests ─────────────────────────────────────
     let cityListingsHandler, connectToDatabase, disconnectFromDatabase, AccommodationResidence;
     try {
-        cityListingsHandler = require(path.join(ROOT, "api", "city-listings.js"));
+        cityListingsHandler = require(path.join(ROOT, "api", "_lib", "routes", "content", "city-listings.js"));
         ({ connectToDatabase, disconnectFromDatabase } = require(path.join(ROOT, "api", "_lib", "mongodb")));
         AccommodationResidence = require(path.join(ROOT, "api", "_lib", "models", "AccommodationResidence"));
         await connectToDatabase();
