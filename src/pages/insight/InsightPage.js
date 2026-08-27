@@ -6,10 +6,11 @@ import FilterBar, { rangeFromPreset } from "./components/FilterBar";
 import InsightCalendar from "./components/InsightCalendar";
 import ModeBanner from "./components/ModeBanner";
 import MarketSection from "./components/sections/MarketSection";
+import TrendSection from "./components/sections/TrendSection";
 import PricingSection from "./components/sections/PricingSection";
 import PropertySection from "./components/sections/PropertySection";
 import BookingSection from "./components/sections/BookingSection";
-import { getInsightsOverview, getInsightsSnapshot, InsightsApiError } from "../../services/insightsApi";
+import { getInsightsOverview, getInsightsSnapshot, getInsightsSoldOutTrend, InsightsApiError } from "../../services/insightsApi";
 import "./insight-theme.css";
 
 // Every data endpoint this page calls (api/insights/overview.js, market.js,
@@ -54,6 +55,8 @@ export default function InsightPage() {
   // filter bar's Source dropdown is populated from it.
   const [overview, setOverview] = useState(null);
   const [market, setMarket] = useState(null);
+  const [trend, setTrend] = useState(null);
+  const [errorTrend, setErrorTrend] = useState(false);
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [errorMarket, setErrorMarket] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -80,6 +83,31 @@ export default function InsightPage() {
       // falls back to a demand signal of 0 if `overview` never loads).
     }
   }, [filters.from, filters.to, filters.city, filters.source]);
+
+  // Month-by-month sold-out totals for the Market Intelligence trend chart —
+  // independent of the calendar's selected date (it's a cross-day history
+  // view, not a single-day one), scoped only to the country/city filter.
+  // Same non-critical, silent-except-401/403 failure handling as
+  // loadOverview: nothing else on screen depends on this succeeding.
+  const loadTrend = useCallback(async () => {
+    setErrorTrend(false);
+    try {
+      const data = await getInsightsSoldOutTrend({ country: filters.country, city: filters.city });
+      setTrend(data);
+    } catch (err) {
+      if (err instanceof InsightsApiError && (err.status === 401 || err.status === 403)) {
+        setAccessDenied({ status: err.status });
+      } else {
+        // Previously silently ignored, same as loadOverview — but unlike
+        // overview (a secondary input other sections tolerate missing),
+        // trend has no other data source: a swallowed error here left
+        // TrendSection stuck on its loading skeleton forever, with no
+        // indication anything failed and no way to retry short of a full
+        // page reload. Surfaced properly instead.
+        setErrorTrend(true);
+      }
+    }
+  }, [filters.country, filters.city]);
 
   // `background: true` skips the loading/error UI state — used by the
   // auto-poll below so refilling coverage never flashes the skeleton over
@@ -110,6 +138,7 @@ export default function InsightPage() {
     backgroundPollCountRef.current = 0;
     loadOverview();
     loadMarket();
+    loadTrend();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.from, filters.to, filters.city, filters.source, filters.country, selectedDate]);
 
@@ -136,7 +165,7 @@ export default function InsightPage() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadOverview(), loadMarket()]);
+    await Promise.all([loadOverview(), loadMarket(), loadTrend()]);
     setRefreshing(false);
   };
 
@@ -188,6 +217,7 @@ export default function InsightPage() {
           {activeTab === "market" && (
             <MarketSection market={market} overview={overview} loading={loadingMarket} error={errorMarket} onRetry={loadMarket} onResetFilters={resetFilters} />
           )}
+          {activeTab === "trends" && <TrendSection trend={trend} error={errorTrend} onRetry={loadTrend} onResetFilters={resetFilters} />}
           {activeTab === "pricing" && (
             <PricingSection market={marketForLegacyTabs} loading={loadingMarket} error={errorMarket} onRetry={loadMarket} onResetFilters={resetFilters} />
           )}

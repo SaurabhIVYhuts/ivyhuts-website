@@ -49,6 +49,13 @@ export function getInsightsSnapshotDates(filters) {
     return getJson("/api/insights/snapshot-dates", filters);
 }
 
+// Total sold-out inventory per calendar month (each month's latest stored
+// snapshot), optionally scoped to one country/city — the Market
+// Intelligence "which month sold out the most" trend chart's data source.
+export function getInsightsSoldOutTrend(filters) {
+    return getJson("/api/insights/sold-out-trend", filters);
+}
+
 export function getCurrentCustomer() {
     return getJson("/api/customers/me");
 }

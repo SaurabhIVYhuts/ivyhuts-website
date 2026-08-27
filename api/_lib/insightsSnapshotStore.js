@@ -82,6 +82,24 @@ async function listSnapshotDates({ month } = {}) {
     return docs;
 }
 
+// Every stored snapshot in an optional [from, to] date range, narrow-
+// projected to just what a cross-day aggregation needs (never postcodes/
+// properties/pricing/bookingLeadTime — those stay per-document-only
+// concerns). Omitting both bounds returns every stored snapshot, same
+// "no filter = everything" convention as listSnapshotDates above.
+async function getSnapshotsInRange(from, to) {
+    await connectToDatabase();
+    const filter = {};
+    if (from || to) {
+        filter.date = {};
+        if (from) filter.date.$gte = from;
+        if (to) filter.date.$lte = to;
+    }
+    return InsightSnapshot.find(filter, { date: 1, status: 1, soldOutInventory: 1, countries: 1, cities: 1, _id: 0 })
+        .sort({ date: 1 })
+        .lean();
+}
+
 module.exports = {
     istDateString,
     saveSnapshot,
@@ -90,4 +108,5 @@ module.exports = {
     getPreviousSnapshot,
     getRecentSnapshots,
     listSnapshotDates,
+    getSnapshotsInRange,
 };

@@ -14,10 +14,15 @@ const SHARE_DIMENSIONS = [
   { key: "property", label: "Property" },
 ];
 
+// "Unknown" is Amber's own placeholder for a property whose country
+// couldn't be resolved (see insightsMarket.js) — real inventory, but not a
+// nameable place, so it's excluded from every ranked country list here
+// (never a useful row in a "which country" ranking). The count itself is
+// never hidden — see unresolvedCitySoldOut's use in the coverage note below.
 function aggregateByCountry(cities) {
   const byCountry = new Map();
   for (const c of cities) {
-    if (!c.cached) continue;
+    if (!c.cached || c.country === "Unknown") continue;
     const prev = byCountry.get(c.country) || { label: c.country, value: 0, secondary: 0 };
     prev.value += c.soldOut;
     prev.secondary += c.available;
@@ -29,7 +34,7 @@ function aggregateByCountry(cities) {
 function rankOpportunity(cities, overviewByCity) {
   const demandByCity = new Map((overviewByCity || []).map((d) => [d.city, d.count]));
   return cities
-    .filter((c) => c.cached && c.total > 0)
+    .filter((c) => c.cached && c.total > 0 && c.city !== "Unknown")
     .map((c) => ({
       ...c,
       demandSignal: demandByCity.get(c.city) || 0,
@@ -73,20 +78,36 @@ export default function MarketSection({ market, overview, loading, error, onRetr
 
   const byCountry = useMemo(() => (market ? aggregateByCountry(market.cities) : []), [market]);
   const cachedCities = useMemo(() => (market ? market.cities.filter((c) => c.cached).sort((a, b) => b.soldOut - a.soldOut) : []), [market]);
+  // Same "real inventory, not a nameable place" exclusion as aggregateByCountry
+  // above, applied to city-ranked views — the Top Demand Markets table,
+  // city-dimension Market Share, and Next-Year Opportunity all rank places,
+  // and "Unknown" is never a useful row in a ranking of places.
+  const namedCities = useMemo(() => cachedCities.filter((c) => c.city !== "Unknown"), [cachedCities]);
   // Items the breakdown crawl has counted so far — NOT the same as the
   // authoritative site-wide sold-out figure used in the KPI cards below
   // (see api/_lib/insightsMarket.js's buildFullBreakdown). Used only as the
-  // denominator for "share of counted-so-far" percentages in this section.
+  // denominator for "share of counted-so-far" percentages in this section —
+  // deliberately still includes unresolved-location items, so a real city's
+  // percentage reflects its true share of everything actually counted, not
+  // just of the subset that happened to get a name.
   const crawlSoldOutCounted = useMemo(() => cachedCities.reduce((sum, c) => sum + c.soldOut, 0), [cachedCities]);
+  // Real sold-out inventory Amber couldn't attach to a named city — never
+  // silently dropped from the totals above, just kept out of the ranked
+  // lists below and stated plainly once, in the coverage note.
+  const unresolvedCitySoldOut = useMemo(() => cachedCities.filter((c) => c.city === "Unknown").reduce((sum, c) => sum + c.soldOut, 0), [cachedCities]);
   const opportunities = useMemo(() => (market ? rankOpportunity(market.cities, overview?.byCity) : []), [market, overview]);
 
   const shareData = useMemo(() => {
     if (!market) return [];
-    if (shareDimension === "country") return (market.countries || []).slice(0, 10).map((c) => ({ label: c.country, value: c.soldOut, id: c.country }));
-    if (shareDimension === "city") return cachedCities.slice(0, 10).map((c) => ({ label: c.city, sublabel: c.country, value: c.soldOut, id: `${c.city}-${c.country}` }));
+    if (shareDimension === "country")
+      return (market.countries || [])
+        .filter((c) => c.country !== "Unknown")
+        .slice(0, 10)
+        .map((c) => ({ label: c.country, value: c.soldOut, id: c.country }));
+    if (shareDimension === "city") return namedCities.slice(0, 10).map((c) => ({ label: c.city, sublabel: c.country, value: c.soldOut, id: `${c.city}-${c.country}` }));
     if (shareDimension === "postcode") return (market.postcodes || []).slice(0, 10).map((p) => ({ label: p.postcode, sublabel: p.city, value: p.soldOut, id: p.postcode }));
     return (market.properties || []).slice(0, 10).map((p) => ({ label: p.name, sublabel: p.city, value: p.minPrice ?? 0, id: p.id || p.slug, currency: p.currency }));
-  }, [market, shareDimension, cachedCities]);
+  }, [market, shareDimension, namedCities]);
 
   if (loading) {
     return (
@@ -129,6 +150,13 @@ export default function MarketSection({ market, overview, loading, error, onRetr
               Full catalog counted — {crawlSoldOutCounted.toLocaleString()} sold-out across {market.coverage.citiesWithData} real
               markets, reconciled against the homepage's site-wide Sold Out figure
               {market.siteWide?.ready ? ` (${market.siteWide.soldOut.toLocaleString()})` : ""}.
+              {unresolvedCitySoldOut > 0 && (
+                <>
+                  {" "}
+                  {unresolvedCitySoldOut.toLocaleString()} of those are real sold-out properties Amber sent with no resolvable city — still counted
+                  in every total above, just left out of the country/city rankings below rather than shown as an unhelpful "Unknown" row.
+                </>
+              )}
             </>
           ) : (
             <>
@@ -213,7 +241,7 @@ export default function MarketSection({ market, overview, loading, error, onRetr
               </tr>
             </thead>
             <tbody>
-              {cachedCities.map((c, i) => {
+              {namedCities.map((c, i) => {
                 // Real Amber inventory has genuinely same-named cities in
                 // different countries (e.g. London, UK and London, Ontario,
                 // Canada — confirmed live in the crawl data) — `c.city` alone

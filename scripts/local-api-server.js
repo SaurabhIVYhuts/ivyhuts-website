@@ -78,6 +78,7 @@ const businessRoutes = [
     { pattern: "/api/insights/market", handler: require("../api/_lib/routes/insights/market.js") },
     { pattern: "/api/insights/snapshot-dates", handler: require("../api/_lib/routes/insights/snapshot-dates.js") },
     { pattern: "/api/insights/snapshot", handler: require("../api/_lib/routes/insights/snapshot.js") },
+    { pattern: "/api/insights/sold-out-trend", handler: require("../api/_lib/routes/insights/sold-out-trend.js") },
     { pattern: "/api/insights/daily-digest", handler: require("../api/_lib/routes/insights/daily-digest.js") },
     { pattern: "/api/insights/advance-crawl", handler: require("../api/_lib/routes/insights/advance-crawl.js") },
 ].map((route) => ({
