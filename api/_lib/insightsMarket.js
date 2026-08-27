@@ -394,6 +394,36 @@ function currencySymbol(raw) {
     return CURRENCY_SYMBOLS[key] || String(raw).toUpperCase();
 }
 
+// A real postal/Eircode-style suffix ("N37 PE83", "11211", "D24 N279") is
+// never a city name — reject any trailing name-segment containing digits so
+// a messy "Co. Westmeath N37 PE83" address never gets guessed at.
+const LOOKS_LIKE_POSTCODE = /\d{2,}/;
+
+// Amber's own geocoded locality sometimes comes back empty even though the
+// property's own display name almost always still ends with a real place
+// ("443 Graham Ave, New York" -> New York; "Yugo Alba Viu, Barcelona" ->
+// Barcelona) — Amber apparently derives `location.locality` from a stricter
+// geocode than however it generated the listing's own title. This is a
+// best-effort fallback, not a replacement for Amber's geocoding: it only
+// ever runs when Amber's own locality is missing, and only accepts the
+// trailing comma-separated segment when it looks like a plausible place
+// name — never a postcode/county suffix (rejected above) and never so long
+// it's obviously still a street address, not a city. A name with no comma
+// at all (e.g. the generic "Student Accommodation" fallback name) has
+// nothing to extract and correctly falls through to "Unknown" — some
+// properties genuinely carry no location signal anywhere Amber gives us.
+function inferLocalityFromName(name) {
+    if (!name) return null;
+    const parts = String(name)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    if (parts.length < 2) return null;
+    const candidate = parts[parts.length - 1];
+    if (!candidate || candidate.length > 40 || LOOKS_LIKE_POSTCODE.test(candidate)) return null;
+    return candidate;
+}
+
 // Minimal, read-only mirror of the field paths src/services/amberMapper.js
 // already uses on the frontend — duplicated for the CommonJS/ESM boundary
 // reason noted above.
@@ -401,12 +431,13 @@ function normalizeItem(raw, available) {
     if (!raw || typeof raw !== "object") return null;
     const loc = raw.location || {};
     const pricing = raw.pricing || {};
+    const name = raw.name || "Student Accommodation";
     return {
         id: raw.id ?? null,
         slug: raw.canonical_name || null,
-        name: raw.name || "Student Accommodation",
+        name,
         country: loc.country?.long_name || "Unknown",
-        locality: loc.locality?.long_name || "Unknown",
+        locality: loc.locality?.long_name || inferLocalityFromName(name) || "Unknown",
         pincode: loc.postal_code?.long_name || null,
         available,
         minPrice: toNumber(pricing.min_price ?? pricing.available_price),
@@ -563,6 +594,50 @@ async function persistCrawlItemsToSearchIndex(items) {
     }
 }
 
+// Title-cases a lowercased city name (AccommodationResidence stores city
+// via amberGateway's normalizeCityName — lowercase, for query matching) back
+// into display form ("san antonio" -> "San Antonio") so a mirror-recovered
+// item reads the same as one Amber resolved directly, never a giveaway of
+// which path it came from.
+function titleCase(s) {
+    return String(s || "").replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
+// Second recovery layer for items still broken after the retry in
+// advanceCrawlSide below — falls back to AccommodationResidence, the same
+// property already successfully fetched via accommodationIndex.js's
+// city-filtered query (a different Amber query shape, confirmed live not to
+// hit this bug) on some earlier pass. Real Amber data, sourced a different
+// way — never fabricated. Best-effort: a Mongo hiccup here just leaves these
+// items as Unknown for this pass, same as if recovery didn't exist.
+async function recoverBrokenItemsFromMirror(items, stillBrokenIds) {
+    if (!stillBrokenIds.size) return items;
+    let mirrorDocs;
+    try {
+        await connectToDatabase();
+        mirrorDocs = await AccommodationResidence.find({ propertyId: { $in: Array.from(stillBrokenIds).map(String) } }).lean();
+    } catch {
+        return items;
+    }
+    if (!mirrorDocs.length) return items;
+    const byId = new Map(mirrorDocs.map((d) => [String(d.propertyId), d]));
+    return items.map((raw) => {
+        if (raw && raw.name) return raw;
+        const mirrored = raw && byId.get(String(raw.id));
+        if (!mirrored) return raw;
+        return {
+            id: raw.id,
+            canonical_name: mirrored.slug || null,
+            name: mirrored.propertyName,
+            location: {
+                country: { long_name: mirrored.country || null },
+                locality: { long_name: mirrored.city ? titleCase(mirrored.city) : null },
+            },
+            pricing: { min_price: mirrored.price?.amount ?? null, currency: mirrored.price?.currency ?? null },
+        };
+    });
+}
+
 // Advances one side of the crawl (sold-out or available) by up to
 // `callBudget` real page fetches. Stops early (leaving `done: false`) on any
 // error/skip so the next advance call just resumes from the same page — a
@@ -581,7 +656,43 @@ async function advanceCrawlSide(state, sideKey, availableFlag, callBudget) {
         const json = result?.data;
         if (!json) break; // gateway deliberately skipped (LOW priority, budget tight) — resume next advance
 
-        const items = extractResultArray(json);
+        let items = extractResultArray(json);
+
+        // Amber's own backend intermittently returns a server-side error
+        // stub ({id, _error}, no name/location) for a subset of items on
+        // this unfiltered full-catalog pagination path — a confirmed live
+        // bug in Amber's backend (a Hibernate/JDBC serialization race),
+        // reported to Amber separately; this is a client-side mitigation,
+        // not a fix for their bug. Layer 1: retry the SAME page once.
+        // Confirmed live that a re-fetch moments later often returns
+        // healthy data for previously-broken items — the failure is an
+        // intermittent race, not permanent per-record corruption, so a
+        // retry has a real chance of getting the genuine item. Only spent
+        // when actually needed (a clean page never pays this cost), and
+        // capped at one retry so a bad page can't consume the whole budget.
+        const brokenAfterFirstFetch = items.some((r) => r && !r.name);
+        if (brokenAfterFirstFetch && callsUsed < callBudget) {
+            let retryResult;
+            try {
+                retryResult = await fetchListings({ page: side.nextPage, limit: PAGE_LIMIT, available: availableFlag }, "LOW", `insights-market-crawl-${sideKey}-retry`);
+            } catch {
+                retryResult = null;
+            }
+            callsUsed += 1;
+            const retryItems = retryResult?.data ? extractResultArray(retryResult.data) : [];
+            const healthyRetryById = new Map(retryItems.filter((r) => r && r.name).map((r) => [r.id, r]));
+            items = items.map((r) => (r && !r.name && healthyRetryById.has(r.id) ? healthyRetryById.get(r.id) : r));
+        }
+
+        // Layer 2: whatever's still broken after the retry falls back to
+        // our own AccommodationResidence mirror (see
+        // recoverBrokenItemsFromMirror above) — real Amber data fetched a
+        // different way on an earlier pass, never a guess.
+        const stillBrokenIds = new Set(items.filter((r) => r && !r.name).map((r) => r.id));
+        if (stillBrokenIds.size > 0) {
+            items = await recoverBrokenItemsFromMirror(items, stillBrokenIds);
+        }
+
         const metaCount = Number.isFinite(json?.data?.meta?.count) ? json.data.meta.count : null;
         if (side.expectedTotal == null && metaCount != null) side.expectedTotal = metaCount;
         // Amber's own pagination cursor: null once `current_page` is past its
