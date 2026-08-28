@@ -74,13 +74,6 @@ const businessRoutes = [
     { pattern: "/api/wishlist/:propertyId", handler: require("../api/_lib/routes/wishlist/[propertyId].js") },
     { pattern: "/api/events", handler: require("../api/_lib/routes/content/events/index.js") },
     { pattern: "/api/warm-amber-cache", handler: require("../api/_lib/routes/content/warm-amber-cache.js") },
-    { pattern: "/api/insights/overview", handler: require("../api/_lib/routes/insights/overview.js") },
-    { pattern: "/api/insights/market", handler: require("../api/_lib/routes/insights/market.js") },
-    { pattern: "/api/insights/snapshot-dates", handler: require("../api/_lib/routes/insights/snapshot-dates.js") },
-    { pattern: "/api/insights/snapshot", handler: require("../api/_lib/routes/insights/snapshot.js") },
-    { pattern: "/api/insights/sold-out-trend", handler: require("../api/_lib/routes/insights/sold-out-trend.js") },
-    { pattern: "/api/insights/daily-digest", handler: require("../api/_lib/routes/insights/daily-digest.js") },
-    { pattern: "/api/insights/advance-crawl", handler: require("../api/_lib/routes/insights/advance-crawl.js") },
 ].map((route) => ({
     ...route,
     paramNames: (route.pattern.match(/:([^/]+)/g) || []).map((p) => p.slice(1)),

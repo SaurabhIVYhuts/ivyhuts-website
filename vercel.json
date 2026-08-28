@@ -1,7 +1,6 @@
 {
   "functions": {
-    "api/content/[[...path]].js": { "maxDuration": 30 },
-    "api/insights/[[...path]].js": { "maxDuration": 60 }
+    "api/content/[[...path]].js": { "maxDuration": 30 }
   },
   "rewrites": [
     { "source": "/api/wishlist", "destination": "/api/wishlist/__base__" },
@@ -47,12 +46,6 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
       ]
-    }
-  ],
-  "crons": [
-    {
-      "path": "/api/insights/daily-digest",
-      "schedule": "30 2 * * *"
     }
   ]
 }

@@ -3,6 +3,5 @@ Allow: /
 Disallow: /login
 Disallow: /wishlist
 Disallow: /thank-you
-Disallow: /insight
 
 Sitemap: https://www.ivyhuts.com/sitemap.xml
