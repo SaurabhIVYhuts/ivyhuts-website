@@ -2,10 +2,16 @@ import React from "react";
 import "./LegalPage.css";
 import SiteNavbar from "../../components/layout/SiteNavbar";
 import SiteFooter from "../../components/layout/SiteFooter";
+import Seo from "../../components/Seo";
 
 export default function PrivacyPage() {
   return (
     <div className="legal-page">
+      <Seo
+        title="Privacy Policy"
+        description="How IVYhuts collects, uses, shares and protects your personal data."
+        canonical="/privacy"
+      />
       <SiteNavbar />
 
       <main><div className="legal-hero">

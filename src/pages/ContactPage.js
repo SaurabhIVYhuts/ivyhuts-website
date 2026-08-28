@@ -7,6 +7,7 @@ import { socialLinks } from "../config/socialLinks";
 import { SOCIAL_ICONS } from "../components/icons/SocialIcons";
 import { submitEnquiryToMongo } from "../lib/enquiryApi";
 import { trackFormSubmission } from "../lib/formConversionPixel";
+import Seo from "../components/Seo";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 
@@ -174,6 +175,11 @@ export default function ContactPage() {
 
   return (
     <div className="cp-page">
+      <Seo
+        title="Contact IVYhuts"
+        description="Talk to a real IVYhuts advisor about student accommodation abroad. Free help finding verified rooms in 15+ countries — no booking fees."
+        canonical="/contact"
+      />
       <SiteNavbar />
 
       <main><div className="cp-body">

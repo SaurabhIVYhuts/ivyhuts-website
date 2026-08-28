@@ -16,6 +16,7 @@ import { getProperties } from "../services/amberApi";
 import { safeListingList } from "../services/amberMapper";
 import CompactPropertyCard from "../components/listing/CompactPropertyCard";
 import GlobalSearchBar from "../components/search/GlobalSearchBar";
+import Seo from "../components/Seo";
 
 // --- Static Data for Marketing Sections ---
 const STEPS = [
@@ -81,6 +82,7 @@ function HomePage() {
 
   return (
     <div>
+      <Seo canonical="/" />
 
       <LeadPopup />
 

@@ -5,6 +5,7 @@ import SiteFooter from "../components/layout/SiteFooter";
 import { useWishlist } from "../context/WishlistContext";
 import { takePendingWishlist } from "../lib/pendingWishlist";
 import "./LoginPage.css";
+import Seo from "../components/Seo";
 
 // Milestone 4 — the site's first login/signup UI. No such page existed
 // before this milestone even though the backend auth API (api/auth/*) was
@@ -86,6 +87,7 @@ export default function LoginPage() {
 
   return (
     <div className="lp-page">
+      <Seo title="Sign in" noindex />
       <SiteNavbar />
       <main className="lp-main">
         <div className="lp-card">

@@ -4,6 +4,7 @@ import "./PartnerPage.css";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import { trackFormSubmission } from "../lib/formConversionPixel";
+import Seo from "../components/Seo";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 
@@ -114,6 +115,11 @@ export default function PartnerPage() {
 
   return (
     <div className="pp-page">
+      <Seo
+        title="Partner with IVYhuts"
+        description="Partner with IVYhuts — PBSA operators, landlords, agencies and universities. Refer students, list inventory and grow bookings with a free partnership."
+        canonical="/partner"
+      />
       <SiteNavbar />
 
       <main><div className="pp-hero">

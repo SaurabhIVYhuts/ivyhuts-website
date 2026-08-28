@@ -1,33 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://ivyhuts.com/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://ivyhuts.com/find-rooms</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://ivyhuts.com/life-abroad</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://ivyhuts.com/list-your-stay</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://ivyhuts.com/partner</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://ivyhuts.com/contact</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
+  <!-- Host is www.ivyhuts.com — the apex ivyhuts.com 308-redirects here, so
+       listing the apex (as this file used to) pointed the crawler at a
+       redirect. Only canonical, 200-returning URLs belong here. -->
+  <url><loc>https://www.ivyhuts.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://www.ivyhuts.com/find-rooms</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://www.ivyhuts.com/university-housing</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://www.ivyhuts.com/student-planner</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ivyhuts.com/life-abroad</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ivyhuts.com/list-your-stay</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.ivyhuts.com/partner</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ivyhuts.com/contact</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.ivyhuts.com/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://www.ivyhuts.com/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+
+  <!-- City landing pages that already have crawlable inventory. Each page
+       now emits a unique title/description/canonical, and self-noindexes if
+       its inventory is ever empty — so a city that goes out of stock drops
+       cleanly instead of becoming a soft 404. -->
+  <url><loc>https://www.ivyhuts.com/properties?city=London</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.ivyhuts.com/properties?city=Manchester</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ivyhuts.com/properties?city=Liverpool</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ivyhuts.com/properties?city=Birmingham</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ivyhuts.com/properties?city=Munich</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ivyhuts.com/properties?city=Berlin</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ivyhuts.com/properties?city=Paris</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ivyhuts.com/properties?city=Dublin</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ivyhuts.com/properties?city=Dubai</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
 </urlset>

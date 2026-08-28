@@ -11,6 +11,7 @@ import WishlistHeart from "../components/listing/WishlistHeart";
 import ShareButton from "../components/listing/ShareButton";
 import { trackEvent } from "../lib/eventsApi";
 import { getAmenityIcon } from "../lib/amenityIcons";
+import Seo from "../components/Seo";
 import "./PropertyDetailPage.css";
 
 const PAYMENT_FACT_LABELS = ["Guarantor", "Lease Duration", "Non-Students Allowed"];
@@ -120,6 +121,7 @@ export default function PropertyDetailPage() {
   if (error) {
     return (
       <div className="pdp-page">
+        <Seo title="Property unavailable" noindex />
         <SiteNavbar />
         <div className="pdp-status">
           <h1>We couldn't load this property right now.</h1>
@@ -138,6 +140,7 @@ export default function PropertyDetailPage() {
   if (!property) {
     return (
       <div className="pdp-page">
+        <Seo title="Property not found" noindex />
         <SiteNavbar />
         <div className="pdp-status">
           <h1>Property not found</h1>
@@ -169,8 +172,18 @@ export default function PropertyDetailPage() {
     { id: "map", label: "Map", show: !!coordinates },
   ].filter((s) => s.show);
 
+  const pdpLocation = address.locality || address.country || "";
+  const pdpDescription = `${name}${pdpLocation ? ` in ${pdpLocation}` : ""}. Verified student accommodation${price?.from ? ` from ${price.currency || ""}${price.from}` : ""} — compare rooms, amenities and reviews on IVYhuts.`;
+
   return (
     <div className="pdp-page">
+      <Seo
+        title={pdpLocation ? `${name} — Student Accommodation in ${pdpLocation}` : name}
+        description={pdpDescription}
+        canonical={`/property/${encodeURIComponent(slug)}`}
+        image={images?.[0]?.url || undefined}
+        type="article"
+      />
       <SiteNavbar />
 
       <div className="pdp-breadcrumb">

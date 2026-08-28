@@ -12,6 +12,7 @@ import PropertySection from "./components/sections/PropertySection";
 import BookingSection from "./components/sections/BookingSection";
 import { getInsightsOverview, getInsightsSnapshot, getInsightsSoldOutTrend, InsightsApiError } from "../../services/insightsApi";
 import "./insight-theme.css";
+import Seo from "../../components/Seo";
 
 // Every data endpoint this page calls (api/insights/overview.js, market.js,
 // snapshot.js, snapshot-dates.js) already requires an internal-role session
@@ -27,6 +28,7 @@ function InsightAccessGate({ status }) {
   const loggedOut = status === 401;
   return (
     <div className="insight-app insight-gate">
+      <Seo title="Insights" noindex />
       <div className="insight-gate-card">
         <h1>{loggedOut ? "Sign in required" : "Admin access required"}</h1>
         <p>
@@ -199,6 +201,7 @@ export default function InsightPage() {
 
   return (
     <div className="insight-app">
+      <Seo title="Insights" noindex />
       <InsightSidebar active={activeTab} onSelect={setActiveTab} mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
       <div className="insight-main">
         <InsightHeader onRefresh={handleRefresh} refreshing={refreshing} onOpenMobileMenu={() => setMobileOpen(true)} />

@@ -1,3 +1,8 @@
 User-agent: *
-Disallow:
-Sitemap: https://ivyhuts.com/sitemap.xml
+Allow: /
+Disallow: /login
+Disallow: /wishlist
+Disallow: /thank-you
+Disallow: /insight
+
+Sitemap: https://www.ivyhuts.com/sitemap.xml

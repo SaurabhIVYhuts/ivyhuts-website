@@ -15,6 +15,7 @@ import { applyListingFilters, sortListings, deriveFilterOptions } from "../lib/l
 import useFilterState from "../hooks/useFilterState";
 import PriceRangeSlider from "../components/filters/PriceRangeSlider";
 import "./UniversityHousingPage.css";
+import Seo from "../components/Seo";
 
 // Milestone 22 (IVYHUTS_MILESTONE_22_UNIVERSITY_HOUSING_CANONICAL_UI.md):
 // same BASE_SORT_OPTIONS/DISTANCE_SORT_OPTION split PropertyListingPage.js
@@ -331,6 +332,17 @@ export default function UniversityHousingPage() {
 
   return (
     <div className="uh-page">
+      <Seo
+        title={university
+          ? `Student Accommodation near ${university.name}`
+          : "University Housing: Student Accommodation Near Your Campus"}
+        description={university
+          ? `Verified student accommodation near ${university.name} — compare rooms by distance, price and amenities. Free to use, no booking fees.`
+          : "Find verified student accommodation near your university. Compare rooms by distance, price and amenities across 15+ countries — free, no booking fees."}
+        canonical={university && universityId
+          ? `/university-housing?university=${encodeURIComponent(universityId)}`
+          : "/university-housing"}
+      />
       <SiteNavbar />
 
       <main className="uh-main">
