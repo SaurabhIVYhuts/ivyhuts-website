@@ -1,12 +1,42 @@
 {
   "functions": {
-    "api/amber.js": { "maxDuration": 30 },
-    "api/city-listings.js": { "maxDuration": 30 },
-    "api/student-planner.js": { "maxDuration": 30 },
-    "api/student-planner-ppt.js": { "maxDuration": 15 },
-    "api/insights/advance-crawl.js": { "maxDuration": 30 },
-    "api/insights/daily-digest.js": { "maxDuration": 60 }
+    "api/content/[[...path]].js": { "maxDuration": 30 }
   },
+  "rewrites": [
+    { "source": "/api/wishlist", "destination": "/api/wishlist/__base__" },
+    { "source": "/api/enquiries", "destination": "/api/enquiries/__base__" },
+    { "source": "/api/customers", "destination": "/api/customers/__base__" },
+    { "source": "/api/customers/:id/lifecycle", "destination": "/api/customers/lifecycle--:id" },
+    { "source": "/api/leads", "destination": "/api/leads/__base__" },
+    { "source": "/api/leads/:id/assignment", "destination": "/api/leads/assignment--:id" },
+    { "source": "/api/leads/:id/accommodation-curation", "destination": "/api/leads/accommodation-curation--:id" },
+    { "source": "/api/leads/:id/discovery", "destination": "/api/leads/discovery--:id" },
+    { "source": "/api/leads/:id/whatsapp/messages", "destination": "/api/leads/whatsapp-messages--:id" },
+    { "source": "/api/leads/:id/communications/:communicationId", "destination": "/api/leads/communication-detail--:id--:communicationId" },
+    { "source": "/api/leads/:id/communications", "destination": "/api/leads/communications--:id" },
+    { "source": "/api/leads/:id/follow-ups/:followUpId", "destination": "/api/leads/followup-detail--:id--:followUpId" },
+    { "source": "/api/leads/:id/follow-ups", "destination": "/api/leads/follow-ups--:id" },
+    { "source": "/api/leads/:id/meetings/:meetingId", "destination": "/api/leads/meeting-detail--:id--:meetingId" },
+    { "source": "/api/leads/:id/meetings", "destination": "/api/leads/meetings--:id" },
+    { "source": "/api/leads/:id/presentations/:presentationId/download", "destination": "/api/leads/presentation-download--:id--:presentationId" },
+    { "source": "/api/leads/:id/presentations/:presentationId", "destination": "/api/leads/presentation-detail--:id--:presentationId" },
+    { "source": "/api/leads/:id/presentations", "destination": "/api/leads/presentations--:id" },
+    { "source": "/api/amber", "destination": "/api/content/amber" },
+    { "source": "/api/city-listings", "destination": "/api/content/city-listings" },
+    { "source": "/api/country-listings", "destination": "/api/content/country-listings" },
+    { "source": "/api/search", "destination": "/api/content/search" },
+    { "source": "/api/search-data", "destination": "/api/content/search-data" },
+    { "source": "/api/university-housing/inventory", "destination": "/api/content/__university-housing-inventory__" },
+    { "source": "/api/student-planner", "destination": "/api/content/student-planner" },
+    { "source": "/api/student-planner-ppt", "destination": "/api/content/student-planner-ppt" },
+    { "source": "/api/enquire", "destination": "/api/content/enquire" },
+    { "source": "/api/events", "destination": "/api/content/events" },
+    { "source": "/api/warm-amber-cache", "destination": "/api/content/warm-amber-cache" },
+    { "source": "/api/properties/search", "destination": "/api/crm-tools/__properties-search__" },
+    { "source": "/api/universities/resolve", "destination": "/api/crm-tools/__universities-resolve__" },
+    { "source": "/api/staff", "destination": "/api/crm-tools/staff" },
+    { "source": "/api/admin/accommodation/inventory-health", "destination": "/api/crm-tools/__admin-inventory-health__" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -19,18 +49,6 @@
     }
   ],
   "crons": [
-    {
-      "path": "/api/warm-amber-cache",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/insights/advance-crawl",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/insights/daily-digest",
-      "schedule": "30 2 * * *"
-    },
     {
       "path": "/api/leads/import/sync-cron",
       "schedule": "*/15 * * * *"

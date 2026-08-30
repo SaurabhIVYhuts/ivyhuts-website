@@ -90,10 +90,10 @@ async function main() {
 
     const userStore = require(path.join(ROOT, "api", "_lib", "userStore"));
     const session = require(path.join(ROOT, "api", "_lib", "session"));
-    const signupHandler = require(path.join(ROOT, "api", "auth", "signup"));
-    const loginHandler = require(path.join(ROOT, "api", "auth", "login"));
-    const logoutHandler = require(path.join(ROOT, "api", "auth", "logout"));
-    const meHandler = require(path.join(ROOT, "api", "auth", "me"));
+    const signupHandler = require(path.join(ROOT, "api", "_lib", "routes", "auth", "signup"));
+    const loginHandler = require(path.join(ROOT, "api", "_lib", "routes", "auth", "login"));
+    const logoutHandler = require(path.join(ROOT, "api", "_lib", "routes", "auth", "logout"));
+    const meHandler = require(path.join(ROOT, "api", "_lib", "routes", "auth", "me"));
 
     const suffix = Date.now();
     const testEmail = `verify-${suffix}@example.test`;
@@ -359,7 +359,7 @@ async function main() {
     await test("Redis configured-but-unreachable fails closed with 503 (never silently falls back)", async () => {
         const inlineScript = `
             const path = require("path");
-            const login = require(path.join(process.cwd(), "api", "auth", "login.js"));
+            const login = require(path.join(process.cwd(), "api", "_lib", "routes", "auth", "login.js"));
             (async () => {
                 const req = { method: "POST", body: { email: "whoever@example.test", password: "whatever-12345" }, headers: {}, socket: { remoteAddress: "127.0.0.1" } };
                 const res = { statusCode: 200, headers: {}, status(c){this.statusCode=c;return this;}, json(b){this.body=b;return this;}, setHeader(k,v){this.headers[k]=v;} };

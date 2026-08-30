@@ -248,7 +248,7 @@ async function main() {
             const src = fs.readFileSync(path.join(ROOT, "api", "_lib", f), "utf8");
             assert.ok(!/velbert|heiligenhaus|bochum|cvh\b/i.test(src));
         });
-        const amberJsSrc = fs.readFileSync(path.join(ROOT, "api", "amber.js"), "utf8");
+        const amberJsSrc = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "amber.js"), "utf8");
         assert.ok(!/velbert|heiligenhaus|bochum|cvh\b/i.test(amberJsSrc));
     });
     await test("AMBER ISOLATION: loading/resolving the curated dataset (including this campus) makes ZERO fetch() calls", () => {

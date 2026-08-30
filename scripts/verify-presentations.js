@@ -103,9 +103,9 @@ async function main() {
     console.log("=== IvyHuts Presentations Verification (Milestone 23.8) ===");
     console.log("Redis: forced in-memory fallback for this run.\n");
 
-    const listHandler = require(path.join(ROOT, "api", "leads", "[id]", "presentations", "index.js"));
-    const singleHandler = require(path.join(ROOT, "api", "leads", "[id]", "presentations", "[presentationId]", "index.js"));
-    const downloadHandler = require(path.join(ROOT, "api", "leads", "[id]", "presentations", "[presentationId]", "download.js"));
+    const listHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "index.js"));
+    const singleHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "[presentationId]", "index.js"));
+    const downloadHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "[presentationId]", "download.js"));
     const {
         normalizeAccommodationCurationForPresentation,
         normalizeProperty,
@@ -121,9 +121,9 @@ async function main() {
             path.join(ROOT, "api", "_lib", "models", "Presentation.js"),
             path.join(ROOT, "api", "_lib", "pptNormalizeAccommodation.js"),
             path.join(ROOT, "api", "_lib", "pptBuilderAccommodation.js"),
-            path.join(ROOT, "api", "leads", "[id]", "presentations", "index.js"),
-            path.join(ROOT, "api", "leads", "[id]", "presentations", "[presentationId]", "index.js"),
-            path.join(ROOT, "api", "leads", "[id]", "presentations", "[presentationId]", "download.js"),
+            path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "index.js"),
+            path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "[presentationId]", "index.js"),
+            path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "[presentationId]", "download.js"),
         ];
         files.forEach((f) => assert.ok(!/\bamber\b/i.test(stripComments(fs.readFileSync(f, "utf8"))), `${f} must not reference Amber outside comments`));
     });
@@ -299,7 +299,7 @@ async function main() {
         const fs = require("fs");
         const src1 = fs.readFileSync(path.join(ROOT, "api", "_lib", "pptNormalizeAccommodation.js"), "utf8");
         const src2 = fs.readFileSync(path.join(ROOT, "api", "_lib", "pptBuilderAccommodation.js"), "utf8");
-        const src3 = fs.readFileSync(path.join(ROOT, "api", "leads", "[id]", "presentations", "index.js"), "utf8");
+        const src3 = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "index.js"), "utf8");
         assert.ok(!src1.includes("extractedRequirements"));
         assert.ok(!src2.includes("extractedRequirements"));
         assert.ok(!src3.includes("extractedRequirements"), "the presentation route must fetch confirmed Discovery only, never a meeting's pending suggestion");
@@ -370,10 +370,10 @@ async function main() {
         const Presentation = require(path.join(ROOT, "api", "_lib", "models", "Presentation"));
         const Discovery = require(path.join(ROOT, "api", "_lib", "models", "Discovery"));
         const Meeting = require(path.join(ROOT, "api", "_lib", "models", "Meeting"));
-        const accommodationCurationHandler = require(path.join(ROOT, "api", "leads", "[id]", "accommodation-curation.js"));
-        const discoveryHandler = require(path.join(ROOT, "api", "leads", "[id]", "discovery.js"));
-        const meetingsListHandler = require(path.join(ROOT, "api", "leads", "[id]", "meetings", "index.js"));
-        const extractRequirementsHandler = require(path.join(ROOT, "api", "leads", "[id]", "meetings", "[meetingId]", "extract-requirements.js"));
+        const accommodationCurationHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "accommodation-curation.js"));
+        const discoveryHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "discovery.js"));
+        const meetingsListHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "meetings", "index.js"));
+        const extractRequirementsHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "meetings", "[meetingId]", "extract-requirements.js"));
         const transcriptExtraction = require(path.join(ROOT, "api", "_lib", "transcriptExtraction"));
 
         await connectToDatabase();
@@ -788,7 +788,7 @@ async function main() {
                 preferredLocation: "City centre", roomPreference: "Ensuite", sharing: 2, distancePreference: "Walking distance to campus",
                 priorities: ["budget", "distance"], notes: "Prefers a quiet building.",
             });
-            const extractPath = require.resolve(path.join(ROOT, "api", "leads", "[id]", "meetings", "[meetingId]", "extract-requirements.js"));
+            const extractPath = require.resolve(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "meetings", "[meetingId]", "extract-requirements.js"));
             delete require.cache[extractPath];
             try {
                 const patchedHandler = require(extractPath);

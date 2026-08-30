@@ -204,7 +204,7 @@ async function main() {
     await test("TEST 14: pagination — current real scale does not require server-side pagination (documented, not assumed)", () => {
         const indexSrc = fs.readFileSync(path.join(ROOT, "api", "_lib", "accommodationIndex.js"), "utf8");
         assert.ok(!/\.limit\(\d+\)/.test(indexSrc), "getCitiesListings()/getCityListings() must not silently cap results with a Mongo .limit()");
-        const countrySrc = fs.readFileSync(path.join(ROOT, "api", "country-listings.js"), "utf8");
+        const countrySrc = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "country-listings.js"), "utf8");
         assert.ok(!/\bpage\b|\bskip\b|\blimit\b/i.test(countrySrc), "the country-listings route must not have grown pagination params — the no-pagination decision is a deliberate, current design choice, not an oversight");
     });
 

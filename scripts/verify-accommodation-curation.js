@@ -103,14 +103,14 @@ async function main() {
     console.log("=== IvyHuts Accommodation Curation Verification (Milestone 23.6) ===");
     console.log("Redis: forced in-memory fallback for this run.\n");
 
-    const handler = require(path.join(ROOT, "api", "leads", "[id]", "accommodation-curation.js"));
+    const handler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "accommodation-curation.js"));
 
     // ══════════════════════ STRUCTURAL ══════════════════════
     await test("STRUCTURAL: no reference to Amber anywhere in the model or route (comments excluded — the header comments explain why Amber is excluded, which itself contains the word)", () => {
         const fs = require("fs");
         const stripComments = (src) => src.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
         const modelSrc = stripComments(fs.readFileSync(path.join(ROOT, "api", "_lib", "models", "AccommodationCuration.js"), "utf8"));
-        const routeSrc = stripComments(fs.readFileSync(path.join(ROOT, "api", "leads", "[id]", "accommodation-curation.js"), "utf8"));
+        const routeSrc = stripComments(fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "accommodation-curation.js"), "utf8"));
         assert.ok(!/\bamber\b/i.test(modelSrc), "AccommodationCuration.js must not reference Amber outside comments");
         assert.ok(!/\bamber\b/i.test(routeSrc), "accommodation-curation.js route must not reference Amber outside comments");
     });
@@ -227,7 +227,7 @@ async function main() {
         const User = require(path.join(ROOT, "api", "_lib", "models", "User"));
         const AccommodationCuration = require(path.join(ROOT, "api", "_lib", "models", "AccommodationCuration"));
         const Discovery = require(path.join(ROOT, "api", "_lib", "models", "Discovery"));
-        const discoveryHandler = require(path.join(ROOT, "api", "leads", "[id]", "discovery.js"));
+        const discoveryHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "discovery.js"));
 
         await connectToDatabase();
         console.log("\nMongoDB connection established for live verification.\n");

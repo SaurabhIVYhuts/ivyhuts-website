@@ -47,7 +47,7 @@ async function main() {
     const CAMPUS_UNIVERSITIES = require(path.join(ROOT, "src", "data", "campusUniversities.json"));
     const { resolveUniversityByName, resolveUniversityById } = require(path.join(ROOT, "api", "_lib", "universityResolver"));
     const { haversineKm, attachRankingDistance, rankResidences, applyRadius } = require(path.join(ROOT, "api", "_lib", "accommodationIndex"));
-    const plannerHandler = require(path.join(ROOT, "api", "student-planner"));
+    const plannerHandler = require(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner"));
 
     // ══════════════════════════ DATASET (item 2/4/20) ══════════════════════════
     for (const [label, dataset] of [["src/data/universities.json", UNIVERSITIES_FRONTEND], ["api/_lib/universities.json", UNIVERSITIES_BACKEND], ["src/data/campusUniversities.json", CAMPUS_UNIVERSITIES]]) {
@@ -174,7 +174,7 @@ async function main() {
         assert.strictEqual(typeof plannerHandler.buildDegreeResult, "function");
     });
     await test("STRUCTURAL: api/student-planner.js's university-derived-city fallback (effectiveCity) is the single, university-agnostic line Derby relies on — no Derby-specific branch was added", () => {
-        const src = require("fs").readFileSync(path.join(ROOT, "api", "student-planner.js"), "utf8");
+        const src = require("fs").readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner.js"), "utf8");
         assert.ok(/effectiveCity\s*=\s*\(city[^;]*\|\|\s*\(university\s*&&\s*university\.city\)/.test(src));
         assert.ok(!/derby/i.test(src), "api/student-planner.js must contain zero Derby-specific logic");
     });
@@ -184,7 +184,7 @@ async function main() {
     await test("STRUCTURAL: no Derby-specific conditional, bypass, or new endpoint exists anywhere in the accommodation pipeline (e.g. `if (city === \"Derby\")`, `/api/derby-housing`)", () => {
         const files = [
             path.join(ROOT, "api", "_lib", "accommodationIndex.js"),
-            path.join(ROOT, "api", "student-planner.js"),
+            path.join(ROOT, "api", "_lib", "routes", "content", "student-planner.js"),
             path.join(ROOT, "src", "pages", "UniversityHousingPage.js"),
         ];
         files.forEach((f) => {
@@ -199,12 +199,12 @@ async function main() {
             const src = fs.readFileSync(path.join(ROOT, "api", "_lib", f), "utf8");
             assert.ok(!/derby/i.test(src));
         });
-        const amberJsSrc = fs.readFileSync(path.join(ROOT, "api", "amber.js"), "utf8");
+        const amberJsSrc = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "amber.js"), "utf8");
         assert.ok(!/derby/i.test(amberJsSrc));
     });
     await test("STRUCTURAL: no direct fetch() to Amber exists in api/student-planner.js or accommodationIndex.js — both only ever call fetchListings()/fetchAmber() from amberGateway.js", () => {
         const files = [
-            path.join(ROOT, "api", "student-planner.js"),
+            path.join(ROOT, "api", "_lib", "routes", "content", "student-planner.js"),
             path.join(ROOT, "api", "_lib", "accommodationIndex.js"),
         ];
         files.forEach((f) => {

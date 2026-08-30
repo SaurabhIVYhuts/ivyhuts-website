@@ -46,7 +46,7 @@ async function main() {
     const CAMPUS_UNIVERSITIES = require(path.join(ROOT, "src", "data", "campusUniversities.json"));
     const { resolveUniversityByName, resolveUniversityById } = require(path.join(ROOT, "api", "_lib", "universityResolver"));
     const { haversineKm, attachRankingDistance, rankResidences } = require(path.join(ROOT, "api", "_lib", "accommodationIndex"));
-    const plannerHandler = require(path.join(ROOT, "api", "student-planner"));
+    const plannerHandler = require(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner"));
 
     // ══════════════════════════ DATASET ══════════════════════════
     for (const [label, dataset] of [["src/data/universities.json", UNIVERSITIES_FRONTEND], ["api/_lib/universities.json", UNIVERSITIES_BACKEND], ["src/data/campusUniversities.json", CAMPUS_UNIVERSITIES]]) {
@@ -164,7 +164,7 @@ async function main() {
         assert.strictEqual(typeof plannerHandler.buildDegreeResult, "function");
     });
     await test("STRUCTURAL: api/student-planner.js's university-derived-city fallback (effectiveCity) applies uniformly — UOWD relies on the exact same fallback line as every other university, not a Dubai-specific branch", () => {
-        const src = require("fs").readFileSync(path.join(ROOT, "api", "student-planner.js"), "utf8");
+        const src = require("fs").readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner.js"), "utf8");
         assert.ok(/effectiveCity\s*=\s*\(city[^;]*\|\|\s*\(university\s*&&\s*university\.city\)/.test(src), "expected the single, university-agnostic effectiveCity fallback to still be present and unmodified");
     });
 
@@ -173,7 +173,7 @@ async function main() {
     await test("STRUCTURAL: no Dubai-specific conditional or bypass exists anywhere in the accommodation pipeline (e.g. `if (city === \"Dubai\")`)", () => {
         const files = [
             path.join(ROOT, "api", "_lib", "accommodationIndex.js"),
-            path.join(ROOT, "api", "student-planner.js"),
+            path.join(ROOT, "api", "_lib", "routes", "content", "student-planner.js"),
             path.join(ROOT, "src", "pages", "UniversityHousingPage.js"),
         ];
         files.forEach((f) => {
@@ -190,7 +190,7 @@ async function main() {
             const src = fs.readFileSync(path.join(ROOT, "api", "_lib", f), "utf8");
             assert.ok(!/wollongong|uowd/i.test(src));
         });
-        const amberJsSrc = fs.readFileSync(path.join(ROOT, "api", "amber.js"), "utf8");
+        const amberJsSrc = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "amber.js"), "utf8");
         assert.ok(!/wollongong|uowd/i.test(amberJsSrc));
     });
 

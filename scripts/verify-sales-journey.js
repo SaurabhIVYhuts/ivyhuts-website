@@ -81,7 +81,7 @@ async function main() {
         const Presentation = require(path.join(ROOT, "api", "_lib", "models", "Presentation"));
         const Communication = require(path.join(ROOT, "api", "_lib", "models", "Communication"));
         const FollowUp = require(path.join(ROOT, "api", "_lib", "models", "FollowUp"));
-        const leadHandler = require(path.join(ROOT, "api", "leads", "[id].js"));
+        const leadHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id].js"));
 
         await connectToDatabase();
         console.log("\nMongoDB connection established for live verification.\n");

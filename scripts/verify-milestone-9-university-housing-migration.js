@@ -257,7 +257,7 @@ async function main() {
 
     // ══════════════════════ TEST 21 ══════════════════════
     await test("TEST 21: filtering remains entirely client-side/user-opt-in — the new endpoint takes no filter params", () => {
-        const endpointSrc = fs.readFileSync(path.join(ROOT, "api", "university-housing", "inventory.js"), "utf8");
+        const endpointSrc = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "university-housing", "inventory.js"), "utf8");
         assert.ok(!/req\.query\.(price|room|available|filter)/i.test(endpointSrc), "the canonical inventory endpoint must not apply server-side filtering — that stays a frontend, user-opt-in concern, unchanged");
     });
 

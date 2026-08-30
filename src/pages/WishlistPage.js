@@ -5,6 +5,7 @@ import SiteFooter from "../components/layout/SiteFooter";
 import ListingCard from "../components/listing/ListingCard";
 import { useWishlist } from "../context/WishlistContext";
 import "./WishlistPage.css";
+import Seo from "../components/Seo";
 
 // Adapts a Wishlist item (the stored snapshot shape — propertyId/slug/city/
 // propertyName/image/price/addedAt, see api/_lib/models/Wishlist.js and
@@ -70,6 +71,7 @@ export default function WishlistPage() {
 
   return (
     <div className="wishlist-page">
+      <Seo title="Your wishlist" noindex />
       <SiteNavbar />
       <main className="wishlist-main">
         <h1 className="wishlist-title">My Wishlist</h1>

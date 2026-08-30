@@ -201,7 +201,7 @@ async function main() {
 
     // ══════════════════════ TEST 17 ══════════════════════
     await test("TEST 17: Planner integration is unaffected (never depended on Find Room's frontend code)", () => {
-        const plannerSrc = fs.readFileSync(path.join(ROOT, "api", "student-planner.js"), "utf8");
+        const plannerSrc = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner.js"), "utf8");
         assert.ok(!/PropertyListingPage|find-rooms/i.test(plannerSrc));
     });
 

@@ -103,15 +103,15 @@ async function main() {
     const Communication = require(path.join(ROOT, "api", "_lib", "models", "Communication"));
     const UserEvent = require(path.join(ROOT, "api", "_lib", "models", "UserEvent"));
 
-    const leadsIndex = require(path.join(ROOT, "api", "leads", "index.js"));
-    const leadsDetail = require(path.join(ROOT, "api", "leads", "[id].js"));
-    const customersDetail = require(path.join(ROOT, "api", "customers", "[id].js"));
-    const customersIndex = require(path.join(ROOT, "api", "customers", "index.js"));
+    const leadsIndex = require(path.join(ROOT, "api", "_lib", "routes", "leads", "index.js"));
+    const leadsDetail = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id].js"));
+    const customersDetail = require(path.join(ROOT, "api", "_lib", "routes", "customers", "[id].js"));
+    const customersIndex = require(path.join(ROOT, "api", "_lib", "routes", "customers", "index.js"));
 
-    const insightsOverview = require(path.join(ROOT, "api", "insights", "overview.js"));
-    const insightsMarket = require(path.join(ROOT, "api", "insights", "market.js"));
-    const insightsSnapshot = require(path.join(ROOT, "api", "insights", "snapshot.js"));
-    const insightsSnapshotDates = require(path.join(ROOT, "api", "insights", "snapshot-dates.js"));
+    const insightsOverview = require(path.join(ROOT, "api", "_lib", "routes", "insights", "overview.js"));
+    const insightsMarket = require(path.join(ROOT, "api", "_lib", "routes", "insights", "market.js"));
+    const insightsSnapshot = require(path.join(ROOT, "api", "_lib", "routes", "insights", "snapshot.js"));
+    const insightsSnapshotDates = require(path.join(ROOT, "api", "_lib", "routes", "insights", "snapshot-dates.js"));
 
     await connectToDatabase();
     console.log(`MongoDB connection established (local, throwaway: ${dbName}).\n`);

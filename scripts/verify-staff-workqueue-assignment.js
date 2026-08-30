@@ -62,13 +62,13 @@ async function main() {
     console.log("=== Staff / Assignment-Summary / Work-Queue Verification ===");
     console.log("Redis: forced in-memory fallback for this run.\n");
 
-    const staffHandler = require(path.join(ROOT, "api", "staff.js"));
-    const assignmentSummaryHandler = require(path.join(ROOT, "api", "leads", "assignment-summary.js"));
-    const workQueueHandler = require(path.join(ROOT, "api", "leads", "work-queue.js"));
+    const staffHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "staff.js"));
+    const assignmentSummaryHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "assignment-summary.js"));
+    const workQueueHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "work-queue.js"));
 
     await test("STRUCTURAL: all three call withCors", () => {
         const fs = require("fs");
-        for (const f of ["api/staff.js", "api/leads/assignment-summary.js", "api/leads/work-queue.js"]) {
+        for (const f of ["api/_lib/routes/crm-tools/staff.js", "api/_lib/routes/leads/assignment-summary.js", "api/_lib/routes/leads/work-queue.js"]) {
             const src = fs.readFileSync(path.join(ROOT, f), "utf8");
             assert.ok(src.includes("withCors("), `${f} must call withCors`);
             assert.ok(src.includes("requireRole("), `${f} must call requireRole`);
@@ -384,14 +384,14 @@ async function main() {
 
         await test("WORK-QUEUE: Lead.score is never referenced anywhere in the bucket/priority logic (structural — no invented scoring algorithm)", () => {
             const fs = require("fs");
-            const src = fs.readFileSync(path.join(ROOT, "api", "leads", "work-queue.js"), "utf8");
+            const src = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "leads", "work-queue.js"), "utf8");
             const stripComments = src.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
             assert.ok(!/\$score|"\$?score"|\.score\b/.test(stripComments.replace(/lastInboundCommunicationAt|scoreMin|scoreMax/g, "")), "work-queue.js must never read Lead.score for bucket derivation");
         });
 
         await test("WORK-QUEUE: no N+1 — exactly one Lead.aggregate-driven response per call regardless of lead count (structural: only two aggregate() calls in the whole handler)", () => {
             const fs = require("fs");
-            const src = fs.readFileSync(path.join(ROOT, "api", "leads", "work-queue.js"), "utf8");
+            const src = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "leads", "work-queue.js"), "utf8");
             const matches = src.match(/Lead\.aggregate\(/g) || [];
             assert.strictEqual(matches.length, 2, "exactly one aggregate for summary, one for the paginated leads — never one query per lead");
         });

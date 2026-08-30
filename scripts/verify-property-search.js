@@ -100,7 +100,7 @@ async function main() {
     });
 
     await test("14/15. STRUCTURAL: the route handler never reads a provider URL, endpoint, or credential field from the request", () => {
-        const src = read(path.join("api", "properties", "search.js"));
+        const src = read(path.join("api", "_lib", "routes", "crm-tools", "properties-search.js"));
         assert.ok(!/query\.(providerUrl|providerEndpoint|apiKey|credential|url)\b/i.test(src), "the route must never accept a client-supplied provider URL/credential");
     });
 
@@ -254,7 +254,7 @@ async function main() {
     });
 
     // ══════════════════ VALIDATION (4/5/6) — pure, no Mongo/auth needed ══════════════════
-    const searchHandlerForValidation = require(path.join(ROOT, "api", "properties", "search.js"));
+    const searchHandlerForValidation = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "properties-search.js"));
     await test("4. missing university -> throws VALIDATION_ERROR (pure parseCriteria)", () => {
         assert.throws(() => searchHandlerForValidation.parseCriteria({ budgetMin: "150", sharing: "2" }), (err) => err.code === "VALIDATION_ERROR");
     });
@@ -293,7 +293,7 @@ async function main() {
             const userStore = require(path.join(ROOT, "api", "_lib", "userStore"));
             const session = require(path.join(ROOT, "api", "_lib", "session"));
             const { resolveMongoUser } = require(path.join(ROOT, "api", "_lib", "businessAuth"));
-            const searchHandler = require(path.join(ROOT, "api", "properties", "search.js"));
+            const searchHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "properties-search.js"));
 
             await connectToDatabase();
             console.log("\nMongoDB connection established for live requireRole verification.\n");

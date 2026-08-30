@@ -2,10 +2,16 @@ import React from "react";
 import "./LegalPage.css";
 import SiteNavbar from "../../components/layout/SiteNavbar";
 import SiteFooter from "../../components/layout/SiteFooter";
+import Seo from "../../components/Seo";
 
 export default function TermsPage() {
   return (
     <div className="legal-page">
+      <Seo
+        title="Terms of Service"
+        description="The terms governing your use of IVYhuts' student accommodation search and referral service."
+        canonical="/terms"
+      />
       <SiteNavbar />
 
       <main><div className="legal-hero">

@@ -96,9 +96,18 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  /* `clip`, not `hidden` — same reasoning as #root below. Per the CSS
+     Overflow spec's overflow-x/overflow-y pairing rule, a non-"visible"
+     overflow-x with overflow-y left at its default "visible" forces
+     overflow-y to compute as "auto" too, turning <body> into a scroll
+     container it never actually scrolls (the real document scroll happens
+     on <html>). That silently broke position:sticky for .navbar (and any
+     other sticky descendant) site-wide — the navbar just rode along with
+     page scroll instead of pinning to the viewport. `clip` doesn't trigger
+     that pairing, so it blocks horizontal overflow without the side effect. */
+  overflow-x: clip;
 }
-html { overflow-x: hidden; }
+html { overflow-x: clip; }
 #root { max-width: 100%; overflow-x: clip; }
 
 h1, h2, h3, h4, h5, h6 {

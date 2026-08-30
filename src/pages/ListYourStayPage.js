@@ -4,6 +4,7 @@ import "./ListYourStayPage.css";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import { trackFormSubmission } from "../lib/formConversionPixel";
+import Seo from "../components/Seo";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 
@@ -554,6 +555,11 @@ export default function ListYourStayPage() {
 
   return (
     <div className="lst-page">
+      <Seo
+        title="List Your Student Property"
+        description="List your student accommodation on IVYhuts and reach thousands of verified international students. Free to list, no commission on enquiries."
+        canonical="/list-your-stay"
+      />
       <SiteNavbar />
 
       <main>

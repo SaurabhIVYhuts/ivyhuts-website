@@ -112,15 +112,15 @@ async function main() {
     const Enquiry = require(path.join(ROOT, "api", "_lib", "models", "Enquiry"));
     const UserEvent = require(path.join(ROOT, "api", "_lib", "models", "UserEvent"));
 
-    const customersIndex = require(path.join(ROOT, "api", "customers", "index.js"));
-    const customersMe = require(path.join(ROOT, "api", "customers", "me.js"));
-    const customersDetail = require(path.join(ROOT, "api", "customers", "[id].js"));
-    const customersLifecycle = require(path.join(ROOT, "api", "customers", "[id]", "lifecycle.js"));
-    const leadsIndex = require(path.join(ROOT, "api", "leads", "index.js"));
-    const leadsDetail = require(path.join(ROOT, "api", "leads", "[id].js"));
-    const leadsAssignment = require(path.join(ROOT, "api", "leads", "[id]", "assignment.js"));
-    const enquiriesIndex = require(path.join(ROOT, "api", "enquiries", "index.js"));
-    const enquiriesDetail = require(path.join(ROOT, "api", "enquiries", "[id].js"));
+    const customersIndex = require(path.join(ROOT, "api", "_lib", "routes", "customers", "index.js"));
+    const customersMe = require(path.join(ROOT, "api", "_lib", "routes", "customers", "me.js"));
+    const customersDetail = require(path.join(ROOT, "api", "_lib", "routes", "customers", "[id].js"));
+    const customersLifecycle = require(path.join(ROOT, "api", "_lib", "routes", "customers", "[id]", "lifecycle.js"));
+    const leadsIndex = require(path.join(ROOT, "api", "_lib", "routes", "leads", "index.js"));
+    const leadsDetail = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id].js"));
+    const leadsAssignment = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "assignment.js"));
+    const enquiriesIndex = require(path.join(ROOT, "api", "_lib", "routes", "enquiries", "index.js"));
+    const enquiriesDetail = require(path.join(ROOT, "api", "_lib", "routes", "enquiries", "[id].js"));
 
     await connectToDatabase();
     console.log("MongoDB connection established for live verification.\n");

@@ -4,6 +4,7 @@ import "./LifeAbroadPage.css";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
 import { countryIsoCode } from "../data/destinations";
+import Seo from "../components/Seo";
 
 const COUNTRIES = [
   { name: "All", flag: "🌍" },
@@ -123,6 +124,11 @@ function LifeAbroadPage() {
 
   return (
     <div className="la-page">
+      <Seo
+        title="Life Abroad: Student Guides & Placement Stories"
+        description="Real placement stories, city guides and practical advice for international students moving abroad — visas, banking, SIM cards and settling in."
+        canonical="/life-abroad"
+      />
       <SiteNavbar />
 
       {/* Hero */}

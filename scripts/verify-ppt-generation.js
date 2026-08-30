@@ -206,7 +206,7 @@ async function main() {
         return originalFetch(url, opts);
     };
 
-    const pptHandler = require(path.join(ROOT, "api", "student-planner-ppt"));
+    const pptHandler = require(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner-ppt"));
 
     function mockReqRes({ method = "POST", body }) {
         const req = { method, headers: { "content-type": "application/json" }, body };
@@ -595,7 +595,7 @@ async function main() {
     });
     await test("AMBER SAFETY: api/student-planner-ppt.js never imports amberGateway/accommodationIndex/mongodb (structural)", () => {
         const fs = require("fs");
-        const src = fs.readFileSync(path.join(ROOT, "api", "student-planner-ppt.js"), "utf8");
+        const src = fs.readFileSync(path.join(ROOT, "api", "_lib", "routes", "content", "student-planner-ppt.js"), "utf8");
         assert.ok(!/require\(.*amberGateway/.test(src));
         assert.ok(!/require\(.*accommodationIndex/.test(src));
         assert.ok(!/require\(.*mongodb/.test(src));

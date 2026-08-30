@@ -19,8 +19,8 @@ const UniversityHousingPage    = lazy(() => import("./pages/UniversityHousingPag
 const PartnerPage              = lazy(() => import("./pages/PartnerPage"));
 const TermsPage                = lazy(() => import("./pages/legal/TermsPage"));
 const PrivacyPage              = lazy(() => import("./pages/legal/PrivacyPage"));
-const InsightPage              = lazy(() => import("./pages/insight/InsightPage"));
 const ThankYouPage             = lazy(() => import("./pages/ThankYouPage"));
+const NotFoundPage             = lazy(() => import("./pages/NotFoundPage"));
 
 /* ── DEDICATED MAP ROUTES — /properties/map and /find-rooms/map are thin
    redirects onto the SAME PropertyListingPage + ?view=map query param every
@@ -116,9 +116,12 @@ function App() {
             <Route path="/properties" element={<FindRoomCompatibilityRoute />} />
             <Route path="/properties/map" element={<MapRouteRedirect />} />
             <Route path="/find-rooms/map" element={<MapRouteRedirect />} />
-            <Route path="/insight"    element={<InsightPage />} />
             {/* Not linked from navbar/footer/sitemap — reached only via a successful form-submission redirect */}
             <Route path="/thank-you"  element={<ThankYouPage />} />
+            {/* Catch-all: any unmatched URL renders a real not-found page with
+                <meta robots noindex> instead of a blank HTTP-200 shell (which
+                Search Console reports as "Soft 404"). */}
+            <Route path="*"           element={<NotFoundPage />} />
           </Routes>
         </Suspense>
         <MobileBottomNav />

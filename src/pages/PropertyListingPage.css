@@ -3,6 +3,25 @@
    Reuses the global palette/typography; no new design language.
    ═══════════════════════════════════════════════════════ */
 
+/* This page is the only one that wraps <SiteNavbar/> in its own div (the
+   `.desktop-only` utility, for the mobile-hides-desktop-nav swap) instead of
+   rendering it as a direct sibling like every other page does. A plain block
+   wrapper whose only child is the navbar has no height of its own beyond the
+   navbar's 68px — which gives .navbar's `position: sticky` zero room to
+   stick within ITS containing block (a sticky element can't move beyond its
+   own parent's box), so it just scrolls away with the page instead of
+   pinning to the viewport. `display: contents` removes the wrapper from the
+   box model at desktop widths (where it isn't display:none'd already),
+   so the navbar's effective containing block becomes .properties-page-wrap
+   (the full page height) instead — the same relationship every other page
+   already has. The existing `@media (max-width:767.98px) { .desktop-only {
+   display:none !important } }` rule still wins on mobile regardless of
+   ordering, since !important beats a non-important rule of equal
+   specificity. */
+.plp-navbar-wrap {
+  display: contents;
+}
+
 .listings-page {
   padding: var(--space-3) 20px 72px;
   max-width: var(--container-max);

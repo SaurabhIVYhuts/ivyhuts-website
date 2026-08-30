@@ -14,6 +14,7 @@ import LivingExpenses from "../components/planner/LivingExpenses";
 import DegreeCareerSection from "../components/planner/DegreeCareerSection";
 import CareerReadinessSection from "../components/planner/CareerReadinessSection";
 import { buildMockPlannerResult } from "../lib/plannerMock";
+import Seo from "../components/Seo";
 import "./StudentPlannerPage.css";
 
 const ROOM_TYPE_OPTIONS = ["Studio", "Ensuite", "Shared Twin", "Private Studio"];
@@ -263,6 +264,11 @@ export default function StudentPlannerPage() {
 
   return (
     <div className="sp-page">
+      <Seo
+        title="Student Planner: Plan Your Study Abroad Journey"
+        description="Plan your study-abroad journey with IVYhuts — compare universities, degrees, living costs, housing and career outcomes in one place."
+        canonical="/student-planner"
+      />
       <SiteNavbar />
 
       <main className="sp-main">

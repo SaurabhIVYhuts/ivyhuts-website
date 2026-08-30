@@ -21,6 +21,7 @@ import CityCard from "../components/cards/CityCard";
 import PriceRangeSlider from "../components/filters/PriceRangeSlider";
 import MobileFilterSheet from "../components/filters/MobileFilterSheet";
 import MapListingRow from "../components/map/MapListingRow";
+import Seo from "../components/Seo";
 import "./PropertyListingPage.css";
 
 // Leaflet + the clustering plugin are a genuinely large dependency (tens of
@@ -429,6 +430,60 @@ export default function PropertyListingPage() {
     return sortListings(filtered, filters.sortBy, { pinnedSlug });
   }, [listings, filters, propertyParam, propertyResolution]);
 
+  // ── PER-ROUTE SEO ────────────────────────────────────────────────────────
+  // Both /find-rooms and /properties render this component, and every
+  // ?city=/?country=/?university= permutation was previously served the
+  // identical generic <title> with no canonical — which Search Console
+  // reported as "Crawled - currently not indexed" (looks like duplicates)
+  // and, for cities that resolve to zero inventory, "Soft 404" (thin
+  // HTTP-200 page). A city page WITH inventory is a good landing page and
+  // stays indexable; an empty active search emits noindex so it drops
+  // cleanly instead of being flagged.
+  const listingsSeo = useMemo(() => {
+    const enc = encodeURIComponent;
+    const emptyActiveSearch =
+      !loading && !error && hasActiveSearch && filteredListings.length === 0;
+
+    if (city) {
+      return {
+        title: `Student Accommodation in ${city}`,
+        description: `Browse verified student accommodation in ${city}. Compare rooms by price, distance and amenities — free to use, no booking fees.`,
+        canonical: `/properties?city=${enc(city)}`,
+        noindex: emptyActiveSearch,
+      };
+    }
+    if (universityParam) {
+      return {
+        title: resolvedUniversity
+          ? `Student Accommodation near ${resolvedUniversity.name}`
+          : "Student Accommodation",
+        description: "Verified student rooms near your university — compare by distance, price and amenities. Free to use, no booking fees.",
+        canonical: resolvedUniversity ? `/properties?university=${enc(universityParam)}` : "/find-rooms",
+        noindex: emptyActiveSearch || !resolvedUniversity,
+      };
+    }
+    if (propertyParam) {
+      // Free-text search-result permutations — never index these.
+      return { title: `Results for "${propertyParam}"`, canonical: "/find-rooms", noindex: true };
+    }
+    if (countryParam) {
+      return {
+        title: `Student Accommodation in ${countryFullName(countryParam)}`,
+        description: `Browse cities and verified student accommodation across ${countryFullName(countryParam)}. Free to use, no booking fees.`,
+        canonical: `/properties?country=${enc(countryParam)}`,
+        noindex: false,
+      };
+    }
+    // Bare browse — canonicalise the two routes (/find-rooms, /properties)
+    // onto a single URL so they aren't treated as duplicates.
+    return {
+      title: "Find Student Rooms: Browse by Country & City",
+      description: "Browse verified student accommodation in 15+ countries and 50+ cities. Compare rooms by price, distance and amenities — free, no booking fees.",
+      canonical: "/find-rooms",
+      noindex: filtersActive,
+    };
+  }, [city, countryParam, universityParam, resolvedUniversity, propertyParam, loading, error, hasActiveSearch, filteredListings.length, filtersActive]);
+
   // "Search this area" (map view only) narrows the already-fetched result
   // set to the map's current visible bounds — see PropertyMap's own header
   // comment for why this is a client-side bounds filter rather than a new
@@ -466,7 +521,8 @@ export default function PropertyListingPage() {
 
   return (
     <div className="properties-page-wrap">
-      <div className="desktop-only">
+      <Seo {...listingsSeo} />
+      <div className="desktop-only plp-navbar-wrap">
         <SiteNavbar />
       </div>
 

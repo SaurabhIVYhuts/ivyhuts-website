@@ -106,7 +106,7 @@ function runStaticFrontendChecks() {
         },
         {
             name: "STATIC: api/enquire.js (email flow) is untouched by this milestone's imports",
-            ok: read("api/enquire.js").includes('require("./_lib/mailer")') && !/require\(.*(mongodb|models\/Enquiry|models\/Lead)/.test(read("api/enquire.js")),
+            ok: read("api/_lib/routes/content/enquire.js").includes('require("../../mailer")') && !/require\(.*(mongodb|models\/Enquiry|models\/Lead)/.test(read("api/_lib/routes/content/enquire.js")),
         },
         {
             name: "STATIC: no REACT_APP_MONGODB_URI / MongoDB credentials anywhere in src/",
@@ -153,7 +153,7 @@ async function main() {
     const Lead = require(path.join(ROOT, "api", "_lib", "models", "Lead"));
     const Enquiry = require(path.join(ROOT, "api", "_lib", "models", "Enquiry"));
     const UserEvent = require(path.join(ROOT, "api", "_lib", "models", "UserEvent"));
-    const enquiriesIndex = require(path.join(ROOT, "api", "enquiries", "index.js"));
+    const enquiriesIndex = require(path.join(ROOT, "api", "_lib", "routes", "enquiries", "index.js"));
 
     await connectToDatabase();
     console.log("=== Live MongoDB verification ===");

@@ -124,9 +124,9 @@ async function main() {
     // ── Real, live HTTP-level reproduction of the reported bug + fix ────────
     let cityListingsHandler, universityHousingHandler, countryListingsHandler, connectToDatabase, disconnectFromDatabase;
     try {
-        cityListingsHandler = require(path.join(ROOT, "api", "city-listings.js"));
-        universityHousingHandler = require(path.join(ROOT, "api", "university-housing", "inventory.js"));
-        countryListingsHandler = require(path.join(ROOT, "api", "country-listings.js"));
+        cityListingsHandler = require(path.join(ROOT, "api", "_lib", "routes", "content", "city-listings.js"));
+        universityHousingHandler = require(path.join(ROOT, "api", "_lib", "routes", "content", "university-housing", "inventory.js"));
+        countryListingsHandler = require(path.join(ROOT, "api", "_lib", "routes", "content", "country-listings.js"));
         ({ connectToDatabase, disconnectFromDatabase } = require(path.join(ROOT, "api", "_lib", "mongodb")));
         await connectToDatabase();
     } catch (err) {

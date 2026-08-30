@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import "./ThankYouPage.css";
+import Seo from "../components/Seo";
 
 // Reached only after an enquiry form's submission has actually been
 // confirmed successful (see e.g. src/pages/ContactPage.js's handleSubmit).
@@ -11,6 +12,7 @@ import "./ThankYouPage.css";
 export default function ThankYouPage() {
   return (
     <div className="ty-page">
+      <Seo title="Thank you" noindex />
       <div className="ty-card">
         <Link to="/" className="ty-logo" aria-label="IVYhuts home">
           <img src="/logo.png" alt="" width="30" height="30" />

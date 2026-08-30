@@ -120,15 +120,15 @@ async function main() {
     const googleMeetProvider = require(path.join(ROOT, "api", "_lib", "providers", "meeting", "googleMeetProvider"));
     const transcriptExtraction = require(path.join(ROOT, "api", "_lib", "transcriptExtraction"));
 
-    const leadHandler = require(path.join(ROOT, "api", "leads", "[id].js"));
-    const assignmentHandler = require(path.join(ROOT, "api", "leads", "[id]", "assignment.js"));
-    const meetingsListHandler = require(path.join(ROOT, "api", "leads", "[id]", "meetings", "index.js"));
-    const meetingsSingleHandler = require(path.join(ROOT, "api", "leads", "[id]", "meetings", "[meetingId]", "index.js"));
-    const extractRequirementsHandler = require(path.join(ROOT, "api", "leads", "[id]", "meetings", "[meetingId]", "extract-requirements.js"));
-    const discoveryHandler = require(path.join(ROOT, "api", "leads", "[id]", "discovery.js"));
-    const curationHandler = require(path.join(ROOT, "api", "leads", "[id]", "accommodation-curation.js"));
-    const presentationsListHandler = require(path.join(ROOT, "api", "leads", "[id]", "presentations", "index.js"));
-    const workQueueHandler = require(path.join(ROOT, "api", "leads", "work-queue.js"));
+    const leadHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id].js"));
+    const assignmentHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "assignment.js"));
+    const meetingsListHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "meetings", "index.js"));
+    const meetingsSingleHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "meetings", "[meetingId]", "index.js"));
+    const extractRequirementsHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "meetings", "[meetingId]", "extract-requirements.js"));
+    const discoveryHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "discovery.js"));
+    const curationHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "accommodation-curation.js"));
+    const presentationsListHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "presentations", "index.js"));
+    const workQueueHandler = require(path.join(ROOT, "api", "_lib", "routes", "leads", "work-queue.js"));
     const sheetImportHandler = require(path.join(ROOT, "api", "leads", "import", "google-sheet.js"));
     const notificationsListHandler = require(path.join(ROOT, "api", "notifications", "index.js"));
     const notificationsSingleHandler = require(path.join(ROOT, "api", "notifications", "[id]", "index.js"));
@@ -649,7 +649,7 @@ async function main() {
     // re-require the route fresh so its top-level destructure picks up the
     // fake — then restore both so every other test keeps using the real,
     // unpatched wiring.
-    const meetingsIndexPath = require.resolve(path.join(ROOT, "api", "leads", "[id]", "meetings", "index.js"));
+    const meetingsIndexPath = require.resolve(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "meetings", "index.js"));
     await test("MEETING PROVIDER (deterministic fake, test-only): when the provider succeeds, the real meeting record stores the real returned fields", async () => {
         const original = googleMeetProvider.createMeeting;
         googleMeetProvider.createMeeting = async () => ({ status: "OK", provider: "google_meet", providerMeetingId: "fake-test-event-id-123", meetingUrl: "https://meet.google.com/test-fake-abc" });
@@ -720,7 +720,7 @@ async function main() {
     // unconfigured (as it is everywhere else in this run) every call 404s
     // or 503s identically regardless of lead, so isolation is only a
     // meaningful check while a request could otherwise succeed.
-    const extractRequirementsPath = require.resolve(path.join(ROOT, "api", "leads", "[id]", "meetings", "[meetingId]", "extract-requirements.js"));
+    const extractRequirementsPath = require.resolve(path.join(ROOT, "api", "_lib", "routes", "leads", "[id]", "meetings", "[meetingId]", "extract-requirements.js"));
     await test("EXTRACTION (deterministic fake, test-only): a successful extraction stores a suggestion on THIS meeting, notifies the assigned agent, and stays cross-lead isolated", async () => {
         const original = transcriptExtraction.extractRequirementsFromTranscript;
         const originalConfigured = transcriptExtraction.isTranscriptExtractionConfigured;
