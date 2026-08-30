@@ -28,7 +28,20 @@ const LeadSchema = new Schema(
         // `leadgen_id`. This is the ONLY dedup key for external intake; do
         // not add a second one (see api/leads/meta/webhook.js). The unique
         // index is declared below with the rest of this schema's indexes.
-        externalLeadId: { type: String, default: null },
+        //
+        // Milestone 23.14 fix: NO `default: null` here. A sparse unique
+        // index only exempts documents where the field is genuinely ABSENT
+        // — an explicit `null` still counts as a value for uniqueness
+        // purposes. With the old `default: null`, every Lead created
+        // without an externalLeadId (i.e. every non-Meta lead — the vast
+        // majority) got the field explicitly set to null, so the SECOND
+        // such Lead ever created would collide on the unique index
+        // (confirmed live: E11000 dup key on externalLeadId:null, hit
+        // immediately by any script/flow creating more than one plain
+        // Lead). Omitting the default lets Mongoose leave the field
+        // genuinely unset for non-Meta leads, which is what the sparse
+        // index actually needs.
+        externalLeadId: { type: String, default: undefined },
         // Free-form details about the source, including campaign attribution
         // (e.g. { campaign: "spring-2026" }) — no dedicated `campaign` field
         // was added since this Mixed bag already covers it without schema churn.

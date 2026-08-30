@@ -83,6 +83,18 @@ async function main() {
         assert.throws(() => singleHandler.validateMediaPair("live", null, "recording"), (err) => err.code === "VALIDATION_ERROR");
     });
 
+    // ══════════ PURE: GOOGLE MEET PROVIDER RESCHEDULE/CANCEL (never fabricate) ══════════
+    const googleMeetProvider = require(path.join(ROOT, "api", "_lib", "providers", "meeting", "googleMeetProvider"));
+    await test("PROVIDER: updateMeetingTime returns NOT_CONFIGURED (never a fabricated meetingUrl) without Google credentials", async () => {
+        const result = await googleMeetProvider.updateMeetingTime({ providerMeetingId: "fake-event-id", scheduledAt: new Date() });
+        assert.strictEqual(result.status, "NOT_CONFIGURED");
+        assert.strictEqual(result.meetingUrl, undefined);
+    });
+    await test("PROVIDER: cancelMeeting returns NOT_CONFIGURED without Google credentials", async () => {
+        const result = await googleMeetProvider.cancelMeeting({ providerMeetingId: "fake-event-id" });
+        assert.strictEqual(result.status, "NOT_CONFIGURED");
+    });
+
     // ══════════════════ MONGODB-DEPENDENT ══════════════════
     const MONGODB_URI = process.env.MONGODB_URI;
     const dbName = MONGODB_URI ? getDbNameFromUri(MONGODB_URI) : "";
@@ -100,6 +112,7 @@ async function main() {
         const Lead = require(path.join(ROOT, "api", "_lib", "models", "Lead"));
         const User = require(path.join(ROOT, "api", "_lib", "models", "User"));
         const Meeting = require(path.join(ROOT, "api", "_lib", "models", "Meeting"));
+        const Notification = require(path.join(ROOT, "api", "_lib", "models", "Notification"));
 
         await connectToDatabase();
         console.log("\nMongoDB connection established for live verification.\n");
@@ -127,6 +140,7 @@ async function main() {
         }
 
         const agent = await createActor("MARKETING_AGENT", "agent");
+        const manager = await createActor("MARKETING_MANAGER", "manager");
         const plainUser = await createActor("USER", "plain");
         const leadA = await createLead("a");
         const leadB = await createLead("b");
@@ -149,10 +163,13 @@ async function main() {
         });
 
         // ── CRUD ──
+        // Scheduling authority is management-only (see .../meetings/index.js's
+        // MANAGEMENT_ROLES check) — the agent still conducts/completes/annotates
+        // meetings below, but does not create/reschedule/cancel them.
         let meetingId;
-        await test("CRUD: POST schedules a meeting starting 'scheduled' with media status 'none'", async () => {
+        await test("CRUD: POST (manager) schedules a meeting starting 'scheduled' with media status 'none'", async () => {
             const res = mockRes();
-            await listHandler(mockReq({ method: "POST", query: { id: String(leadA._id) }, cookie: agent.cookie, body: { scheduledAt: "2026-09-01T10:00:00.000Z", notes: "Intro call" } }), res);
+            await listHandler(mockReq({ method: "POST", query: { id: String(leadA._id) }, cookie: manager.cookie, body: { scheduledAt: "2026-09-01T10:00:00.000Z", notes: "Intro call" } }), res);
             assert.strictEqual(res.statusCode, 201, JSON.stringify(res.body));
             assert.strictEqual(res.body.data.status, "scheduled");
             assert.strictEqual(res.body.data.recordingStatus, "none");
@@ -162,8 +179,108 @@ async function main() {
 
         await test("CRUD: POST requires scheduledAt", async () => {
             const res = mockRes();
-            await listHandler(mockReq({ method: "POST", query: { id: String(leadA._id) }, cookie: agent.cookie, body: { notes: "no date" } }), res);
+            await listHandler(mockReq({ method: "POST", query: { id: String(leadA._id) }, cookie: manager.cookie, body: { notes: "no date" } }), res);
             assert.strictEqual(res.statusCode, 400);
+        });
+
+        // ── SCHEDULING AUTHORITY ──
+        await test("AUTHORIZATION: agent POST (schedule a meeting) -> 403, no meeting created", async () => {
+            const before = await Meeting.countDocuments({ leadId: leadA._id });
+            const res = mockRes();
+            await listHandler(mockReq({ method: "POST", query: { id: String(leadA._id) }, cookie: agent.cookie, body: { scheduledAt: "2026-09-02T10:00:00.000Z" } }), res);
+            assert.strictEqual(res.statusCode, 403, JSON.stringify(res.body));
+            const after = await Meeting.countDocuments({ leadId: leadA._id });
+            assert.strictEqual(after, before, "a forbidden POST must not create a meeting");
+        });
+        await test("AUTHORIZATION: agent PATCH scheduledAt (reschedule) -> 403, does not change it", async () => {
+            const before = await Meeting.findById(meetingId);
+            const res = mockRes();
+            await singleHandler(mockReq({ method: "PATCH", query: { id: String(leadA._id), meetingId }, cookie: agent.cookie, body: { scheduledAt: "2026-09-03T10:00:00.000Z" } }), res);
+            assert.strictEqual(res.statusCode, 403, JSON.stringify(res.body));
+            const after = await Meeting.findById(meetingId);
+            assert.strictEqual(after.scheduledAt.getTime(), before.scheduledAt.getTime());
+        });
+        await test("AUTHORIZATION: agent PATCH status='cancelled' -> 403, status unchanged", async () => {
+            const before = await Meeting.findById(meetingId);
+            const res = mockRes();
+            await singleHandler(mockReq({ method: "PATCH", query: { id: String(leadA._id), meetingId }, cookie: agent.cookie, body: { status: "cancelled" } }), res);
+            assert.strictEqual(res.statusCode, 403, JSON.stringify(res.body));
+            const after = await Meeting.findById(meetingId);
+            assert.strictEqual(after.status, before.status);
+        });
+        await test("AUTHORIZATION: manager PATCH scheduledAt (reschedule) succeeds", async () => {
+            const res = mockRes();
+            await singleHandler(mockReq({ method: "PATCH", query: { id: String(leadA._id), meetingId }, cookie: manager.cookie, body: { scheduledAt: "2026-09-03T10:00:00.000Z" } }), res);
+            assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+            assert.strictEqual(new Date(res.body.data.scheduledAt).toISOString(), "2026-09-03T10:00:00.000Z");
+        });
+
+        // ── NOTIFICATION ON SCHEDULE ──
+        const leadC = await createLead("c");
+        leadC.assignedTo = String(agent.mongoUser._id);
+        await leadC.save();
+        await test("NOTIFICATION: manager scheduling a meeting notifies the assigned agent (MEETING_SCHEDULED)", async () => {
+            const res = mockRes();
+            await listHandler(mockReq({ method: "POST", query: { id: String(leadC._id) }, cookie: manager.cookie, body: { scheduledAt: "2026-09-05T09:00:00.000Z" } }), res);
+            assert.strictEqual(res.statusCode, 201, JSON.stringify(res.body));
+            const notification = await Notification.findOne({ recipientUserId: agent.mongoUser._id, leadId: leadC._id, type: "MEETING_SCHEDULED" });
+            assert.ok(notification, "expected a MEETING_SCHEDULED notification for the assigned agent");
+            assert.strictEqual(notification.actionHref, `/dashboard/leads/${leadC._id}#meeting`);
+        });
+        const leadD = await createLead("d");
+        await test("NOTIFICATION: scheduling a meeting for an unassigned lead creates no notification", async () => {
+            const res = mockRes();
+            await listHandler(mockReq({ method: "POST", query: { id: String(leadD._id) }, cookie: manager.cookie, body: { scheduledAt: "2026-09-06T09:00:00.000Z" } }), res);
+            assert.strictEqual(res.statusCode, 201, JSON.stringify(res.body));
+            const count = await Notification.countDocuments({ leadId: leadD._id });
+            assert.strictEqual(count, 0, "leadD has no assignedTo, so no notification should be created");
+        });
+
+        // ── NOTIFICATION ON RESCHEDULE/CANCEL ──
+        let leadCMeetingId;
+        await test("NOTIFICATION: manager rescheduling leadC's meeting notifies the assigned agent (MEETING_RESCHEDULED)", async () => {
+            const leadCMeeting = await Meeting.findOne({ leadId: leadC._id });
+            leadCMeetingId = String(leadCMeeting._id);
+            const res = mockRes();
+            await singleHandler(
+                mockReq({ method: "PATCH", query: { id: String(leadC._id), meetingId: leadCMeetingId }, cookie: manager.cookie, body: { scheduledAt: "2026-09-05T11:30:00.000Z" } }),
+                res
+            );
+            assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+            const notification = await Notification.findOne({ recipientUserId: agent.mongoUser._id, leadId: leadC._id, type: "MEETING_RESCHEDULED" });
+            assert.ok(notification, "expected a MEETING_RESCHEDULED notification for the assigned agent");
+        });
+        await test("NOTIFICATION: a no-op reschedule (same scheduledAt) creates no additional MEETING_RESCHEDULED notification", async () => {
+            const before = await Notification.countDocuments({ leadId: leadC._id, type: "MEETING_RESCHEDULED" });
+            const res = mockRes();
+            await singleHandler(
+                mockReq({ method: "PATCH", query: { id: String(leadC._id), meetingId: leadCMeetingId }, cookie: manager.cookie, body: { scheduledAt: "2026-09-05T11:30:00.000Z" } }),
+                res
+            );
+            assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+            const after = await Notification.countDocuments({ leadId: leadC._id, type: "MEETING_RESCHEDULED" });
+            assert.strictEqual(after, before, "re-saving the same scheduledAt must not create another notification");
+        });
+        await test("NOTIFICATION: manager cancelling leadC's meeting notifies the assigned agent (MEETING_CANCELLED)", async () => {
+            const res = mockRes();
+            await singleHandler(
+                mockReq({ method: "PATCH", query: { id: String(leadC._id), meetingId: leadCMeetingId }, cookie: manager.cookie, body: { status: "cancelled" } }),
+                res
+            );
+            assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+            const notification = await Notification.findOne({ recipientUserId: agent.mongoUser._id, leadId: leadC._id, type: "MEETING_CANCELLED" });
+            assert.ok(notification, "expected a MEETING_CANCELLED notification for the assigned agent");
+        });
+        await test("NOTIFICATION: re-cancelling an already-cancelled meeting creates no additional MEETING_CANCELLED notification", async () => {
+            const before = await Notification.countDocuments({ leadId: leadC._id, type: "MEETING_CANCELLED" });
+            const res = mockRes();
+            await singleHandler(
+                mockReq({ method: "PATCH", query: { id: String(leadC._id), meetingId: leadCMeetingId }, cookie: manager.cookie, body: { status: "cancelled" } }),
+                res
+            );
+            assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+            const after = await Notification.countDocuments({ leadId: leadC._id, type: "MEETING_CANCELLED" });
+            assert.strictEqual(after, before, "re-cancelling an already-cancelled meeting must not create another notification");
         });
 
         await test("CRUD: GET list returns the created meeting", async () => {
@@ -252,6 +369,7 @@ async function main() {
 
         // ── CLEANUP ──
         await Meeting.deleteMany({ leadId: { $in: createdLeadIds } });
+        await Notification.deleteMany({ leadId: { $in: createdLeadIds } });
         await Lead.deleteMany({ _id: { $in: createdLeadIds } });
         await User.deleteMany({ _id: { $in: createdUserIds } });
         const remaining = await Meeting.countDocuments({ leadId: { $in: createdLeadIds } });

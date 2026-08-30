@@ -9,14 +9,28 @@
 // here — mutually exclusive per lead, priority order matches
 // WORK_QUEUE_BUCKETS in the CRM type). Milestone 23.12 extends the
 // original 6 buckets with 4 new operational-pipeline signals (meetingToday
-// / discoveryIncomplete / readyForFindRooms / presentationNoFollowUp),
-// reusing the SAME aggregation this route already runs rather than a
-// second/parallel queue system:
+// / discoveryIncomplete / readyForFindRooms / presentationNoFollowUp);
+// Milestone 23.14 adds one more (transcriptAvailableNeedsReview) — every
+// addition reuses the SAME aggregation this route already runs rather than
+// a second/parallel queue system:
 //   overdue              — has a PENDING follow-up due before today
 //   meetingToday         — has a SCHEDULED (not completed/cancelled)
 //                           meeting whose scheduledAt falls today
 //   today                — has a PENDING follow-up due today
 //   new                  — status "new"
+//   transcriptAvailableNeedsReview — Milestone 23.14: at least one meeting
+//                           on this lead has extractedRequirements with
+//                           status "pending_review" (an AI extraction ran
+//                           against a real pasted transcript and hasn't yet
+//                           been confirmed/dismissed by the agent). Ranked
+//                           above discoveryIncomplete deliberately — a
+//                           ready-to-review suggestion is a faster, more
+//                           concrete action than starting Discovery from
+//                           nothing, even though both ultimately serve the
+//                           same "requirements aren't confirmed yet" goal.
+//                           No new prioritization engine — this reuses the
+//                           exact same $switch/bucket mechanism as every
+//                           other row here.
 //   discoveryIncomplete  — status is contacted/qualified/nurturing (i.e.
 //                           NOT "new" — that already won a higher bucket)
 //                           and Discovery does not yet have EXPLICIT
@@ -71,6 +85,7 @@ const WORK_QUEUE_BUCKETS = [
     "meetingToday",
     "today",
     "new",
+    "transcriptAvailableNeedsReview",
     "discoveryIncomplete",
     "readyForFindRooms",
     "presentationNoFollowUp",
@@ -193,6 +208,24 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
             },
         },
         { $addFields: { nextMeeting: { $arrayElemAt: ["$_nextMeetingArr", 0] } } },
+        // Milestone 23.14 — does ANY meeting on this lead have an extraction
+        // still awaiting agent review? Deliberately "any meeting", not just
+        // the next/latest one — an older meeting's suggestion is still a
+        // real pending action until an agent reviews or a newer extraction
+        // supersedes it.
+        {
+            $lookup: {
+                from: "meetings",
+                let: { leadId: "$_id" },
+                pipeline: [
+                    { $match: { $expr: { $and: [{ $eq: ["$leadId", "$$leadId"] }, { $eq: ["$extractedRequirements.status", "pending_review"] }] } } },
+                    { $limit: 1 },
+                    { $project: { _id: 1 } },
+                ],
+                as: "_pendingTranscriptReviewArr",
+            },
+        },
+        { $addFields: { _hasPendingTranscriptReview: { $gt: [{ $size: "$_pendingTranscriptReviewArr" }, 0] } } },
         // Milestone 23.12 — requirements-confirmed check, mirroring
         // api/leads/[id].js's buildJourneyFlags EXACTLY (same strict bar:
         // explicit numeric sharing, never the roomPreference-derived
@@ -266,6 +299,12 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
                             { case: { $and: ["$nextMeeting", { $gte: ["$nextMeeting.scheduledAt", todayStart] }, { $lt: ["$nextMeeting.scheduledAt", tomorrowStart] }] }, then: "meetingToday" },
                             { case: { $and: ["$nextFollowUp", { $gte: ["$nextFollowUp.dueAt", todayStart] }, { $lt: ["$nextFollowUp.dueAt", tomorrowStart] }] }, then: "today" },
                             { case: { $and: [{ $eq: ["$status", "new"] }, { $eq: ["$_hasOutboundCommunication", false] }] }, then: "new" },
+                            {
+                                case: {
+                                    $and: [{ $not: { $in: ["$status", ["nurturing", "converted", "lost"]] } }, "$_hasPendingTranscriptReview"],
+                                },
+                                then: "transcriptAvailableNeedsReview",
+                            },
                             // The three pipeline-progress buckets below only
                             // apply to leads still being ACTIVELY worked —
                             // never nurturing (an agent's own deliberate
@@ -297,12 +336,13 @@ const BUCKET_SORT_RANK = {
     meetingToday: 1,
     today: 2,
     new: 3,
-    discoveryIncomplete: 4,
-    readyForFindRooms: 5,
-    presentationNoFollowUp: 6,
-    upcoming: 7,
-    nurturing: 8,
-    noNextAction: 9,
+    transcriptAvailableNeedsReview: 4,
+    discoveryIncomplete: 5,
+    readyForFindRooms: 6,
+    presentationNoFollowUp: 7,
+    upcoming: 8,
+    nurturing: 9,
+    noNextAction: 10,
 };
 
 module.exports = withErrorHandling(async (req, res) => {

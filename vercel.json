@@ -30,6 +30,10 @@
     {
       "path": "/api/insights/daily-digest",
       "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/leads/import/sync-cron",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

@@ -77,9 +77,44 @@ const SnapshotPropertySchema = new Schema(
     { _id: false }
 );
 
+// Milestone 23.18 — a flattened copy of the CONFIRMED Discovery fields that
+// actually drive personalization (client requirements slide, cover
+// context, recommendation evidence). Deliberately its own schema, not a
+// live reference to Discovery.js's own sub-schemas (same reasoning as
+// every other Snapshot* schema in this file: two independently-evolving
+// documents should never share a live schema reference) — and deliberately
+// captures MORE than criteriaSnapshot above (which is Find-Rooms-search-
+// shaped: no course/intake/preferredLocation-as-text/distancePreference-
+// as-text/priorities/notes). Discovery remains the live source of truth;
+// this is only ever a point-in-time copy for this one generated version.
+const SnapshotDiscoverySchema = new Schema(
+    {
+        university: { type: String, default: null },
+        course: { type: String, default: null },
+        intake: { type: String, default: null },
+        budgetMin: { type: Number, default: null },
+        budgetMax: { type: Number, default: null },
+        currency: { type: String, default: null },
+        moveInDate: { type: String, default: null },
+        stayDurationMonths: { type: Number, default: null },
+        preferredLocation: { type: String, default: null },
+        roomPreference: { type: String, default: null },
+        sharing: { type: Number, default: null },
+        distancePreference: { type: String, default: null },
+        priorities: { type: [String], default: [] },
+        notes: { type: String, default: null },
+    },
+    { _id: false }
+);
+
 const SnapshotSchema = new Schema(
     {
         criteriaSnapshot: { type: SnapshotCriteriaSchema, default: null },
+        // Milestone 23.18 — null when the lead has no Discovery at all yet
+        // (Discovery is optional at generation time — a curation can exist
+        // without one in principle, though in practice Find Rooms requires
+        // confirmed requirements to search at all).
+        discoverySnapshot: { type: SnapshotDiscoverySchema, default: null },
         properties: { type: [SnapshotPropertySchema], default: [] },
         recommendedPropertyId: { type: String, default: null },
         recommendationReason: { type: String, default: null },
@@ -91,10 +126,14 @@ const SnapshotSchema = new Schema(
 // Records exactly which AccommodationCuration (and which version of it —
 // via its updatedAt) this deck's snapshot was copied from. Purely
 // informational/audit; never used to re-derive or re-fetch content later.
+// Milestone 23.18 adds the same treatment for Discovery, now that
+// generation reads it too (client requirements/personalization).
 const ProvenanceSchema = new Schema(
     {
         accommodationCurationId: { type: Schema.Types.ObjectId, ref: "AccommodationCuration", default: null },
         accommodationCurationUpdatedAt: { type: Date, default: null },
+        discoveryId: { type: Schema.Types.ObjectId, ref: "Discovery", default: null },
+        discoveryUpdatedAt: { type: Date, default: null },
     },
     { _id: false }
 );

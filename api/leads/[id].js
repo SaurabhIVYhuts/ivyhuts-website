@@ -57,6 +57,17 @@ const IMMUTABLE_FIELDS = new Set(["_id", "id", "createdAt", "updatedAt", "assign
 //     collapses "searched" and "curated" into hasCuratedProperties, which
 //     IS real evidence (an agent can only reach Save Shortlist by having
 //     gone through Find Rooms first).
+//   - hasPendingTranscriptReview (Milestone 23.15) — mirrors the SAME rule
+//     api/leads/work-queue.js's aggregation already uses for its
+//     transcriptAvailableNeedsReview bucket (any meeting on this lead with
+//     extractedRequirements.status === "pending_review"), just computed
+//     per-lead instead of via $lookup. Before this, a Lead Detail page's
+//     own Sales Journey/Next Action had no way to know a transcript
+//     suggestion was sitting there — an agent had to scroll all the way to
+//     Discovery to discover it, even though the Work Queue list one click
+//     away already flagged it as the single highest-priority action for
+//     that lead. This closes that handoff gap without inventing a second
+//     "needs review" concept: same field, same meaning, two read paths.
 function buildJourneyFlags({ lead, meetings, discovery, curation, presentations, followUps, hasOutboundCommunication }) {
     const hasConfirmedRequirements = Boolean(
         discovery &&
@@ -78,6 +89,7 @@ function buildJourneyFlags({ lead, meetings, discovery, curation, presentations,
         hasReadyPresentation: presentations.some((p) => p.status === "READY"),
         hasAnyFollowUp: followUps.length > 0,
         hasPendingFollowUp: followUps.some((f) => f.status === "pending"),
+        hasPendingTranscriptReview: meetings.some((m) => m.extractedRequirements && m.extractedRequirements.status === "pending_review"),
     };
 }
 
@@ -95,7 +107,11 @@ async function buildLeadDetail(lead) {
         // still see it (same "full collection, not just the recent window"
         // rule the original CRM design called for).
         Communication.exists({ leadId: lead._id, direction: "outbound" }).then(Boolean),
-        Meeting.find({ leadId: lead._id }).select("status"),
+        // extractedRequirements.status included (not just "status") — see
+        // hasPendingTranscriptReview above; the rest of that subdocument is
+        // deliberately not selected here, this projection is journey-flag
+        // input only, not the actual Meeting section's data source.
+        Meeting.find({ leadId: lead._id }).select("status extractedRequirements.status"),
         Discovery.findOne({ leadId: lead._id }).select("student.university accommodation.budgetMin accommodation.budgetMax accommodation.currency accommodation.sharing"),
         AccommodationCuration.findOne({ leadId: lead._id }).select("properties"),
         Presentation.find({ leadId: lead._id }).select("status"),

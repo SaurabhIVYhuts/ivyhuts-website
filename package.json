@@ -10,6 +10,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^13.5.0",
     "bcryptjs": "^3.0.3",
+    "google-auth-library": "^9.15.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.30.0",
     "mailgen": "^2.0.36",

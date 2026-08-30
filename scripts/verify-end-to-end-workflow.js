@@ -117,6 +117,7 @@ async function main() {
     const User = require(path.join(ROOT, "api", "_lib", "models", "User"));
     const Meeting = require(path.join(ROOT, "api", "_lib", "models", "Meeting"));
     const Discovery = require(path.join(ROOT, "api", "_lib", "models", "Discovery"));
+    const Notification = require(path.join(ROOT, "api", "_lib", "models", "Notification"));
     const AccommodationCuration = require(path.join(ROOT, "api", "_lib", "models", "AccommodationCuration"));
     const Presentation = require(path.join(ROOT, "api", "_lib", "models", "Presentation"));
     const Communication = require(path.join(ROOT, "api", "_lib", "models", "Communication"));
@@ -159,6 +160,10 @@ async function main() {
 
     const agent = await createActor("MARKETING_AGENT", "agent");
     const agentId = String(agent.mongoUser._id);
+    // Scheduling authority is management-only (see .../meetings/index.js's
+    // MANAGEMENT_ROLES check) — used below only for the meeting-creation
+    // step; the agent still conducts/completes it and does everything else.
+    const manager = await createActor("MARKETING_MANAGER", "manager");
     let leadId; // set once the webhook creates it
     let meetingId;
     let presentationV1Id;
@@ -213,7 +218,7 @@ async function main() {
         assert.deepStrictEqual(lead.journey, {
             hasAssignment: false, hasOutboundCommunication: false, hasCompletedMeeting: false,
             hasConfirmedRequirements: false, hasCuratedProperties: false, hasReadyPresentation: false,
-            hasAnyFollowUp: false, hasPendingFollowUp: false,
+            hasAnyFollowUp: false, hasPendingFollowUp: false, hasPendingTranscriptReview: false,
         });
         assert.strictEqual(lead.lastInboundCommunicationAt, null);
     });
@@ -233,13 +238,16 @@ async function main() {
     // ═══════════════════ STEP 4: meeting scheduled -> completed ═══════════════════
     await test("STEP 4a: scheduling a meeting does NOT yet complete the Meeting journey stage", async () => {
         const res = mockRes();
-        await meetingsListHandler(mockReq({ method: "POST", query: { id: leadId }, cookie: agent.cookie, body: { scheduledAt: new Date().toISOString(), notes: "Intro call" } }), res);
+        await meetingsListHandler(mockReq({ method: "POST", query: { id: leadId }, cookie: manager.cookie, body: { scheduledAt: new Date().toISOString(), notes: "Intro call" } }), res);
         assert.strictEqual(res.statusCode, 201, JSON.stringify(res.body));
         meetingId = res.body.data.id;
 
         const getRes = mockRes();
         await leadHandler(mockReq({ method: "GET", query: { id: leadId }, cookie: agent.cookie }), getRes);
         assert.strictEqual(getRes.body.data.journey.hasCompletedMeeting, false, "scheduled != completed");
+
+        const notification = await Notification.findOne({ recipientUserId: agentId, leadId, type: "MEETING_SCHEDULED" });
+        assert.ok(notification, "the assigned agent must be notified when management schedules a meeting, wired into the full journey, not just in isolation");
     });
 
     await test("STEP 4b: completing the meeting DOES complete the Meeting journey stage", async () => {
@@ -445,6 +453,7 @@ async function main() {
     });
 
     // ═══════════════════ CLEANUP ═══════════════════
+    await Notification.deleteMany({ leadId: { $in: createdLeadIds } });
     await Meeting.deleteMany({ leadId: { $in: createdLeadIds } });
     await Discovery.deleteMany({ leadId: { $in: createdLeadIds } });
     await AccommodationCuration.deleteMany({ leadId: { $in: createdLeadIds } });

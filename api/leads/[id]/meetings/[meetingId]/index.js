@@ -20,12 +20,19 @@ const { checkBusinessWriteRateLimit } = require("../../../../_lib/businessRateLi
 const { withCors } = require("../../../../_lib/cors");
 const Lead = require("../../../../_lib/models/Lead");
 const Meeting = require("../../../../_lib/models/Meeting");
-const { withErrorHandling, requireObjectId, notFound, badRequest, parseJsonBody, parseDate } = require("../../../../_lib/validation");
+const { updateMeetingTime, cancelMeeting: cancelGoogleMeeting } = require("../../../../_lib/providers/meeting/googleMeetProvider");
+const { createNotification } = require("../../../../_lib/notify");
+const { withErrorHandling, requireObjectId, notFound, badRequest, forbidden, parseJsonBody, parseDate } = require("../../../../_lib/validation");
 const { sendSuccess } = require("../../../../_lib/apiResponse");
-const { toSafeMeeting } = require("../index.js");
+const { toSafeMeeting, MANAGEMENT_ROLES } = require("../index.js");
 
 const INTERNAL_ROLES = ["MARKETING_AGENT", "MARKETING_MANAGER", "ADMIN"];
-const MAX_PAYLOAD_BYTES = 4_000;
+// Milestone 23.14 — raised from 4,000 to accommodate a real, agent-pasted
+// meeting transcript (transcriptText below); still a bounded, defensive
+// cap (roughly a 45-60 minute meeting's worth of transcript text), not
+// unlimited.
+const MAX_PAYLOAD_BYTES = 60_000;
+const MAX_TRANSCRIPT_TEXT_CHARS = 50_000;
 
 function validateMediaPair(status, url, label) {
     if (!Meeting.MEDIA_STATUSES.includes(status)) {
@@ -74,7 +81,19 @@ async function handlePatch(req, res, leadId, meetingId) {
     }
     const body = parseJsonBody(req);
 
+    // Meeting scheduling authority — same rule as POST .../meetings (see
+    // that file's header comment): an agent may conduct/complete a meeting
+    // and update everything about it EXCEPT when or whether it happens.
+    // Rescheduling (scheduledAt) or cancelling (status: "cancelled") is
+    // management's call, enforced here rather than only hidden in the UI.
+    const changesSchedule = body.scheduledAt !== undefined;
+    const cancels = body.status === "cancelled";
+    if ((changesSchedule || cancels) && !MANAGEMENT_ROLES.includes(identity.mongoUser.role)) {
+        throw forbidden("Only a manager or admin can reschedule or cancel a meeting.");
+    }
+
     const previousStatus = meeting.status;
+    const previousScheduledAt = meeting.scheduledAt;
 
     if (body.status !== undefined) {
         if (!Meeting.MEETING_STATUSES.includes(body.status)) {
@@ -106,11 +125,99 @@ async function handlePatch(req, res, leadId, meetingId) {
         meeting.transcriptStatus = effectiveStatus;
         meeting.transcriptReference = effectiveRef;
     }
+    // Milestone 23.14 — the actual transcript text, independent of the
+    // reference/status pairing above (a meeting can have a reference link
+    // AND/OR pasted text). Never validated against transcriptStatus — an
+    // agent may paste text before formally marking the transcript
+    // "available". Setting this to null does not clear extractedRequirements
+    // (a past extraction result stays visible until a new one overwrites it
+    // or the agent confirms it into Discovery) — this endpoint never
+    // triggers extraction itself, see .../extract-requirements.js.
+    if (body.transcriptText !== undefined) {
+        if (body.transcriptText !== null) {
+            if (typeof body.transcriptText !== "string") throw badRequest("VALIDATION_ERROR", "transcriptText must be a string or null.");
+            if (body.transcriptText.length > MAX_TRANSCRIPT_TEXT_CHARS) {
+                throw badRequest("VALIDATION_ERROR", `transcriptText cannot exceed ${MAX_TRANSCRIPT_TEXT_CHARS} characters.`);
+            }
+        }
+        meeting.transcriptText = body.transcriptText;
+    }
+    // Milestone 23.14 — the explicit agent action that closes the loop on a
+    // transcript suggestion: NOT the same request as confirming Discovery
+    // (that stays PUT /discovery, the sole write path into Discovery), but
+    // the second half of what the Agent Review UI's "Confirm All"/"Review &
+    // Edit" actions must call so the lead stops showing in the work queue's
+    // transcriptAvailableNeedsReview bucket forever. A one-way boolean
+    // action rather than an open `extractedRequirements.status` setter —
+    // there is exactly one legitimate transition an agent can make here.
+    if (body.markExtractedRequirementsReviewed === true) {
+        if (!meeting.extractedRequirements) {
+            throw badRequest("VALIDATION_ERROR", "This meeting has no extracted requirements to mark reviewed.");
+        }
+        meeting.extractedRequirements.status = "reviewed";
+    }
 
     if (meeting.status === "completed" && previousStatus !== "completed") meeting.completedAt = new Date();
     meeting.updatedBy = identity.mongoUser._id;
 
+    const scheduleGenuinelyChanged = changesSchedule && meeting.scheduledAt.getTime() !== previousScheduledAt.getTime();
+    const genuinelyCancelled = cancels && previousStatus !== "cancelled";
+
+    // Best-effort real Calendar sync — see googleMeetProvider.js's own
+    // header comments on updateMeetingTime/cancelMeeting. Never blocks or
+    // fails this PATCH: the Meeting record (the CRM's own source of truth
+    // for scheduledAt/status) still saves below exactly as before this
+    // milestone even when Calendar isn't configured or the sync call fails,
+    // and this never fabricates a "synced" outcome — only ever a real call.
+    if (scheduleGenuinelyChanged && meeting.provider === "google_meet" && meeting.providerMeetingId) {
+        const syncResult = await updateMeetingTime({ providerMeetingId: meeting.providerMeetingId, scheduledAt: meeting.scheduledAt }).catch((err) => {
+            console.error("[meetings] Google Calendar reschedule sync threw unexpectedly (non-fatal):", err.message);
+            return { status: "ERROR" };
+        });
+        if (syncResult.status !== "OK") {
+            console.error(`[meetings] Google Calendar reschedule sync for meeting ${meeting._id}: ${syncResult.status} — ${syncResult.reason || "unknown"}`);
+        }
+    }
+    if (genuinelyCancelled && meeting.provider === "google_meet" && meeting.providerMeetingId) {
+        const cancelResult = await cancelGoogleMeeting({ providerMeetingId: meeting.providerMeetingId }).catch((err) => {
+            console.error("[meetings] Google Calendar cancellation sync threw unexpectedly (non-fatal):", err.message);
+            return { status: "ERROR" };
+        });
+        if (cancelResult.status !== "OK") {
+            console.error(`[meetings] Google Calendar cancellation sync for meeting ${meeting._id}: ${cancelResult.status} — ${cancelResult.reason || "unknown"}`);
+        }
+    }
+
     await meeting.save();
+
+    // Same "assignment must trigger agent action" notification pattern as
+    // assignment.js/meetings/index.js — only on a genuine change, never a
+    // no-op re-save, and only when the lead actually has an assigned agent
+    // to notify.
+    if (lead.assignedTo) {
+        const studentName = (lead.contact && lead.contact.name) || "this lead";
+        if (scheduleGenuinelyChanged) {
+            await createNotification({
+                recipientUserId: lead.assignedTo,
+                leadId: lead._id,
+                type: "MEETING_RESCHEDULED",
+                title: "Meeting rescheduled",
+                message: `The meeting with ${studentName} was moved to ${meeting.scheduledAt.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}.`,
+                actionHref: `/dashboard/leads/${lead._id}#meeting`,
+            });
+        }
+        if (genuinelyCancelled) {
+            await createNotification({
+                recipientUserId: lead.assignedTo,
+                leadId: lead._id,
+                type: "MEETING_CANCELLED",
+                title: "Meeting cancelled",
+                message: `The meeting with ${studentName} scheduled for ${previousScheduledAt.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })} was cancelled.`,
+                actionHref: `/dashboard/leads/${lead._id}#meeting`,
+            });
+        }
+    }
+
     sendSuccess(res, toSafeMeeting(meeting));
 }
 

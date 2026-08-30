@@ -112,9 +112,12 @@ function frame(pptx, { sectionLabel, title }) {
     return { slide, contentTop: CONTENT_TOP };
 }
 
-function footer(slide, pageNum, totalPages) {
+// `leftText` -- Milestone 23.18: lets a caller (e.g. a per-property slide
+// showing that property's own provenance ID) override the default
+// wordmark tagline without hand-drawing a second footer chrome.
+function footer(slide, pageNum, totalPages, leftText = "IVYHUTS  ·  Housing to Hiring") {
     slide.addShape("line", { x: MARGIN, y: CONTENT_BOTTOM, w: CONTENT_W, h: 0, line: { color: COLORS.border, width: 0.75 } });
-    slide.addText("IVYHUTS  ·  Housing to Hiring", { x: MARGIN, y: CONTENT_BOTTOM + 0.08, w: 6, h: 0.3, fontSize: 9.5, color: COLORS.inkFaint, fontFace: FONT });
+    slide.addText(leftText, { x: MARGIN, y: CONTENT_BOTTOM + 0.08, w: 9, h: 0.3, fontSize: 9.5, color: COLORS.inkFaint, fontFace: FONT });
     slide.addText(`${pageNum} / ${totalPages}`, { x: PAGE_W - MARGIN - 1.0, y: CONTENT_BOTTOM + 0.08, w: 1.0, h: 0.3, fontSize: 9.5, color: COLORS.inkFaint, align: "right", fontFace: FONT });
 }
 
@@ -224,10 +227,76 @@ function journeyChain(slide, steps, { x, y, w, nodeD = 0.62, fontSize = 11, acti
     });
 }
 
+// ---- Data table: purple header row + zebra-striped body, using pptxgenjs's
+// own native addTable (not hand-drawn rects/text) -- Milestone 23.18, added
+// for the accommodation deck's comparison table. `rows` is an array of
+// plain string arrays (header row first); `colWidths` in inches, summing to
+// the table's total width. `rowFill(bodyRowIndex)` -- Milestone 23.19 --
+// lets a caller override one row's fill (e.g. highlighting the recommended
+// property) instead of the default zebra stripe; return null/undefined to
+// keep the default for that row. Kept here rather than in
+// pptBuilderAccommodation.js so any future deck can reuse the same table
+// styling instead of a second, differently-styled one. ----
+function dataTable(slide, rows, { x, y, colWidths, rowH = 0.4, headerH = 0.38, fontSize = TYPE.table, rowFill, cellColor, cellBold } = {}) {
+    const [header, ...body] = rows;
+    const tableRows = [
+        header.map((text) => ({
+            text: String(text).toUpperCase(),
+            options: { bold: true, color: COLORS.goldLight, fill: { color: COLORS.purple }, fontSize: TYPE.sectionLabel, align: "left", valign: "middle", fontFace: FONT, charSpacing: 0.5 },
+        })),
+        ...body.map((row, i) => {
+            const overrideFill = typeof rowFill === "function" ? rowFill(i) : null;
+            const fill = overrideFill || (i % 2 === 0 ? COLORS.white : COLORS.surface);
+            return row.map((text, col) => ({
+                text: String(text),
+                options: {
+                    color: (typeof cellColor === "function" && cellColor(i, col)) || COLORS.inkSoft,
+                    bold: typeof cellBold === "function" ? Boolean(cellBold(i, col)) : false,
+                    fill: { color: fill }, fontSize, align: "left", valign: "middle", fontFace: FONT,
+                },
+            }));
+        }),
+    ];
+    slide.addTable(tableRows, {
+        x, y, w: colWidths.reduce((a, b) => a + b, 0), colW: colWidths,
+        rowH: [headerH, ...body.map(() => rowH)],
+        border: { type: "solid", color: COLORS.border, pt: 0.75 },
+        autoPage: false,
+    });
+}
+
+// ---- Photo placeholder panel: Milestone 23.19 -- reproduces the reference
+// deck's large left-column property-photo TREATMENT (a tall rounded-rect
+// photo panel occupying roughly half the slide) without embedding an
+// actual fetched image -- this pipeline makes zero network calls during
+// generation (see pptBuilderAccommodation.js's own header comment), so a
+// real photo is never available to place here. `hasVerifiedPhoto` toggles
+// only the caption's wording (honest either way: "on file" vs genuinely
+// none) -- never implies a photograph is actually shown. ----
+function photoPlaceholder(slide, { x, y, w, h, hasVerifiedPhoto }) {
+    slide.addShape("roundRect", { x, y, w, h, rectRadius: RADIUS_CARD, fill: { color: COLORS.track }, line: CARD_LINE });
+    const iconD = 0.7;
+    slide.addShape("roundRect", {
+        x: x + w / 2 - iconD / 2, y: y + h / 2 - iconD / 2 - 0.22, w: iconD, h: iconD, rectRadius: 0.12,
+        fill: { color: COLORS.white }, line: { color: COLORS.inkFaint, width: 1 },
+    });
+    // A simple camera-lens glyph (two concentric circles) -- avoids
+    // depending on an icon font/image asset that may not be present on
+    // every viewing machine (see pptDesignSystem.js's own FONT comment on
+    // exactly this "PowerPoint-safe" reasoning).
+    const lensD = 0.34;
+    slide.addShape("ellipse", { x: x + w / 2 - lensD / 2, y: y + h / 2 - lensD / 2 - 0.22, w: lensD, h: lensD, fill: { color: COLORS.surface }, line: { color: COLORS.inkFaint, width: 1.25 } });
+    const caption = hasVerifiedPhoto ? "Verified photo on file with this listing" : "No verified photo on file for this listing";
+    slide.addText(caption, {
+        x: x + 0.3, y: y + h / 2 + 0.24, w: w - 0.6, h: 0.5, fontSize: 10.5, italic: true, color: COLORS.inkFaint,
+        align: "center", fontFace: FONT, valign: "top",
+    });
+}
+
 module.exports = {
     COLORS, FONT, TYPE,
     PAGE_W, PAGE_H, MARGIN, CONTENT_W, CONTENT_TOP, CONTENT_BOTTOM, CONTENT_H, GUTTER,
     RADIUS_CARD, RADIUS_PILL, CARD_LINE,
     truncate,
-    frame, footer, metricCard, infoCard, pill, progressBar, numberBadge, chipRow, journeyChain,
+    frame, footer, metricCard, infoCard, pill, progressBar, numberBadge, chipRow, journeyChain, dataTable, photoPlaceholder,
 };

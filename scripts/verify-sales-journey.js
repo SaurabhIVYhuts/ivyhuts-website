@@ -128,6 +128,7 @@ async function main() {
                 hasReadyPresentation: false,
                 hasAnyFollowUp: false,
                 hasPendingFollowUp: false,
+                hasPendingTranscriptReview: false,
             });
             assert.strictEqual(detail.lastInboundCommunicationAt, null);
         });
@@ -172,6 +173,16 @@ async function main() {
             assert.strictEqual(detail.journey.hasCompletedMeeting, true);
         });
 
+        await test("SCENARIO: Milestone 23.15 — a pending transcript extraction on that meeting sets hasPendingTranscriptReview", async () => {
+            const m = await Meeting.findById(meetingId);
+            m.transcriptText = "Agent: Which university? Student: University of Hertfordshire, budget 150-250 GBP, single room.";
+            m.extractedRequirements = { status: "pending_review", extractedAt: new Date(), university: "University of Hertfordshire", budgetMin: 150, budgetMax: 250, currency: "GBP", sharing: 1 };
+            await m.save();
+            const detail = await getJourney(lead._id, agent.cookie);
+            assert.strictEqual(detail.journey.hasPendingTranscriptReview, true);
+            assert.strictEqual(detail.journey.hasConfirmedRequirements, false, "a pending SUGGESTION must never itself count as confirmed");
+        });
+
         await test("SCENARIO: a Discovery with only university set does NOT complete hasConfirmedRequirements", async () => {
             await Discovery.create({ leadId: lead._id, student: { university: "University of Hertfordshire" } });
             const detail = await getJourney(lead._id, agent.cookie);
@@ -184,6 +195,15 @@ async function main() {
             await discovery.save();
             const detail = await getJourney(lead._id, agent.cookie);
             assert.strictEqual(detail.journey.hasConfirmedRequirements, true);
+        });
+
+        await test("SCENARIO: Milestone 23.15 — marking that extraction reviewed clears hasPendingTranscriptReview (requirements stays confirmed)", async () => {
+            const m = await Meeting.findById(meetingId);
+            m.extractedRequirements.status = "reviewed";
+            await m.save();
+            const detail = await getJourney(lead._id, agent.cookie);
+            assert.strictEqual(detail.journey.hasPendingTranscriptReview, false);
+            assert.strictEqual(detail.journey.hasConfirmedRequirements, true, "reviewing the suggestion must not un-confirm Discovery's own already-saved values");
         });
 
         await test("SCENARIO: a saved-but-EMPTY curation does NOT set hasCuratedProperties", async () => {

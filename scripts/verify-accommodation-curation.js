@@ -226,6 +226,8 @@ async function main() {
         const Lead = require(path.join(ROOT, "api", "_lib", "models", "Lead"));
         const User = require(path.join(ROOT, "api", "_lib", "models", "User"));
         const AccommodationCuration = require(path.join(ROOT, "api", "_lib", "models", "AccommodationCuration"));
+        const Discovery = require(path.join(ROOT, "api", "_lib", "models", "Discovery"));
+        const discoveryHandler = require(path.join(ROOT, "api", "leads", "[id]", "discovery.js"));
 
         await connectToDatabase();
         console.log("\nMongoDB connection established for live verification.\n");
@@ -445,7 +447,66 @@ async function main() {
             assert.strictEqual(data.criteriaSnapshot.sharing, 2);
         });
 
+        // ── STALENESS: a saved curation's criteriaSnapshot survives an unrelated later Discovery change ──
+        // Milestone 23.17 — this route never reads Discovery at all (confirmed
+        // by inspection: no `require(...Discovery)` anywhere in
+        // accommodation-curation.js before this test file's own import above),
+        // so nothing here is really "at risk" — but that decoupling is exactly
+        // the invariant Part 8/15 of this milestone require ("do NOT
+        // automatically rewrite the curation" when Discovery changes), and it
+        // had no real-handler regression test proving it end-to-end. This one
+        // does: a real PUT /discovery (genuinely changing university/budget)
+        // must leave an already-saved curation's criteriaSnapshot/properties
+        // completely untouched; only an explicit, later PUT to the curation
+        // endpoint itself (simulating the agent searching again with the new
+        // requirements and choosing to re-save) may change it.
+        await test("STALENESS: changing Discovery via the real PUT /discovery route does not touch an already-saved curation", async () => {
+            const staleLead = await Lead.create({ contact: { name: "Staleness Test Student", email: `${runId}-stale@example.test` }, source: "verify-script" });
+            createdLeadIds.push(staleLead._id);
+            const staleLeadId = String(staleLead._id);
+
+            const discoveryARes = mockRes();
+            await discoveryHandler(
+                mockReq({ method: "PUT", query: { id: staleLeadId }, cookie: agent.cookie, body: { student: { university: "University of Hertfordshire" }, accommodation: { budgetMin: 150, budgetMax: 250, currency: "GBP", sharing: 2 } } }),
+                discoveryARes
+            );
+            assert.strictEqual(discoveryARes.statusCode, 200, JSON.stringify(discoveryARes.body));
+
+            const snapshotA = validCriteriaSnapshot({ budgetMin: 150, budgetMax: 250, currency: "GBP" });
+            const saveRes = mockRes();
+            await handler(mockReq({ method: "PUT", query: { id: staleLeadId }, cookie: agent.cookie, body: { criteriaSnapshot: snapshotA, properties: [validProperty()], recommendedPropertyId: "uhomes:id:abc123" } }), saveRes);
+            assert.strictEqual(saveRes.statusCode, 200, JSON.stringify(saveRes.body));
+            const savedUpdatedAt = saveRes.body.data.updatedAt;
+
+            // Discovery changes — a genuinely different currency this time
+            // (Milestone 23.17's own CRM-side fix: a currency-only change IS
+            // a real requirements change, not a no-op).
+            const discoveryBRes = mockRes();
+            await discoveryHandler(
+                mockReq({ method: "PUT", query: { id: staleLeadId }, cookie: agent.cookie, body: { accommodation: { currency: "USD" } } }),
+                discoveryBRes
+            );
+            assert.strictEqual(discoveryBRes.statusCode, 200, JSON.stringify(discoveryBRes.body));
+            assert.strictEqual(discoveryBRes.body.data.accommodation.currency, "USD");
+
+            const afterDiscoveryChange = mockRes();
+            await handler(mockReq({ method: "GET", query: { id: staleLeadId }, cookie: agent.cookie }), afterDiscoveryChange);
+            assert.strictEqual(afterDiscoveryChange.body.data.criteriaSnapshot.currency, "GBP", "the saved curation's criteriaSnapshot must still read GBP — Discovery changing to USD must never silently rewrite it");
+            assert.strictEqual(afterDiscoveryChange.body.data.updatedAt, savedUpdatedAt, "the curation document itself must not have been touched at all by the Discovery PUT");
+            assert.strictEqual(afterDiscoveryChange.body.data.properties.length, 1, "the saved shortlist must survive completely intact");
+
+            // Only an explicit, later curation save (simulating the agent
+            // searching again against the NEW requirements and choosing to
+            // save) may actually change it.
+            const snapshotB = validCriteriaSnapshot({ budgetMin: 150, budgetMax: 250, currency: "USD" });
+            const resaveRes = mockRes();
+            await handler(mockReq({ method: "PUT", query: { id: staleLeadId }, cookie: agent.cookie, body: { criteriaSnapshot: snapshotB, properties: [validProperty()], recommendedPropertyId: "uhomes:id:abc123" } }), resaveRes);
+            assert.strictEqual(resaveRes.statusCode, 200, JSON.stringify(resaveRes.body));
+            assert.strictEqual(resaveRes.body.data.criteriaSnapshot.currency, "USD", "only the agent's own explicit re-save may update the snapshot");
+        });
+
         // ── CLEANUP ──
+        await Discovery.deleteMany({ leadId: { $in: createdLeadIds } });
         await AccommodationCuration.deleteMany({ leadId: { $in: createdLeadIds } });
         await Lead.deleteMany({ _id: { $in: createdLeadIds } });
         await User.deleteMany({ _id: { $in: createdUserIds } });

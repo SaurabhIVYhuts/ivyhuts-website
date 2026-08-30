@@ -7,6 +7,7 @@ const Lead = require("../../_lib/models/Lead");
 const User = require("../../_lib/models/User");
 const { toSafeLead } = require("../../_lib/leadView");
 const { recordEvent } = require("../../_lib/events");
+const { createNotification } = require("../../_lib/notify");
 const { withErrorHandling, requireObjectId, notFound, badRequest, parseJsonBody } = require("../../_lib/validation");
 const { sendSuccess } = require("../../_lib/apiResponse");
 const { withCors } = require("../../_lib/cors");
@@ -35,6 +36,9 @@ module.exports = withErrorHandling(async (req, res) => {
         throw badRequest("VALIDATION_ERROR", "assignedTo is required (a user id, or null to unassign).");
     }
 
+    const previousAssignedTo = lead.assignedTo;
+    let newlyAssignedAgent = null; // set only when this is a genuinely NEW assignment, for the notification below
+
     if (body.assignedTo === null) {
         lead.assignedTo = null;
     } else {
@@ -45,6 +49,9 @@ module.exports = withErrorHandling(async (req, res) => {
             throw badRequest("VALIDATION_ERROR", "Leads can only be assigned to MARKETING_AGENT, MARKETING_MANAGER, or ADMIN accounts.");
         }
         lead.assignedTo = String(target._id);
+        // Milestone 23.14 — only notify on a genuine change of assignee, never
+        // on a no-op re-save of the same value (e.g. a UI double-submit).
+        if (previousAssignedTo !== lead.assignedTo) newlyAssignedAgent = target;
     }
 
     await lead.save();
@@ -55,6 +62,21 @@ module.exports = withErrorHandling(async (req, res) => {
         properties: { leadId: String(lead._id), assignedTo: lead.assignedTo },
         metadata: { changedBy: String(identity.mongoUser._id), changedByRole: identity.mongoUser.role },
     });
+
+    // Milestone 23.14 — "Assignment must trigger agent action" (Part 8).
+    // Fire-and-forget-safe (see notify.js) — a notification failure must
+    // never fail the assignment itself, which has already succeeded above.
+    if (newlyAssignedAgent) {
+        const studentName = (lead.contact && lead.contact.name) || "this lead";
+        await createNotification({
+            recipientUserId: newlyAssignedAgent._id,
+            leadId: lead._id,
+            type: "LEAD_ASSIGNED",
+            title: "New lead assigned",
+            message: `${studentName} was assigned to you. Schedule a meeting to get started.`,
+            actionHref: `/dashboard/leads/${lead._id}#meeting`,
+        });
+    }
 
     sendSuccess(res, toSafeLead(lead));
 });

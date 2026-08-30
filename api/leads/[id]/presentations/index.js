@@ -30,6 +30,7 @@ const { withCors } = require("../../../_lib/cors");
 const { acquireLock, releaseLock } = require("../../../_lib/sharedStore");
 const Lead = require("../../../_lib/models/Lead");
 const AccommodationCuration = require("../../../_lib/models/AccommodationCuration");
+const Discovery = require("../../../_lib/models/Discovery");
 const Presentation = require("../../../_lib/models/Presentation");
 const { withErrorHandling, requireObjectId, notFound, badRequest, parseJsonBody, ApiError } = require("../../../_lib/validation");
 const { sendSuccess, sendCollection } = require("../../../_lib/apiResponse");
@@ -48,6 +49,31 @@ const MAX_PAYLOAD_BYTES = 2_000;
 // "collapse concurrent duplicate work" purpose, not a new mechanism.
 const LOCK_TTL_MS = 30_000;
 
+// Milestone 23.21 -- a deliberately narrow projection of ONE property as it
+// was stored in THIS version's own immutable snapshot (Presentation.js's
+// SnapshotPropertySchema) at generation time. Never re-reads
+// AccommodationCuration -- the whole point is that this reflects exactly
+// what existed when this version was generated, even if the live curation
+// has since changed. propertyId is the canonical identity (never array
+// index); name/roomType/rent/currency/rentPeriod/provider/city/country are
+// the "possible fields" a summary list needs -- availability/distance/
+// amenities/advantages are intentionally left out of this summary (still
+// fully present in the real .pptx download) to keep this a compact list,
+// not a second full property view.
+function toSafePresentationProperty(p) {
+    return {
+        propertyId: p.propertyId,
+        name: p.name,
+        provider: p.provider,
+        roomType: p.roomType || null,
+        rent: typeof p.rent === "number" ? p.rent : null,
+        currency: p.currency || null,
+        rentPeriod: p.rentPeriod || "unknown",
+        city: p.city || null,
+        country: p.country || null,
+    };
+}
+
 function toSafePresentation(doc) {
     return {
         id: String(doc._id),
@@ -61,9 +87,17 @@ function toSafePresentation(doc) {
             mimeType: doc.file ? doc.file.mimeType : null,
             sizeBytes: doc.file ? doc.file.sizeBytes : null,
         },
+        // Milestone 23.21 -- from THIS document's own immutable
+        // snapshot.properties (see Presentation.js's header comment: "a
+        // DEEP COPY taken at generation time, not a reference"), never from
+        // a live AccommodationCuration lookup. Answers "what exactly was
+        // included in this version" without opening the .pptx.
+        properties: doc.snapshot && Array.isArray(doc.snapshot.properties) ? doc.snapshot.properties.map(toSafePresentationProperty) : [],
         generatedFrom: {
             accommodationCurationId: doc.generatedFrom && doc.generatedFrom.accommodationCurationId ? String(doc.generatedFrom.accommodationCurationId) : null,
             accommodationCurationUpdatedAt: doc.generatedFrom ? doc.generatedFrom.accommodationCurationUpdatedAt : null,
+            discoveryId: doc.generatedFrom && doc.generatedFrom.discoveryId ? String(doc.generatedFrom.discoveryId) : null,
+            discoveryUpdatedAt: doc.generatedFrom ? doc.generatedFrom.discoveryUpdatedAt : null,
         },
         createdBy: doc.createdBy ? String(doc.createdBy) : null,
         createdAt: doc.createdAt,
@@ -131,18 +165,47 @@ async function handlePost(req, res, leadId) {
         if (!curation || !Array.isArray(curation.properties) || curation.properties.length === 0) {
             throw new ApiError(409, "NO_CURATION_SAVED", "Save your curated accommodation options before generating the presentation.");
         }
+        // Milestone 23.18 — read-only, same as `curation` above: personalizes
+        // the deck (client requirements/cover context) from the CONFIRMED
+        // Discovery record. Never written to, never re-derived from; a lead
+        // can in principle have a saved curation with no Discovery at all
+        // (curation.criteriaSnapshot alone got it there historically), so
+        // this is optional — normalizeAccommodationCurationForPresentation
+        // below falls back to criteriaSnapshot wherever discovery is null or
+        // a given field is unset on it.
+        const discovery = await Discovery.findOne({ leadId });
 
         const lastVersionDoc = await Presentation.findOne({ leadId }).sort({ version: -1 }).select("version");
         const nextVersion = lastVersionDoc ? lastVersionDoc.version + 1 : 1;
 
         const curationPlain = curation.toObject();
+        const discoveryPlain = discovery ? discovery.toObject() : null;
         const normalized = normalizeAccommodationCurationForPresentation(curationPlain, {
             studentName: lead.contact && lead.contact.name,
             title: title || "Accommodation Presentation",
+            discovery: discoveryPlain,
         });
 
         const snapshot = {
             criteriaSnapshot: curationPlain.criteriaSnapshot || null,
+            discoverySnapshot: discoveryPlain
+                ? {
+                      university: discoveryPlain.student.university,
+                      course: discoveryPlain.student.course,
+                      intake: discoveryPlain.student.intake,
+                      budgetMin: discoveryPlain.accommodation.budgetMin,
+                      budgetMax: discoveryPlain.accommodation.budgetMax,
+                      currency: discoveryPlain.accommodation.currency,
+                      moveInDate: discoveryPlain.accommodation.moveInDate,
+                      stayDurationMonths: discoveryPlain.accommodation.stayDurationMonths,
+                      preferredLocation: discoveryPlain.accommodation.preferredLocation,
+                      roomPreference: discoveryPlain.accommodation.roomPreference,
+                      sharing: discoveryPlain.accommodation.sharing,
+                      distancePreference: discoveryPlain.accommodation.distancePreference,
+                      priorities: discoveryPlain.priorities || [],
+                      notes: discoveryPlain.notes,
+                  }
+                : null,
             properties: curationPlain.properties || [],
             recommendedPropertyId: curationPlain.recommendedPropertyId || null,
             recommendationReason: curationPlain.recommendationReason || null,
@@ -151,6 +214,8 @@ async function handlePost(req, res, leadId) {
         const generatedFrom = {
             accommodationCurationId: curation._id,
             accommodationCurationUpdatedAt: curation.updatedAt,
+            discoveryId: discovery ? discovery._id : null,
+            discoveryUpdatedAt: discovery ? discovery.updatedAt : null,
         };
 
         let doc;
