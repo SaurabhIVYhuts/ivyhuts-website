@@ -21,6 +21,14 @@ function toNumber(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+// Amber returns a room's `meta.area` in square metres. The UI shows square
+// feet, so convert once here at the mapping boundary rather than in the
+// component. 1 m² = 10.7639 ft²; rounded to a whole number.
+function sqmToSqft(v) {
+  const n = toNumber(v);
+  return n == null ? null : Math.round(n * 10.7639);
+}
+
 function currencySymbol(raw) {
   if (!raw) return "";
   const key = String(raw).trim().toLowerCase();
@@ -565,7 +573,7 @@ function mapRoomType(child) {
     metaChips,
     bedroomCount: toNumber(child.meta?.bedroom_count),
     bathroomCount: toNumber(child.meta?.bathroom_count),
-    sizeSqm: toNumber(child.meta?.area) || null,
+    sizeSqft: sqmToSqft(child.meta?.area),
     price,
     image: getPrimaryImage(child),
     images: getGalleryImages(child, 6),

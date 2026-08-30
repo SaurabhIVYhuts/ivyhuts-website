@@ -106,10 +106,10 @@ export default function RoomTypeCard({ room, onEnquire, fallbackImage }) {
             )}
           </div>
 
-          {(room.metaChips.length > 0 || room.sizeSqm) && (
+          {(room.metaChips.length > 0 || room.sizeSqft) && (
             <div className="room-type-chips">
               {room.metaChips.map((c) => <span key={c} className="room-type-chip">{c}</span>)}
-              {room.sizeSqm ? <span className="room-type-chip">{room.sizeSqm} sqm</span> : null}
+              {room.sizeSqft ? <span className="room-type-chip">{room.sizeSqft} sq ft</span> : null}
             </div>
           )}
 
