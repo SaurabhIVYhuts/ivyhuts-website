@@ -51,7 +51,7 @@
   "crons": [
     {
       "path": "/api/leads/import/sync-cron",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }
