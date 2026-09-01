@@ -47,11 +47,5 @@
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
       ]
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/leads/import/sync-cron",
-      "schedule": "0 3 * * *"
-    }
   ]
 }
