@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  X, Headset, Heart, Search, Mic, Handshake, Building2, Mail, FileText, Lock, ArrowRight, GraduationCap,
+  X, Headset, Heart, Mic, Handshake, Building2, Mail, FileText, Lock, ArrowRight, GraduationCap,
 } from "lucide-react";
 import "./MobileMenuSheet.css";
 
@@ -10,18 +10,16 @@ const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHut
 // Mirrors amberstudent.com's real mobile hamburger — a short flat list of
 // action rows (not the grouped Destinations/Services/Company accordion,
 // which lives in the footer instead, same as on Amber) — plus a sticky
-// Login button at the bottom instead of Amber's own. Find Rooms and
-// Placement Podcast are folded in here since neither has a bottom-tab slot
-// anymore (see MobileBottomNav.js).
-// Milestone 10: University Housing listed ahead of Find Rooms — now the
-// primary accommodation-discovery experience. Find Rooms is kept (not
-// removed): real, unmigrated capability still lives there (see
-// IVYHUTS_FIND_ROOM_FEATURE_PARITY.md).
+// Login button at the bottom instead of Amber's own. Placement Podcast is
+// folded in here since it has no bottom-tab slot (see MobileBottomNav.js).
+// Milestone 10: University Housing listed first — now the primary
+// accommodation-discovery experience. The "Find Rooms" row was removed at
+// the user's request; the /find-rooms route itself is untouched and still
+// reachable via the Footer's country links and other in-app links.
 const PRIMARY_ROWS = [
   { label: "Support", href: WA_HREF, external: true, Icon: Headset },
   { label: "Shortlist", to: "/wishlist", Icon: Heart },
   { label: "University Housing", to: "/university-housing", Icon: GraduationCap },
-  { label: "Find Rooms", to: "/find-rooms", Icon: Search },
   { label: "Placement Podcast", to: "/life-abroad", Icon: Mic },
 ];
 const PARTNER_ROWS = [

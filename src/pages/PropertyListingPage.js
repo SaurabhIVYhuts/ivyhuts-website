@@ -700,16 +700,10 @@ export default function PropertyListingPage() {
           </div>
         </div>
 
-        {/* FILTER TOOLBAR (Desktop) */}
+        {/* FILTER TOOLBAR (Desktop) — text search lives in the navbar's
+            GlobalSearchBar now; this toolbar keeps only the structured
+            filters (price, area, move-in, room type, amenities). */}
         <div className="listings-toolbar desktop-only">
-          <input
-            aria-label="Filter by property, area or university"
-            placeholder="Filter by property, area or university"
-            value={filters.query}
-            onChange={(e) => setFilter("query")(e.target.value)}
-            className="toolbar-search-input"
-          />
-
           <details className="toolbar-dropdown">
             <summary><FilterIcon /> Filters{advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}</summary>
             <div className="toolbar-panel">

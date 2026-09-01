@@ -33,15 +33,15 @@ export default function SiteNavbar() {
   const showSearch = pathname !== "/";
 
   // Milestone 10: University Housing is now the primary accommodation-
-  // discovery experience — listed first. "Find Rooms" is kept, not removed:
-  // it still covers real, unmigrated capability (city/country-only browsing,
-  // filters — see IVYHUTS_FIND_ROOM_FEATURE_PARITY.md) that would otherwise
-  // become unreachable for the Footer's country links and anyone wanting to
-  // filter/browse without a specific university.
+  // discovery experience — listed first. The "Find Rooms" nav link was
+  // removed from here at the user's request, but the /find-rooms route
+  // itself is untouched — it's still reachable via the Footer's country
+  // links, the mobile menu sheet, and other in-app links, and still covers
+  // real, unmigrated capability (city/country-only browsing, filters — see
+  // IVYHUTS_FIND_ROOM_FEATURE_PARITY.md).
   const links = [
     { to: "/",               label: "Home" },
     { to: "/university-housing", label: "University Housing" },
-    { to: "/find-rooms",     label: "Find Rooms" },
     { to: "/life-abroad",    label: "Placement Podcast" },
     { to: "/list-your-stay", label: "List Your Stay" },
     { to: "/partner",        label: "Partner with Us" },
