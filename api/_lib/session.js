@@ -76,21 +76,31 @@ function isProduction() {
     return process.env.NODE_ENV === "production";
 }
 
+// The deployed CRM (e.g. ivyhuts-crm.vercel.app) is a *cross-site* caller to
+// this backend (www.ivyhuts.com) — different registrable domains — so its
+// credentialed fetch()es only ever carry this cookie when it is set with
+// SameSite=None, which the spec requires be paired with Secure. Hence
+// prod-only: local dev is same-site (localhost:3000 -> localhost:3001) and
+// plain HTTP, where SameSite=Lax with no Secure is both correct and
+// required. Keep buildSessionCookie and buildClearCookie in lockstep so a
+// logout actually matches (and clears) the cookie a login set.
+function sameSiteParts() {
+    return isProduction() ? ["SameSite=None", "Secure"] : ["SameSite=Lax"];
+}
+
 function buildSessionCookie(sessionId) {
     const parts = [
         `${COOKIE_NAME}=${sessionId}`,
         "Path=/",
         "HttpOnly",
-        "SameSite=Lax",
+        ...sameSiteParts(),
         `Max-Age=${SESSION_TTL_SECONDS}`,
     ];
-    if (isProduction()) parts.push("Secure");
     return parts.join("; ");
 }
 
 function buildClearCookie() {
-    const parts = [`${COOKIE_NAME}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"];
-    if (isProduction()) parts.push("Secure");
+    const parts = [`${COOKIE_NAME}=`, "Path=/", "HttpOnly", ...sameSiteParts(), "Max-Age=0"];
     return parts.join("; ");
 }
 

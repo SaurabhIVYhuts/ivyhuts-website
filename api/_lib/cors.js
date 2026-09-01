@@ -7,19 +7,24 @@
 // grep across the whole tree before writing this) — this is the first CORS
 // handling this backend has ever had.
 //
-// CRM_ORIGIN is a comma-separated list of exact origins (scheme+host+port,
-// no trailing slash), e.g. "https://crm.ivyhuts.com" or, with a deploy
-// preview added, "https://crm.ivyhuts.com,https://crm-git-x.vercel.app".
-// Unset in production today — ivyhuts-crm has no deployed URL yet (see its
-// own .env.example) — so do not invent one here. Local development always
-// works via the hardcoded fallback below, matching the CRM's Next.js dev
-// server default (see ivyhuts-crm/package.json's "dev": "next dev").
+// CRM_ORIGIN is a comma-separated list of exact origins (scheme+host+port),
+// e.g. "https://ivyhuts-crm.vercel.app" or, with a deploy preview added,
+// "https://ivyhuts-crm.vercel.app,https://crm-git-x.vercel.app". A trailing
+// slash on any entry is tolerated (getAllowedOrigins strips it). In
+// production this is set on the ivyhuts-website Vercel project to the
+// deployed CRM's stable origin. Local development always works via the
+// hardcoded fallback below, matching the CRM's Next.js dev server default
+// (see ivyhuts-crm/package.json's "dev": "next dev").
 const DEFAULT_DEV_ORIGIN = "http://localhost:3000";
 
 function getAllowedOrigins() {
     const configured = String(process.env.CRM_ORIGIN || "")
         .split(",")
-        .map((o) => o.trim())
+        // A browser's Origin header is always bare scheme+host+port with no
+        // path, so a trailing slash in the configured value (an easy mistake
+        // to make in a hosting dashboard) would make every match fail
+        // silently. Strip it here so the env value is forgiving.
+        .map((o) => o.trim().replace(/\/+$/, ""))
         .filter(Boolean);
     return configured.length ? configured : [DEFAULT_DEV_ORIGIN];
 }
