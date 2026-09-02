@@ -4,7 +4,7 @@
 // throwaway-MongoDB guard, and in-memory Redis fallback as every other
 // scripts/verify-*.js in this repo.
 //
-// ANTHROPIC_API_KEY is deliberately deleted AFTER dotenv loads it (same
+// GROQ_API_KEY is deliberately deleted AFTER dotenv loads it (same
 // single-process pattern verify-business-api.js already uses for the
 // UPSTASH_* vars) so the fail-closed extraction tests are genuine, not
 // accidentally hitting the real configured key. No GOOGLE_* vars exist in
@@ -22,7 +22,7 @@ require("dotenv").config({ path: path.join(ROOT, ".env.local") });
 require("dotenv").config({ path: path.join(ROOT, ".env") });
 delete process.env.UPSTASH_REDIS_REST_URL;
 delete process.env.UPSTASH_REDIS_REST_TOKEN;
-delete process.env.ANTHROPIC_API_KEY;
+delete process.env.GROQ_API_KEY;
 
 let passed = 0;
 let failed = 0;
@@ -81,7 +81,7 @@ function mockWebhookPostReq({ bodyBuffer, signature }) {
 
 async function main() {
     console.log("=== IvyHuts Lead Intake + Meet + Transcript Verification (Milestone 23.14) ===");
-    console.log("Redis: forced in-memory fallback. ANTHROPIC_API_KEY scrubbed for fail-closed tests. No real Google credentials anywhere in this run.\n");
+    console.log("Redis: forced in-memory fallback. GROQ_API_KEY scrubbed for fail-closed tests. No real Google credentials anywhere in this run.\n");
 
     const MONGODB_URI = process.env.MONGODB_URI;
     if (!MONGODB_URI) {
@@ -701,8 +701,8 @@ async function main() {
         assert.strictEqual(res.statusCode, 400);
     });
 
-    // ══════════════════════ Extraction — fail-closed (real, ANTHROPIC_API_KEY scrubbed) ══════════════════════
-    await test("EXTRACTION: not configured (ANTHROPIC_API_KEY scrubbed for this test run) -> 503, no fabricated suggestion", async () => {
+    // ══════════════════════ Extraction — fail-closed (real, GROQ_API_KEY scrubbed) ══════════════════════
+    await test("EXTRACTION: not configured (GROQ_API_KEY scrubbed for this test run) -> 503, no fabricated suggestion", async () => {
         const res = mockRes();
         await extractRequirementsHandler(mockReq({ method: "POST", query: { id: leadId, meetingId }, cookie: agent.cookie }), res);
         assert.strictEqual(res.statusCode, 503, JSON.stringify(res.body));

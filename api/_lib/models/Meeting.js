@@ -104,7 +104,7 @@ const MeetingSchema = new Schema(
         transcriptText: { type: String, default: null },
         // Milestone 23.14 — the most recent extraction run against
         // transcriptText, or null if extraction has never been run (no
-        // transcriptText yet, or ANTHROPIC_API_KEY not configured — see
+        // transcriptText yet, or GROQ_API_KEY not configured — see
         // api/_lib/transcriptExtraction.js). Overwritten by each new
         // extraction run; only ever a SUGGESTION, never written into
         // Discovery directly by any code path.

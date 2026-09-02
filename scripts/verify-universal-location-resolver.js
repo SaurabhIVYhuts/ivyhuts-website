@@ -290,15 +290,15 @@ async function main() {
     });
 
     await test("TEST 3: 'ESCP Business School Campus Berlin' resolves as a valid educational institution WITHOUT being added to universities.json", async () => {
-        const savedKey = process.env.ANTHROPIC_API_KEY;
-        delete process.env.ANTHROPIC_API_KEY; // proves this resolves via deterministic discovery, not AI
+        const savedKey = process.env.GROQ_API_KEY;
+        delete process.env.GROQ_API_KEY; // proves this resolves via deterministic discovery, not AI
         try {
             const body = await resolveQuery("ESCP Business School Campus Berlin");
             assert.strictEqual(body.status, "resolved", `expected a direct resolution, got: ${body.status}`);
             assert.ok(/escp/i.test(body.data.name));
             console.log(`        -> TEST 3 resolved: "${body.data.name}" (${body.data.city}, ${body.data.country})`);
         } finally {
-            if (savedKey !== undefined) process.env.ANTHROPIC_API_KEY = savedKey;
+            if (savedKey !== undefined) process.env.GROQ_API_KEY = savedKey;
         }
     });
 

@@ -1,6 +1,7 @@
 {
   "functions": {
-    "api/content/[[...path]].js": { "maxDuration": 30 }
+    "api/content/[[...path]].js": { "maxDuration": 30 },
+    "api/crm-tools/[[...path]].js": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/api/wishlist", "destination": "/api/wishlist/__base__" },
@@ -35,6 +36,7 @@
     { "source": "/api/properties/search", "destination": "/api/crm-tools/__properties-search__" },
     { "source": "/api/universities/resolve", "destination": "/api/crm-tools/__universities-resolve__" },
     { "source": "/api/staff", "destination": "/api/crm-tools/staff" },
+    { "source": "/api/assistant", "destination": "/api/crm-tools/assistant" },
     { "source": "/api/admin/accommodation/inventory-health", "destination": "/api/crm-tools/__admin-inventory-health__" }
   ],
   "headers": [

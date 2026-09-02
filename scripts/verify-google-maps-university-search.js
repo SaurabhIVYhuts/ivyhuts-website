@@ -328,7 +328,7 @@ async function main() {
     const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
 
     await test("ENDPOINT: a full Google Maps URL for a curated Tier 1 university resolves, with zero AI calls (Tier 1 never escalates)", async () => {
-        delete process.env.ANTHROPIC_API_KEY; // prove AI isn't even reachable/needed for this path
+        delete process.env.GROQ_API_KEY; // prove AI isn't even reachable/needed for this path
         const { req, res, getStatus, getBody } = mockReqRes({ q: FULL_PLACE_URL });
         await resolveHandler(req, res);
         assert.strictEqual(getStatus(), 200);

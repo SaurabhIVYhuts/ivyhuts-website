@@ -345,7 +345,7 @@ const BUCKET_SORT_RANK = {
     noNextAction: 10,
 };
 
-module.exports = withErrorHandling(async (req, res) => {
+const handler = withErrorHandling(async (req, res) => {
     if (withCors(req, res)) return; // preflight handled
 
     if (req.method !== "GET") {
@@ -448,3 +448,17 @@ module.exports = withErrorHandling(async (req, res) => {
         pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
     });
 });
+
+// Exposed so the read-only Ivy Assistant `my_work_queue` tool can run the
+// EXACT SAME bucket aggregation this route runs (actor-scoped to the
+// caller's own assigned leads) instead of reimplementing the ~150-line
+// $switch/$lookup pipeline and risking it drifting out of sync. Same
+// "attach pure helpers to the exported handler" precedent as every other
+// lead-scoped route in this repo (handler.toSafeMeeting, etc.).
+handler.buildBaseMatch = buildBaseMatch;
+handler.buildEnrichmentStages = buildEnrichmentStages;
+handler.startOfDay = startOfDay;
+handler.BUCKET_SORT_RANK = BUCKET_SORT_RANK;
+handler.WORK_QUEUE_BUCKETS = WORK_QUEUE_BUCKETS;
+
+module.exports = handler;

@@ -642,9 +642,9 @@ async function main() {
         console.log(`        -> resolved: "${record.name}" (${record.latitude}, ${record.longitude})`);
     });
 
-    await test("AI BEHAVIOR: resolving the short link succeeds with ANTHROPIC_API_KEY unset — proves the direct Nominatim query on the redirected name resolved it, AI escalation was never reached (same proof pattern as the full-URL Tier 1 test above)", async () => {
-        const savedKey = process.env.ANTHROPIC_API_KEY;
-        delete process.env.ANTHROPIC_API_KEY;
+    await test("AI BEHAVIOR: resolving the short link succeeds with GROQ_API_KEY unset — proves the direct Nominatim query on the redirected name resolved it, AI escalation was never reached (same proof pattern as the full-URL Tier 1 test above)", async () => {
+        const savedKey = process.env.GROQ_API_KEY;
+        delete process.env.GROQ_API_KEY;
         try {
             const resolveHandler = require(path.join(ROOT, "api", "_lib", "routes", "crm-tools", "universities-resolve.js"));
             const req = { method: "GET", query: { q: FAILING_URL } };
@@ -661,7 +661,7 @@ async function main() {
             await resolveHandler(req, res);
             assert.strictEqual(jsonBody.status, "resolved", "if AI escalation had been required to resolve this, an unset API key would have degraded this to not_found/unavailable instead");
         } finally {
-            if (savedKey !== undefined) process.env.ANTHROPIC_API_KEY = savedKey;
+            if (savedKey !== undefined) process.env.GROQ_API_KEY = savedKey;
         }
     });
 

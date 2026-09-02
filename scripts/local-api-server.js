@@ -46,6 +46,7 @@ const authRoutes = {
 // shadowed by — same precedence rule Vercel itself applies.
 const businessRoutes = [
     { pattern: "/api/staff", handler: require("../api/_lib/routes/crm-tools/staff.js") },
+    { pattern: "/api/assistant", handler: require("../api/_lib/routes/crm-tools/assistant.js") },
     { pattern: "/api/admin/accommodation/inventory-health", handler: require("../api/_lib/routes/crm-tools/admin/accommodation/inventory-health.js") },
     { pattern: "/api/customers", handler: require("../api/_lib/routes/customers/index.js") },
     { pattern: "/api/customers/me", handler: require("../api/_lib/routes/customers/me.js") },

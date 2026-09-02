@@ -1,8 +1,8 @@
 // AI-assisted requirement extraction from a meeting transcript — Milestone
-// 23.14. Same pattern as api/_lib/universityAI.js (already-configured
-// ANTHROPIC_API_KEY, lazy client construction, its own Redis rate budget,
-// structured JSON-schema output, never throws) — reused deliberately
-// rather than building a second AI-calling convention.
+// 23.14. Same pattern as api/_lib/universityAI.js (shared Groq client via
+// api/_lib/groqClient.js, GROQ_API_KEY guard, its own Redis rate budget,
+// JSON-object output, never throws) — reused deliberately rather than
+// building a second AI-calling convention.
 //
 // ── What this module is allowed to do ──
 // Read a real, agent-pasted transcript and extract ONLY values explicitly
@@ -24,29 +24,23 @@
 //   or a side effect of any other request.
 //
 // ── Availability / graceful degradation ──
-// If ANTHROPIC_API_KEY is unset, extractRequirementsFromTranscript()
-// returns null immediately. If the rate budget is exhausted or the API
-// call fails for any reason, it also returns null — the caller (the
-// extract-requirements route) turns a null into a 503, never a fabricated
-// result.
+// If GROQ_API_KEY is unset, extractRequirementsFromTranscript() returns null
+// immediately (and isTranscriptExtractionConfigured() returns false). If the
+// rate budget is exhausted or the API call fails for any reason, it also
+// returns null — the caller (the extract-requirements route) turns a null
+// into a 503, never a fabricated result.
 "use strict";
 
 const { reserveSlot, log } = require("./sharedStore");
+const { getGroqClient } = require("./groqClient");
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const AI_MODEL = "claude-haiku-4-5"; // structured extraction, not open-ended reasoning — same tier choice as universityAI.js
+// GROQ_API_KEY (the repo's only LLM credential) is read live per-call, not
+// captured here — so a test can toggle it after require() and a deploy can
+// add the key without a restart.
+const AI_MODEL = process.env.TRANSCRIPT_EXTRACTION_MODEL || "openai/gpt-oss-20b"; // structured extraction, not open-ended reasoning — same tier choice as universityAI.js
 const AI_MAX_REQUESTS_PER_MINUTE = Number(process.env.TRANSCRIPT_EXTRACTION_MAX_REQUESTS_PER_MINUTE) || 6;
 const AI_RATE_KEY = "transcript:extraction:requests"; // its own namespace, independent of university:ai:requests and amber:requests
 const AI_TIMEOUT_MS = 15_000; // a transcript is longer input than a university-name query — more generous than universityAI.js's 8s
-
-let cachedClient = null;
-function getClient() {
-    if (cachedClient) return cachedClient;
-    // eslint-disable-next-line global-require
-    const Anthropic = require("@anthropic-ai/sdk").default || require("@anthropic-ai/sdk");
-    cachedClient = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-    return cachedClient;
-}
 
 const EXTRACTION_SCHEMA = {
     type: "object",
@@ -79,7 +73,7 @@ async function extractRequirementsFromTranscript(transcriptText) {
     const trimmed = String(transcriptText || "").trim();
     if (!trimmed) return null;
 
-    if (!ANTHROPIC_API_KEY) {
+    if (!process.env.GROQ_API_KEY) {
         return null; // feature not configured — graceful no-op, not an error
     }
 
@@ -93,29 +87,32 @@ async function extractRequirementsFromTranscript(transcriptText) {
     }
 
     try {
-        const client = getClient();
-        const response = await client.messages.create(
+        const response = await getGroqClient().chat.completions.create(
             {
                 model: AI_MODEL,
                 max_tokens: 800,
-                system: SYSTEM_PROMPT,
-                messages: [{ role: "user", content: `Transcript:\n${trimmed.slice(0, 20_000)}` }],
-                output_config: { format: { type: "json_schema", schema: EXTRACTION_SCHEMA } },
+                temperature: 0,
+                response_format: { type: "json_object" },
+                messages: [
+                    {
+                        role: "system",
+                        content:
+                            SYSTEM_PROMPT +
+                            "\n\nRespond ONLY with a JSON object matching this shape: " +
+                            JSON.stringify(EXTRACTION_SCHEMA),
+                    },
+                    { role: "user", content: `Transcript:\n${trimmed.slice(0, 20_000)}` },
+                ],
             },
             { timeout: AI_TIMEOUT_MS }
         );
 
-        if (response.stop_reason === "refusal") {
-            log("transcript-extraction refused the request");
-            return null;
-        }
-
-        const textBlock = (response.content || []).find((b) => b.type === "text");
-        if (!textBlock || !textBlock.text) return null;
+        const text = response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.content;
+        if (!text) return null;
 
         let parsed;
         try {
-            parsed = JSON.parse(textBlock.text);
+            parsed = JSON.parse(text);
         } catch {
             log("transcript-extraction returned unparseable JSON");
             return null;
@@ -149,7 +146,7 @@ async function extractRequirementsFromTranscript(transcriptText) {
 }
 
 function isTranscriptExtractionConfigured() {
-    return Boolean(ANTHROPIC_API_KEY);
+    return Boolean(process.env.GROQ_API_KEY);
 }
 
 module.exports = { extractRequirementsFromTranscript, isTranscriptExtractionConfigured, AI_MODEL, AI_MAX_REQUESTS_PER_MINUTE, AI_RATE_KEY, EXTRACTION_SCHEMA };

@@ -164,12 +164,12 @@ async function main() {
         const keys = Object.keys(CANDIDATE_SCHEMA.properties).join(" ").toLowerCase();
         assert.ok(!/price|room|tenanc|residence|property/i.test(keys), `the AI schema must never declare an accommodation-shaped field, got keys: ${keys}`);
     });
-    await test("AI UNAVAILABLE FALLBACK: with ANTHROPIC_API_KEY unset, interpretUniversityQuery() returns null immediately (no network attempt, no throw)", async () => {
-        const original = process.env.ANTHROPIC_API_KEY;
-        delete process.env.ANTHROPIC_API_KEY;
-        // Re-require in a fresh module registry entry isn't needed — the env
-        // check happens per-call, not at module-load time (see the module's
-        // own ANTHROPIC_API_KEY constant capture at require-time below).
+    await test("AI UNAVAILABLE FALLBACK: with GROQ_API_KEY unset, interpretUniversityQuery() returns null immediately (no network attempt, no throw)", async () => {
+        const original = process.env.GROQ_API_KEY;
+        delete process.env.GROQ_API_KEY;
+        // universityAI.js reads process.env.GROQ_API_KEY LIVE per call (not a
+        // require-time constant), so a fresh require isn't strictly needed —
+        // kept only to also reset the module's lazily-cached client.
         delete require.cache[require.resolve(path.join(ROOT, "api", "_lib", "universityAI.js"))];
         const freshAI = require(path.join(ROOT, "api", "_lib", "universityAI.js"));
         const start = Date.now();
@@ -177,11 +177,11 @@ async function main() {
         const elapsedMs = Date.now() - start;
         assert.strictEqual(result, null);
         assert.ok(elapsedMs < 500, `expected an immediate no-op (<500ms) with no key configured, took ${elapsedMs}ms`);
-        if (original !== undefined) process.env.ANTHROPIC_API_KEY = original;
+        if (original !== undefined) process.env.GROQ_API_KEY = original;
         delete require.cache[require.resolve(path.join(ROOT, "api", "_lib", "universityAI.js"))];
     });
-    if (!process.env.ANTHROPIC_API_KEY) {
-        skip("AI ESCALATION: interpretUniversityQuery() returns a well-formed candidate for a real misspelling", "ANTHROPIC_API_KEY not configured in this environment — University Housing search remains fully usable without it (graceful degradation confirmed above)");
+    if (!process.env.GROQ_API_KEY) {
+        skip("AI ESCALATION: interpretUniversityQuery() returns a well-formed candidate for a real misspelling", "GROQ_API_KEY not configured in this environment — University Housing search remains fully usable without it (graceful degradation confirmed above)");
     } else {
         await test("AI ESCALATION: interpretUniversityQuery() returns a well-formed, schema-valid candidate for a real misspelling", async () => {
             const result = await universityAI.interpretUniversityQuery("Harverd Univercity");

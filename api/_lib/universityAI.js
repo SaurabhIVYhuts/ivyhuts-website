@@ -22,34 +22,26 @@
 //   Tier 2, and local fuzzy matching have all failed to resolve a query.
 //
 // ── Availability / graceful degradation ──
-// If ANTHROPIC_API_KEY is unset, this module returns null immediately (no
-// SDK client is even constructed) — University Housing search remains fully
+// If GROQ_API_KEY is unset, this module returns null immediately (no LLM
+// client is even constructed) — University Housing search remains fully
 // usable via Nominatim-only discovery. If the AI's OWN Redis-backed rate
 // budget (key "university:ai:requests", completely separate from Amber's own
-// request-budget key/namespace) is exhausted, or the Anthropic API call
-// itself fails for any reason (network, 429, 5xx, refusal, malformed JSON),
-// this module returns null rather than throwing — the caller falls back to
-// non-AI discovery, never breaking the page.
+// request-budget key/namespace) is exhausted, or the Groq API call itself
+// fails for any reason (network, 429, 5xx, malformed JSON), this module
+// returns null rather than throwing — the caller falls back to non-AI
+// discovery, never breaking the page.
 "use strict";
 
 const { reserveSlot, log } = require("./sharedStore");
+const { getGroqClient } = require("./groqClient");
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const AI_MODEL = "claude-haiku-4-5"; // small, fast, cheap — this is a short classification call, not a reasoning task
+// GROQ_API_KEY (the repo's only LLM credential) is read live per-call in
+// interpretUniversityQuery, not captured here — so a test can toggle it
+// after require() and a deploy can add the key without a restart.
+const AI_MODEL = process.env.UNIVERSITY_AI_MODEL || "openai/gpt-oss-20b"; // small, fast Groq model — this is a short classification call, not a reasoning task
 const AI_MAX_REQUESTS_PER_MINUTE = Number(process.env.UNIVERSITY_AI_MAX_REQUESTS_PER_MINUTE) || 8;
 const AI_RATE_KEY = "university:ai:requests"; // deliberately its own namespace — see header comment
 const AI_TIMEOUT_MS = 8000;
-
-// Lazily constructed so requiring this module never attempts to load/init
-// the SDK when ANTHROPIC_API_KEY is unset (e.g. local dev without a key).
-let cachedClient = null;
-function getClient() {
-    if (cachedClient) return cachedClient;
-    // eslint-disable-next-line global-require
-    const Anthropic = require("@anthropic-ai/sdk").default || require("@anthropic-ai/sdk");
-    cachedClient = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-    return cachedClient;
-}
 
 const CANDIDATE_SCHEMA = {
     type: "object",
@@ -81,7 +73,7 @@ async function interpretUniversityQuery(query) {
     const trimmed = String(query || "").trim();
     if (!trimmed) return null;
 
-    if (!ANTHROPIC_API_KEY) {
+    if (!process.env.GROQ_API_KEY) {
         return null; // feature not configured — graceful no-op, not an error
     }
 
@@ -98,29 +90,32 @@ async function interpretUniversityQuery(query) {
     }
 
     try {
-        const client = getClient();
-        const response = await client.messages.create(
+        const response = await getGroqClient().chat.completions.create(
             {
                 model: AI_MODEL,
                 max_tokens: 400,
-                system: SYSTEM_PROMPT,
-                messages: [{ role: "user", content: `Search query: ${trimmed.slice(0, 200)}` }],
-                output_config: { format: { type: "json_schema", schema: CANDIDATE_SCHEMA } },
+                temperature: 0,
+                response_format: { type: "json_object" },
+                messages: [
+                    {
+                        role: "system",
+                        content:
+                            SYSTEM_PROMPT +
+                            "\n\nRespond ONLY with a JSON object matching this shape: " +
+                            JSON.stringify(CANDIDATE_SCHEMA),
+                    },
+                    { role: "user", content: `Search query: ${trimmed.slice(0, 200)}` },
+                ],
             },
             { timeout: AI_TIMEOUT_MS }
         );
 
-        if (response.stop_reason === "refusal") {
-            log("university-ai refused the request — falling back to non-AI discovery");
-            return null;
-        }
-
-        const textBlock = (response.content || []).find((b) => b.type === "text");
-        if (!textBlock || !textBlock.text) return null;
+        const text = response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.content;
+        if (!text) return null;
 
         let parsed;
         try {
-            parsed = JSON.parse(textBlock.text);
+            parsed = JSON.parse(text);
         } catch {
             log("university-ai returned unparseable JSON — falling back to non-AI discovery");
             return null;

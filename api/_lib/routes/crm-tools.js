@@ -15,5 +15,9 @@ module.exports = [
     { segments: ["__properties-search__"], handler: require("./crm-tools/properties-search.js") },
     { segments: ["__universities-resolve__"], handler: require("./crm-tools/universities-resolve.js") },
     { segments: ["staff"], handler: require("./crm-tools/staff.js") },
+    // Ivy Assistant (read-only CRM chat agent). Single "assistant" segment,
+    // same shape as "staff" — vercel.json flattens /api/assistant onto
+    // /api/crm-tools/assistant before this table is consulted.
+    { segments: ["assistant"], handler: require("./crm-tools/assistant.js") },
     { segments: ["__admin-inventory-health__"], handler: require("./crm-tools/admin/accommodation/inventory-health.js") },
 ];
