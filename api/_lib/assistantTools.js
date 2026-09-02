@@ -232,6 +232,11 @@ async function runGetLeadFollowUps(actor, args = {}) {
 
 const WEEKS_PER_MONTH = 52 / 12; // mirrors accommodationIndex.js's own constant
 
+// Property detail pages live on the PUBLIC site (/property/:slug in src/App.js),
+// not the CRM the assistant runs inside — so a relative path would 404. Use
+// the same SITE_URL env the mailer uses, trailing slash stripped.
+const SITE_BASE = (process.env.SITE_URL || "https://www.ivyhuts.com/").replace(/\/+$/, "");
+
 // Trim a raw AccommodationResidence doc (the shape getAccommodationInventory
 // returns — lean Mongo docs, see AccommodationResidence.js) to the handful
 // of fields the assistant reasons about. No neighbourhood field exists on
@@ -250,7 +255,7 @@ function trimResidence(doc) {
         priceMonthly: weekly != null ? Math.round(weekly * WEEKS_PER_MONTH) : null,
         currency: (doc.price && doc.price.currency) || null,
         roomType: doc.roomType || null,
-        url: doc.slug ? `/property/${doc.slug}` : null,
+        url: doc.slug ? `${SITE_BASE}/property/${doc.slug}` : null,
         distanceToCityCentreKm: Number.isFinite(doc.distanceToCentreKm)
             ? Math.round(doc.distanceToCentreKm * 10) / 10
             : null,

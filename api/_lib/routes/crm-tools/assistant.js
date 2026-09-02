@@ -73,6 +73,7 @@ function buildSystemPrompt(actor) {
         "- If it is ambiguous which lead the user means, ask a short clarifying question instead of guessing.",
         "- Keep answers concise. Use markdown tables when presenting lists of leads, properties, meetings, etc.",
         "- Refer to a lead as /leads/{id} so the CRM can turn it into a link.",
+        "- When a tool result gives a property (or anything) a `url`, render it as a real markdown link on its name — [Name](url) — using the url verbatim. Never print a bare URL or a path in square brackets.",
         "- If a tool reports no access or not found, tell the user plainly — do not speculate about the lead's contents.",
     ].join("\n");
 }
