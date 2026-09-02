@@ -32,8 +32,8 @@ const communicationsRoute = require("./routes/leads/[id]/communications/index.js
 const followUpsRoute = require("./routes/leads/[id]/follow-ups/index.js");
 const workQueueRoute = require("./routes/leads/work-queue.js");
 
-const { searchProviders } = require("./providers/accommodation/search");
 const { resolveUniversity, MAX_QUERY_LENGTH } = require("./universityResolveService");
+const { getAccommodationInventory } = require("./accommodationInventoryService");
 const { getCityLivingCost } = require("./costOfLiving");
 const { resolveSalaryForCareer } = require("./salaryResolver");
 const CAREERS = require("./careers.json");
@@ -45,10 +45,6 @@ function clampInt(value, fallback, max, min = 1) {
     const n = Number(value);
     if (!Number.isFinite(n)) return fallback;
     return Math.max(min, Math.min(max, Math.floor(n)));
-}
-function numOrNull(value) {
-    const n = Number(value);
-    return Number.isFinite(n) && n > 0 ? n : null;
 }
 function str(value) {
     return typeof value === "string" ? value.trim() : "";
@@ -74,22 +70,6 @@ function trimLead(lead) {
         lastContactAt: lead.lastContactAt,
         convertedAt: lead.convertedAt || null,
         lostAt: lead.lostAt || null,
-    };
-}
-
-function trimProperty(p) {
-    if (!p || typeof p !== "object") return p;
-    return {
-        name: p.name || p.title || null,
-        provider: p.provider || p.source || null,
-        priceWeekly: p.priceWeekly ?? p.price_per_week ?? null,
-        priceMonthly: p.priceMonthly ?? null,
-        currency: p.currency || null,
-        roomType: p.roomType || p.room_type || null,
-        area: p.area || p.neighbourhood || null,
-        city: p.city || null,
-        distanceFromUniversityKm: p.distanceFromUniversityKm ?? null,
-        url: p.url || p.link || null,
     };
 }
 
@@ -250,40 +230,90 @@ async function runGetLeadFollowUps(actor, args = {}) {
     return { followUps: followUps.map(followUpsRoute.toSafeFollowUp), count: followUps.length };
 }
 
-async function runSearchProperties(actor, args = {}) {
-    const universityName = str(args.university) || str(args.location);
-    const criteria = {
-        university: {
-            id: null,
-            name: universityName || "the requested area",
-            city: str(args.location) || null,
-            country: null,
-        },
-        universityCoordinates: null,
-        budgetMin: null,
-        budgetMax: numOrNull(args.maxPricePerWeek),
-        currency: null,
-        sharing: 1,
-        roomType: str(args.roomType) || null,
-        moveInDate: null,
-        stayDurationMonths: null,
-        preferredDistance: null,
-        amenities: [],
-    };
+const WEEKS_PER_MONTH = 52 / 12; // mirrors accommodationIndex.js's own constant
 
-    const { properties, providerCoverage } = await searchProviders(criteria);
-    const limit = clampInt(args.limit, 10, 30);
-    const sorted = [...properties].sort((a, b) => {
-        const da = a.distanceFromUniversityKm ?? Infinity;
-        const db = b.distanceFromUniversityKm ?? Infinity;
-        return da - db;
-    });
+// Trim a raw AccommodationResidence doc (the shape getAccommodationInventory
+// returns — lean Mongo docs, see AccommodationResidence.js) to the handful
+// of fields the assistant reasons about. No neighbourhood field exists on
+// the doc, so `area` is always null. The catalogue row carries only a
+// distance-to-city-centre figure (no university-relative distance — that's
+// computed per-query elsewhere and isn't in this data), so it's surfaced
+// under an explicit key rather than a bare `distanceKm` the model would
+// otherwise caption as "distance from <university>".
+function trimResidence(doc) {
+    const weekly = Number.isFinite(doc.priceWeekly) ? Math.round(doc.priceWeekly) : null;
     return {
-        properties: sorted.slice(0, limit).map(trimProperty),
-        totalFound: properties.length,
-        providerCoverage,
-        note: "Catalogue data from connected accommodation sources only. See providerCoverage for which sources were actually searched.",
+        name: doc.propertyName || null,
+        city: doc.city || null,
+        area: null,
+        priceWeekly: weekly,
+        priceMonthly: weekly != null ? Math.round(weekly * WEEKS_PER_MONTH) : null,
+        currency: (doc.price && doc.price.currency) || null,
+        roomType: doc.roomType || null,
+        url: doc.slug ? `/property/${doc.slug}` : null,
+        distanceToCityCentreKm: Number.isFinite(doc.distanceToCentreKm)
+            ? Math.round(doc.distanceToCentreKm * 10) / 10
+            : null,
     };
+}
+
+// Backed by the IVYHUTS accommodation catalogue — the Amber-fed
+// AccommodationResidence data the public University Housing page already
+// presents as "IVYHUTS properties" — via accommodationInventoryService.js
+// (market-area expansion included). Read-only, NOT actor-scoped.
+async function runSearchProperties(actor, args = {}) {
+    let city = null;
+    let country = null;
+
+    if (str(args.university)) {
+        const r = await resolveUniversity(str(args.university).slice(0, MAX_QUERY_LENGTH));
+        if (r && r.record && r.record.city) {
+            city = r.record.city;
+            country = r.record.country || null;
+        }
+    }
+    if (!city && str(args.location)) city = str(args.location);
+    if (!city) {
+        return { properties: [], note: "Give me a city or a university name I can resolve to one." };
+    }
+
+    const inv = await getAccommodationInventory({ city });
+    const rows = (inv && inv.residences) || [];
+    if (!rows.length) {
+        return { city, properties: [], totalFound: 0, note: `No IVYHUTS accommodation catalogued for ${city} yet.` };
+    }
+
+    const maxWeekly = Number(args.maxPricePerWeek);
+    const hasMax = Number.isFinite(maxWeekly) && maxWeekly > 0;
+    const roomNeedle = str(args.roomType).toLowerCase();
+
+    let matched = rows.filter((doc) => {
+        if (hasMax && Number.isFinite(doc.priceWeekly) && doc.priceWeekly > maxWeekly) return false;
+        if (roomNeedle) {
+            const hay = [doc.roomType, ...(Array.isArray(doc.roomTypes) ? doc.roomTypes : [])]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+            if (!hay.includes(roomNeedle)) return false;
+        }
+        return true;
+    });
+
+    matched.sort((a, b) => {
+        const pa = Number.isFinite(a.priceWeekly) ? a.priceWeekly : Infinity;
+        const pb = Number.isFinite(b.priceWeekly) ? b.priceWeekly : Infinity;
+        return pa - pb;
+    });
+
+    const limit = clampInt(args.limit, 10, 30);
+    const properties = matched.slice(0, limit).map(trimResidence);
+
+    const out = { city, properties, totalFound: matched.length, matchedFrom: rows.length };
+    if (country) out.country = country;
+    if (matched.length === 0) {
+        out.note = `No listings in ${city} matched those filters (of ${rows.length} catalogued).`;
+    }
+    return out;
 }
 
 async function runResolveUniversity(actor, args = {}) {
@@ -422,7 +452,7 @@ const REGISTRY = {
         def: {
             name: "search_properties",
             description:
-                "Search student-accommodation inventory from connected providers. Catalogue data — not tied to any lead. Provide a university name (resolve it first with resolve_university for best results) or a location.",
+                "Search the IVYHUTS student-accommodation catalogue by city, or by a university name (resolved to its city first). UK inventory.",
             input_schema: {
                 type: "object",
                 properties: {
@@ -506,8 +536,12 @@ function summarizeToolResult(name, result) {
             return `${result.count} communication${result.count === 1 ? "" : "s"}.`;
         case "get_lead_follow_ups":
             return `${result.count} follow-up${result.count === 1 ? "" : "s"}.`;
-        case "search_properties":
-            return `${(result.properties || []).length} propert${(result.properties || []).length === 1 ? "y" : "ies"} shown (of ${result.totalFound ?? 0} found).`;
+        case "search_properties": {
+            if (result.note && !(result.properties || []).length) return result.note;
+            const shown = (result.properties || []).length;
+            const total = result.totalFound ?? shown;
+            return `${shown} of ${total} matching listing${total === 1 ? "" : "s"} in ${result.city}.`;
+        }
         case "resolve_university":
             return `University lookup: ${result.status}.`;
         case "lookup_cost_of_living":
