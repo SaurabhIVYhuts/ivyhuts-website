@@ -36,6 +36,7 @@ export default function ContactPage() {
 
   const [form, setForm] = useState({
     name: "",
+    email: "",
     phone: "",
     message: "",
   });
@@ -51,6 +52,7 @@ export default function ContactPage() {
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = "Please enter your name.";
+    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())) e.email = "Please enter a valid email.";
     if (!form.phone.trim()) e.phone = "Please enter your phone or WhatsApp number.";
     return e;
   };
@@ -71,6 +73,7 @@ export default function ContactPage() {
         body: JSON.stringify({
           _page:       "Contact Us",
           "Full Name": form.name.trim(),
+          "Email":     form.email.trim(),
           "Phone":     form.phone.trim(),
           "Subject":   subjectDefault || "General Enquiry",
           "Message":   form.message.trim() || "N/A",
@@ -113,6 +116,7 @@ export default function ContactPage() {
         moveOut: tenancyMoveOut || undefined,
         price: formattedPrice,
         studentName: form.name.trim(),
+        studentEmail: form.email.trim(),
         phoneNumber: form.phone.trim(),
         message: `Subject: ${subjectDefault || "General Enquiry"}\n\n${form.message.trim() || "N/A"}`,
         websiteSource: "ivyhuts.com/contact",
@@ -141,11 +145,7 @@ export default function ContactPage() {
 
     // MongoDB capture (Milestone 3) — additional, non-blocking destination
     // alongside Sheets/email above; fired only once the enquiry email above
-    // is itself confirmed. This form no longer collects an email address
-    // (removed in the latest homepage/UI pass) — that's fine:
-    // Enquiry.contact.email is intentionally optional (see
-    // api/_lib/models/Enquiry.js), so omitting it here still captures the
-    // enquiry successfully with just name + phone.
+    // is itself confirmed.
     const mongoMessage = [
       `Subject: ${subjectDefault || "General Enquiry"}`,
       form.message.trim(),
@@ -161,6 +161,7 @@ export default function ContactPage() {
     submitEnquiryToMongo({
       contact: {
         name: form.name.trim(),
+        email: form.email.trim(),
         phone: form.phone.trim(),
       },
       ...(mongoProperty ? { property: mongoProperty } : {}),
@@ -262,6 +263,12 @@ export default function ContactPage() {
                   <input placeholder="+91 XXXXX XXXXX" value={form.phone} onChange={(e) => set("phone", e.target.value)} maxLength={30} />
                   {errors.phone && <span className="cp-field-err">{errors.phone}</span>}
                 </div>
+              </div>
+
+              <div className="cp-field">
+                <label>Email <span className="cp-req">*</span></label>
+                <input type="email" placeholder="you@example.com" value={form.email} onChange={(e) => set("email", e.target.value)} maxLength={100} />
+                {errors.email && <span className="cp-field-err">{errors.email}</span>}
               </div>
 
               <div className="cp-field">
