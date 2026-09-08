@@ -15,6 +15,7 @@ const { checkBusinessWriteRateLimit } = require("../../../../businessRateLimit")
 const { withCors } = require("../../../../cors");
 const Lead = require("../../../../models/Lead");
 const FollowUp = require("../../../../models/FollowUp");
+const { notifyFollowUpParties } = require("../../../../followUpNotify");
 const { withErrorHandling, requireObjectId, notFound, badRequest, parseJsonBody, parseDate } = require("../../../../validation");
 const { sendSuccess, sendCollection } = require("../../../../apiResponse");
 
@@ -94,6 +95,11 @@ async function handlePost(req, res, leadId) {
         dueAt,
         notes,
     });
+
+    // CRM plan item 5 — email the assigned agent (task + link back into the
+    // lead) and the customer (heads-up). Soft-fail: a mail problem never
+    // fails the follow-up that was just created.
+    await notifyFollowUpParties(lead, followUp, "created");
 
     sendSuccess(res, toSafeFollowUp(followUp), 201);
 }
