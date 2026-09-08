@@ -235,6 +235,15 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
                                     { $gt: ["$accommodation.sharing", 0] },
                                 ],
                             },
+                            // CRM plan item 2 — display-only requirement
+                            // fields for the Lead Inbox table. Snapshot of
+                            // what Discovery currently holds; Discovery
+                            // stays the source of truth.
+                            university: "$student.university",
+                            moveInDate: "$accommodation.moveInDate",
+                            budgetMin: "$accommodation.budgetMin",
+                            budgetMax: "$accommodation.budgetMax",
+                            currency: "$accommodation.currency",
                         },
                     },
                 ],
@@ -242,6 +251,22 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
             },
         },
         { $addFields: { hasConfirmedRequirements: { $ifNull: [{ $arrayElemAt: ["$_discoveryArr.hasConfirmedRequirements", 0] }, false] } } },
+        {
+            $addFields: {
+                discovery: {
+                    $let: {
+                        vars: { d: { $arrayElemAt: ["$_discoveryArr", 0] } },
+                        in: {
+                            university: "$$d.university",
+                            moveInDate: "$$d.moveInDate",
+                            budgetMin: "$$d.budgetMin",
+                            budgetMax: "$$d.budgetMax",
+                            currency: "$$d.currency",
+                        },
+                    },
+                },
+            },
+        },
         // Milestone 23.12 — a non-empty curated shortlist (same rule as
         // hasCuratedProperties in buildJourneyFlags).
         {
@@ -376,6 +401,8 @@ const handler = withErrorHandling(async (req, res) => {
                                 property: 1,
                                 tags: 1,
                                 notes: 1,
+                                summary: 1,
+                                discovery: 1,
                                 createdAt: 1,
                                 updatedAt: 1,
                                 firstContactAt: 1,
@@ -405,6 +432,8 @@ const handler = withErrorHandling(async (req, res) => {
         nextFollowUp: lead.nextFollowUp || null,
         nextMeeting: lead.nextMeeting || null,
         lastInboundCommunicationAt: lead.lastInboundCommunicationAt || null,
+        summary: lead.summary || null,
+        discovery: lead.discovery || null,
     }));
 
     sendSuccess(res, {
