@@ -140,7 +140,7 @@ async function main() {
             await staffHandler(mockReq({ cookie: plainUser.cookie }), res);
             assert.strictEqual(res.statusCode, 403);
         });
-        await test("STAFF: internal role -> 200, returns internal-role users only, shaped {id,name,email,role}", async () => {
+        await test("STAFF: internal role -> 200, returns internal-role users only, shaped {id,name,email,role,active}", async () => {
             const res = mockRes();
             await staffHandler(mockReq({ cookie: agent.cookie }), res);
             assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
@@ -149,7 +149,8 @@ async function main() {
             assert.ok(ids.includes(String(manager.mongoUser._id)), "must include the manager");
             assert.ok(!ids.includes(String(plainUser.mongoUser._id)), "must NOT include a plain USER");
             const entry = res.body.data.find((s) => s.id === agentId);
-            assert.deepStrictEqual(Object.keys(entry).sort(), ["email", "id", "name", "role"]);
+            assert.deepStrictEqual(Object.keys(entry).sort(), ["active", "email", "id", "name", "role"]);
+            assert.strictEqual(entry.active, true, "a staff member with no `active` field reads as active");
         });
 
         // ═══════════ /api/leads/assignment-summary ═══════════
