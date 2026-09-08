@@ -148,8 +148,58 @@ class AmberGatewayError extends Error {
 
 // ── Canonical cache keys: same logical request must produce the same key
 // regardless of query-param order, casing, or whitespace. ──
+
+// Strip accents so "München" and "munchen" compare equal. Amber's structured
+// per-item location fields use the LOCAL spelling of a city ("München",
+// "Köln", "Firenze"), so a plain lowercased substring check against an
+// English query string silently rejected every genuine match — the exact
+// failure that left cities like Munich showing ~zero inventory. Folding
+// handles the accent; CITY_ALIASES below handles the cases where the local
+// name isn't just the English name plus accents (München vs Munich).
+const COMBINING_MARKS_RE = new RegExp("[\\u0300-\\u036f]", "g");
+function foldDiacritics(s) {
+    return String(s || "").normalize("NFD").replace(COMBINING_MARKS_RE, "");
+}
+
+// canonical (folded, lowercase, English) -> other folded spellings that
+// refer to the SAME city. Hand-verified — never a heuristic. Extend as real
+// inventory gaps surface. Alias needles are matched as whole words only (see
+// matchesCity) because some are short ("gent", "roma") and a raw substring
+// test would false-positive against unrelated localities.
+const CITY_ALIASES = {
+    munich: ["munchen"],
+    cologne: ["koln"],
+    vienna: ["wien"],
+    geneva: ["geneve", "genf"],
+    "the hague": ["den haag", "s-gravenhage"],
+    florence: ["firenze"],
+    milan: ["milano"],
+    rome: ["roma"],
+    naples: ["napoli"],
+    turin: ["torino"],
+    venice: ["venezia"],
+    lisbon: ["lisboa"],
+    seville: ["sevilla"],
+    brussels: ["bruxelles", "brussel"],
+    antwerp: ["antwerpen"],
+    prague: ["praha"],
+    warsaw: ["warszawa"],
+    copenhagen: ["kobenhavn"],
+    gothenburg: ["goteborg"],
+    athens: ["athina"],
+};
+
+// Any known alternate spelling -> its canonical key (folded).
+const CITY_ALIAS_TO_CANONICAL = Object.entries(CITY_ALIASES).reduce((acc, [canon, alts]) => {
+    for (const alt of alts) acc[alt] = canon;
+    return acc;
+}, {});
+
 function normalizeCityName(city) {
-    return String(city || "").trim().toLowerCase().replace(/\s+/g, " ");
+    const folded = foldDiacritics(city).trim().toLowerCase().replace(/\s+/g, " ");
+    // Collapse a known local spelling to its canonical English form so
+    // "München" and "Munich" share ONE cache key and ONE index row.
+    return CITY_ALIAS_TO_CANONICAL[folded] || folded;
 }
 
 function buildCacheKey(type, params) {
@@ -583,7 +633,23 @@ function matchesCity(item, cityLower) {
     // solely because of its name), causing a real, reproducible misattribution.
     // Matching is restricted to Amber's own structured location fields, which
     // had zero observed false positives across all 472 audited properties.
-    return checks.some((s) => typeof s === "string" && s.toLowerCase().includes(cityLower));
+    //
+    // Both sides are accent-folded (foldDiacritics) so a "koln" query matches
+    // a "Köln" locality. The primary check stays a plain substring test (so
+    // "manchester" still matches "Greater Manchester" exactly as before) —
+    // only the CITY_ALIASES needles ("munchen" for a "munich" query) are
+    // matched as whole words, since some local names are short enough that a
+    // raw substring test would false-positive against unrelated localities.
+    const q = foldDiacritics(cityLower).toLowerCase().trim();
+    const canonical = CITY_ALIAS_TO_CANONICAL[q] || q;
+    const aliasNeedles = CITY_ALIASES[canonical] || [];
+    return checks.some((s) => {
+        if (typeof s !== "string") return false;
+        const hay = foldDiacritics(s).toLowerCase();
+        if (hay.includes(q)) return true;
+        if (canonical !== q && hay.includes(canonical)) return true; // query was itself a local spelling
+        return aliasNeedles.some((a) => new RegExp(`\\b${a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(hay));
+    });
 }
 
 // Amber's `location_place_name` filter occasionally returns an empty result

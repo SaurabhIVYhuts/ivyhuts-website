@@ -30,32 +30,25 @@ const { fetchListings, buildCacheKey, RATE_BUDGET_PER_MINUTE, RATE_WINDOW_MS, TT
 const { drainRefreshQueue, attemptCityRefresh, classifyCityState } = require("./accommodationIndex");
 const AccommodationIndexMeta = require("./models/AccommodationIndexMeta");
 const { connectToDatabase, MongoNotConfiguredError } = require("./mongodb");
+const DESTINATIONS = require("./destinations.json");
 
-// Curated warm-target pool: the UK cities from src/data/destinations.js, in
-// their declared order. Mirrored here (not imported) for the same reason
-// amberGateway.js's TTL table duplicates src/services/amberApi.js's
-// CLIENT_TTL instead of sharing a module: api/_lib is a plain CommonJS Node
-// runtime with no build step, and src/data/destinations.js is an ES module
-// meant for CRA's webpack/babel pipeline — requiring it directly here would
-// fail. UK is chosen because it's COUNTRIES[0] in that file (the app's own
-// default market) and DESTINATIONS lists all 12 UK cities first, with London
-// (DESTINATIONS[0]) already the default city for two separate homepage
-// sections. Keep this list in sync by hand if destinations.js's UK cluster
-// changes.
+// Curated warm-target pool: EVERY destination in api/_lib/destinations.json
+// (a plain JSON file — safe to require() from this CommonJS runtime, unlike
+// the src/data/destinations.js ES module), UK cities first (the app's
+// default market — London is the default city for two homepage sections),
+// then all other countries in file order.
+//
+// This was previously a hand-maintained UK-only list of 13 cities, which
+// meant every non-UK destination (Munich, Berlin, Paris, Madrid, ...) was
+// NEVER warmed and only ever got indexed if a real visitor happened to load
+// its page and then wait out the slow background-refresh queue — the main
+// reason cities like Munich showed ~zero inventory. WARM_BATCH_SIZE stays 1,
+// so widening the rotation does NOT increase per-tick Amber load; it only
+// means the rotation eventually covers every city instead of 13 of them
+// (each city warmed less often, but kept under MAX_AGE_MS rather than never).
 const WARM_TARGET_CITIES = [
-    "London",
-    "Manchester",
-    "Birmingham",
-    "Coventry",
-    "Leeds",
-    "Liverpool",
-    "Sheffield",
-    "Glasgow",
-    "Nottingham",
-    "Newcastle Upon Tyne",
-    "Leicester",
-    "Exeter",
-    "Guildford",
+    ...DESTINATIONS.filter((d) => d.country === "UK").map((d) => d.name),
+    ...DESTINATIONS.filter((d) => d.country !== "UK").map((d) => d.name),
 ];
 
 // At most this many candidates are actually refreshed (i.e. reach
