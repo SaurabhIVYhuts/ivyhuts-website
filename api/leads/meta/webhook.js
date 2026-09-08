@@ -33,6 +33,7 @@ const crypto = require("crypto");
 const { connectToDatabase } = require("../../_lib/mongodb");
 const Lead = require("../../_lib/models/Lead");
 const { recordEvent } = require("../../_lib/events");
+const { assignLeadAutomatically } = require("../../_lib/leadAutoAssign");
 
 const MAX_BODY_BYTES = 200_000; // a batch of lead entries is small text/JSON; generous but bounded against an abusive caller.
 
@@ -150,6 +151,9 @@ async function upsertLeadFromMeta(normalized) {
         event: "LEAD_CREATED",
         properties: { leadId: String(lead._id), source: "facebook_lead_ads" },
     });
+    // CRM plan item 3 — round-robin to the least-loaded agent (no-op
+    // unless LEAD_AUTO_ASSIGN=true). Never throws.
+    await assignLeadAutomatically(lead);
     return { lead, created: true };
 }
 

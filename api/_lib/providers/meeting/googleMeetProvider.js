@@ -32,7 +32,7 @@ function isMeetProviderConfigured() {
 // or { status: "NOT_CONFIGURED" | "ERROR", reason, provider: null, providerMeetingId: null, meetingUrl: null }.
 // Never throws — a Meet-creation failure must never block the underlying
 // Meeting record from being created (see the route that calls this).
-async function createMeeting({ scheduledAt, durationMinutes = 30, summary, leadId }) {
+async function createMeeting({ scheduledAt, durationMinutes = 30, summary, leadId, attendees = [] }) {
     if (!isMeetProviderConfigured()) {
         return createNotConfiguredMeetingProvider(
             "Google Workspace credentials are not configured (GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY / GOOGLE_WORKSPACE_IMPERSONATE_SUBJECT)."
@@ -45,7 +45,18 @@ async function createMeeting({ scheduledAt, durationMinutes = 30, summary, leadI
         const end = new Date(start.getTime() + durationMinutes * 60_000);
         const requestId = `ivyhuts-meeting-${leadId}-${Date.now()}`;
 
-        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?conferenceDataVersion=1`;
+        // CRM plan item 3 — when the student's (and agent's) email is
+        // known, add them as attendees and ask Google to email the
+        // invite + Meet link itself (sendUpdates=all). No attendee list
+        // → behave exactly as before (no invite, just a link on the
+        // record).
+        const cleanAttendees = (Array.isArray(attendees) ? attendees : [])
+            .map((email) => (typeof email === "string" ? email.trim() : ""))
+            .filter((email) => /.+@.+\..+/.test(email))
+            .map((email) => ({ email }));
+        const sendUpdates = cleanAttendees.length > 0 ? "all" : "none";
+
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?conferenceDataVersion=1&sendUpdates=${sendUpdates}`;
         const response = await client.request({
             url,
             method: "POST",
@@ -53,6 +64,7 @@ async function createMeeting({ scheduledAt, durationMinutes = 30, summary, leadI
                 summary: summary || "IVYHUTS accommodation consultation",
                 start: { dateTime: start.toISOString() },
                 end: { dateTime: end.toISOString() },
+                ...(cleanAttendees.length > 0 ? { attendees: cleanAttendees } : {}),
                 conferenceData: {
                     createRequest: {
                         requestId,

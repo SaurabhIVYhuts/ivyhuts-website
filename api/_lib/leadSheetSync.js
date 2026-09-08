@@ -16,6 +16,7 @@ const { isSheetsImportConfigured, fetchLeadSheetRows } = require("./googleSheets
 const { normalizeMetaSheetRow, computeFillMissingUpdate } = require("./leadIntake");
 const Lead = require("./models/Lead");
 const { recordEvent } = require("./events");
+const { assignLeadAutomatically } = require("./leadAutoAssign");
 
 // Defensive cap — this is a batch job (manual or scheduled), not a
 // paginated list endpoint; a hard ceiling prevents one run from ever
@@ -71,6 +72,11 @@ async function runLeadSheetSync({ actorUserId = null, actorRole = "cron" } = {})
                 properties: { leadId: String(lead._id), externalLeadId: normalized.externalLeadId, source: normalized.source },
                 metadata: { importedBy: actorUserId, importedByRole: actorRole },
             });
+            // CRM plan item 3 — round-robin to the least-loaded agent
+            // (no-op unless LEAD_AUTO_ASSIGN=true). `notify: false` so a
+            // bulk backfill of many sheet rows doesn't fan out one in-app
+            // notification per row.
+            await assignLeadAutomatically(lead, { notify: false });
             continue;
         }
 

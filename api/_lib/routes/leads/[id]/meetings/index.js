@@ -21,12 +21,18 @@
 // this preserves the existing, already-tested "scheduling a meeting always
 // succeeds" contract rather than making a new external dependency a hard
 // requirement of basic meeting tracking.
+//
+// CRM plan item 3 — when the lead's contact email (and the assigned
+// agent's) are known, they're added as event attendees with
+// sendUpdates=all, so Google itself emails the invite + Meet link to the
+// student. No email address → no invite, same as before.
 const { connectToDatabase } = require("../../../../mongodb");
 const { requireRole } = require("../../../../businessAuth");
 const { checkBusinessWriteRateLimit } = require("../../../../businessRateLimit");
 const { withCors } = require("../../../../cors");
 const Lead = require("../../../../models/Lead");
 const Meeting = require("../../../../models/Meeting");
+const User = require("../../../../models/User");
 const { createMeeting: createGoogleMeet } = require("../../../../providers/meeting/googleMeetProvider");
 const { createNotification } = require("../../../../notify");
 const { withErrorHandling, requireObjectId, notFound, badRequest, parseJsonBody, parseDate } = require("../../../../validation");
@@ -100,6 +106,17 @@ async function handlePost(req, res, leadId) {
         throw badRequest("VALIDATION_ERROR", "notes must be a string or null.");
     }
 
+    // CRM plan item 3 — invite the student (and the assigned agent, if
+    // any) so Google emails them the Meet link automatically. Only real
+    // addresses are passed; an empty list makes createGoogleMeet behave
+    // exactly as before (link on the record, no invite sent).
+    const attendeeEmails = [];
+    if (lead.contact && lead.contact.email) attendeeEmails.push(lead.contact.email);
+    if (lead.assignedTo) {
+        const agent = await User.findById(lead.assignedTo).select("email").lean();
+        if (agent && agent.email) attendeeEmails.push(agent.email);
+    }
+
     // Best-effort real Google Meet creation — see this file's header
     // comment. Awaited (not fire-and-forget) so the response the agent sees
     // immediately reflects whether a real link is attached, but its own
@@ -109,6 +126,7 @@ async function handlePost(req, res, leadId) {
         scheduledAt,
         summary: lead.contact && lead.contact.name ? `IVYHUTS consultation — ${lead.contact.name}` : "IVYHUTS accommodation consultation",
         leadId: String(lead._id),
+        attendees: attendeeEmails,
     }).catch((err) => {
         console.error("[meetings] Google Meet provider threw unexpectedly (non-fatal):", err.message);
         return { status: "ERROR", provider: null, providerMeetingId: null, meetingUrl: null };
