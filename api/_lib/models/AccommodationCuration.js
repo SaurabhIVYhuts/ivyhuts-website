@@ -24,10 +24,12 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
-// Kept in sync with api/_lib/providers/accommodation/types.js's PROVIDERS
-// (Milestone 23.3) — the exhaustive, real provider set. Amber is
-// deliberately not here and must never be added.
-const PROVIDERS = ["uhomes", "uniacco", "university_living", "gradding_homes"];
+// The real provider set (kept in sync with
+// api/_lib/providers/accommodation/types.js's PROVIDERS, Milestone 23.3),
+// plus "other" — CRM plan item 7: a listing link an agent pasted from a
+// site outside that set. Amber is deliberately not here and must never be
+// added.
+const PROVIDERS = ["uhomes", "uniacco", "university_living", "gradding_homes", "other"];
 const RENT_PERIODS = ["week", "month", "night", "unknown"];
 const AVAILABILITY_VALUES = ["available", "unavailable", "unknown"];
 
