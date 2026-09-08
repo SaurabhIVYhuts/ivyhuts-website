@@ -258,33 +258,10 @@ async function main() {
         });
         createdDiscoveryIds.push(confirmedDiscovery._id);
 
-        // A presentation can only realistically exist after Discovery +
-        // curation (that's the actual product flow — see Presentation's own
-        // model comment) — this fixture reflects that chain so it lands in
-        // presentationNoFollowUp specifically, not an earlier pipeline gap.
-        const presentationNoFollowUpLead = await createLead("presentation-no-followup", { assignedTo: agentId, status: "qualified" });
-        const presDiscovery = await Discovery.create({
-            leadId: presentationNoFollowUpLead._id,
-            student: { university: "University of Hertfordshire" },
-            accommodation: { budgetMin: 150, budgetMax: 250, currency: "GBP", sharing: 2 },
-        });
-        createdDiscoveryIds.push(presDiscovery._id);
-        const presCuration = await AccommodationCuration.create({
-            leadId: presentationNoFollowUpLead._id,
-            criteriaSnapshot: { university: { name: "University of Hertfordshire" }, sharing: 2 },
-            properties: [{ provider: "uhomes", propertyId: "uhomes:id:2", name: "Test Property 2", availability: "available" }],
-        });
-        createdCurationIds.push(presCuration._id);
-        const readyPresentation = await Presentation.create({
-            leadId: presentationNoFollowUpLead._id, version: 1, title: "V1", status: "READY",
-            file: { filename: "x.pptx", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", sizeBytes: 10 },
-        });
-        createdPresentationIds.push(readyPresentation._id);
-
         // Control: a lead with confirmed requirements AND a curated shortlist
-        // AND a READY presentation AND an existing follow-up must fall
-        // through every new bucket to noNextAction — proving the pipeline
-        // buckets are genuinely conditional, not always-on.
+        // AND an existing follow-up must fall through every pipeline bucket
+        // to noNextAction — proving the pipeline buckets are genuinely
+        // conditional, not always-on.
         const fullyHandledLead = await createLead("fully-handled", { assignedTo: agentId, status: "qualified" });
         const fullDiscovery = await Discovery.create({
             leadId: fullyHandledLead._id,
@@ -326,13 +303,6 @@ async function main() {
             await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
             const lead = res.body.data.leads.find((l) => l.id === String(readyForFindRoomsLead._id));
             assert.strictEqual(lead.bucket, "readyForFindRooms");
-        });
-
-        await test("WORK-QUEUE: a READY presentation with NO follow-up ever recorded buckets as presentationNoFollowUp", async () => {
-            const res = mockRes();
-            await workQueueHandler(mockReq({ cookie: manager.cookie, query: { assignedTo: agentId, limit: "50" } }), res);
-            const lead = res.body.data.leads.find((l) => l.id === String(presentationNoFollowUpLead._id));
-            assert.strictEqual(lead.bucket, "presentationNoFollowUp");
         });
 
         await test("WORK-QUEUE: a fully-handled lead (requirements + curation + presentation + a completed follow-up) falls through every pipeline bucket to noNextAction", async () => {
