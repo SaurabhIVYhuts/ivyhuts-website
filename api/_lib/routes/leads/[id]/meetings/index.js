@@ -110,11 +110,19 @@ async function handlePost(req, res, leadId) {
     // any) so Google emails them the Meet link automatically. Only real
     // addresses are passed; an empty list makes createGoogleMeet behave
     // exactly as before (link on the record, no invite sent).
+    //
+    // MEETING_ALWAYS_INVITE is a comma-separated list of internal addresses
+    // added to EVERY consultation (management oversight) — kept in env, not
+    // hardcoded, so it changes without a deploy. createGoogleMeet
+    // de-duplicates, so an agent who is also on that list is invited once.
     const attendeeEmails = [];
     if (lead.contact && lead.contact.email) attendeeEmails.push(lead.contact.email);
     if (lead.assignedTo) {
         const agent = await User.findById(lead.assignedTo).select("email").lean();
         if (agent && agent.email) attendeeEmails.push(agent.email);
+    }
+    for (const email of String(process.env.MEETING_ALWAYS_INVITE || "").split(",")) {
+        if (email.trim()) attendeeEmails.push(email.trim());
     }
 
     // Best-effort real Google Meet creation — see this file's header

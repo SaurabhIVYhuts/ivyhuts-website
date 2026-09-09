@@ -50,9 +50,19 @@ async function createMeeting({ scheduledAt, durationMinutes = 30, summary, leadI
         // invite + Meet link itself (sendUpdates=all). No attendee list
         // → behave exactly as before (no invite, just a link on the
         // record).
+        // De-duplicated case-insensitively — the same person can arrive from
+        // more than one source (e.g. the assigned agent who is also on
+        // MEETING_ALWAYS_INVITE), and Google rejects a duplicate attendee.
+        const seen = new Set();
         const cleanAttendees = (Array.isArray(attendees) ? attendees : [])
             .map((email) => (typeof email === "string" ? email.trim() : ""))
             .filter((email) => /.+@.+\..+/.test(email))
+            .filter((email) => {
+                const key = email.toLowerCase();
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            })
             .map((email) => ({ email }));
         const sendUpdates = cleanAttendees.length > 0 ? "all" : "none";
 
