@@ -241,6 +241,7 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
                             // stays the source of truth.
                             university: "$student.university",
                             moveInDate: "$accommodation.moveInDate",
+                            moveOutDate: "$accommodation.moveOutDate",
                             budgetMin: "$accommodation.budgetMin",
                             budgetMax: "$accommodation.budgetMax",
                             currency: "$accommodation.currency",
@@ -259,6 +260,7 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
                         in: {
                             university: "$$d.university",
                             moveInDate: "$$d.moveInDate",
+                            moveOutDate: "$$d.moveOutDate",
                             budgetMin: "$$d.budgetMin",
                             budgetMax: "$$d.budgetMax",
                             currency: "$$d.currency",
@@ -403,6 +405,7 @@ const handler = withErrorHandling(async (req, res) => {
                                 notes: 1,
                                 summary: 1,
                                 discovery: 1,
+                                partnerAvailability: 1,
                                 createdAt: 1,
                                 updatedAt: 1,
                                 firstContactAt: 1,
@@ -434,6 +437,7 @@ const handler = withErrorHandling(async (req, res) => {
         lastInboundCommunicationAt: lead.lastInboundCommunicationAt || null,
         summary: lead.summary || null,
         discovery: lead.discovery || null,
+        partnerAvailability: lead.partnerAvailability || null,
     }));
 
     sendSuccess(res, {
