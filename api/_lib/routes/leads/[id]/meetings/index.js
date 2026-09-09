@@ -35,6 +35,7 @@ const Meeting = require("../../../../models/Meeting");
 const User = require("../../../../models/User");
 const { createMeeting: createGoogleMeet } = require("../../../../providers/meeting/googleMeetProvider");
 const { createNotification } = require("../../../../notify");
+const { sendMeetingInviteEmail } = require("../../../../mailer");
 const { withErrorHandling, requireObjectId, notFound, badRequest, parseJsonBody, parseDate } = require("../../../../validation");
 const { sendSuccess, sendCollection } = require("../../../../apiResponse");
 
@@ -115,15 +116,24 @@ async function handlePost(req, res, leadId) {
     // added to EVERY consultation (management oversight) — kept in env, not
     // hardcoded, so it changes without a deploy. createGoogleMeet
     // de-duplicates, so an agent who is also on that list is invited once.
-    const attendeeEmails = [];
-    if (lead.contact && lead.contact.email) attendeeEmails.push(lead.contact.email);
+    const rawAttendees = [];
+    if (lead.contact && lead.contact.email) rawAttendees.push(lead.contact.email);
     if (lead.assignedTo) {
         const agent = await User.findById(lead.assignedTo).select("email").lean();
-        if (agent && agent.email) attendeeEmails.push(agent.email);
+        if (agent && agent.email) rawAttendees.push(agent.email);
     }
     for (const email of String(process.env.MEETING_ALWAYS_INVITE || "").split(",")) {
-        if (email.trim()) attendeeEmails.push(email.trim());
+        if (email.trim()) rawAttendees.push(email.trim());
     }
+    // De-duplicated here too (not only inside createGoogleMeet) so the
+    // confirmation email below can't send the same person two copies.
+    const seenAttendees = new Set();
+    const attendeeEmails = rawAttendees.filter((email) => {
+        const key = email.trim().toLowerCase();
+        if (!key || seenAttendees.has(key)) return false;
+        seenAttendees.add(key);
+        return true;
+    });
 
     // Best-effort real Google Meet creation — see this file's header
     // comment. Awaited (not fire-and-forget) so the response the agent sees
@@ -150,6 +160,22 @@ async function handlePost(req, res, leadId) {
         createdBy: identity.mongoUser._id,
         updatedBy: identity.mongoUser._id,
     });
+
+    // Belt-and-braces confirmation email to the student and everyone
+    // internal. Google Calendar already invites each attendee directly when
+    // the Meet is created; this still goes out when Google isn't configured
+    // (no link yet) or its invite gets filtered. Soft-fail — see mailer.js.
+    for (const email of attendeeEmails) {
+        const isCustomer = Boolean(lead.contact && lead.contact.email && email.toLowerCase() === String(lead.contact.email).toLowerCase());
+        await sendMeetingInviteEmail({
+            to: email,
+            audience: isCustomer ? "customer" : "internal",
+            lead,
+            scheduledAt,
+            meetingUrl: meetResult.status === "OK" ? meetResult.meetingUrl : null,
+            notes: body.notes || null,
+        });
+    }
 
     // The agent works the lead but does not choose the meeting time (see
     // MANAGEMENT_ROLES above) — same "assignment must trigger agent action"

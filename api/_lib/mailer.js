@@ -357,4 +357,71 @@ async function sendFollowUpEmail({ to, audience, kind = "created", lead, followU
     }
 }
 
-module.exports = { sendEnquiryEmail, sendInsightsDigestEmail, sendInsightsFailureAlertEmail, sendFollowUpEmail };
+// ── Meeting confirmation (CRM plan item 3) ────────────────────────────────
+// Google Calendar already emails a real invite to every attendee when the
+// Meet is created (sendUpdates=all), which is the better artefact — it
+// lands in the recipient's calendar. This is the belt-and-braces copy: a
+// plain confirmation that still goes out when Google isn't configured (no
+// link yet) or when its invite is filtered. Same SOFT-FAIL contract as
+// sendFollowUpEmail — never throws, never blocks the meeting record.
+async function sendMeetingInviteEmail({ to, audience, lead, scheduledAt, meetingUrl, notes }) {
+    if (!to) return { sent: false, reason: "no recipient" };
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+        console.warn("[mailer] RESEND_API_KEY not set — skipping meeting email (non-fatal)");
+        return { sent: false, reason: "not_configured" };
+    }
+    const from = process.env.RESEND_FROM || "IVYhuts <onboarding@resend.dev>";
+    const studentName = (lead && lead.contact && lead.contact.name) || "the student";
+    const firstName = studentName.split(/\s+/)[0];
+    const when = followUpDateLabel(scheduledAt);
+
+    const rows = [
+        { Field: "Student", Details: studentName },
+        { Field: "When", Details: when },
+        ...(meetingUrl ? [{ Field: "Google Meet", Details: meetingUrl }] : []),
+        ...(notes ? [{ Field: "Notes", Details: notes }] : []),
+    ];
+
+    let subject;
+    let body;
+    if (audience === "customer") {
+        subject = `Your IVYHUTS consultation — ${when}`;
+        body = {
+            name: firstName,
+            intro: `Your accommodation consultation is booked for ${when}.`,
+            ...(meetingUrl
+                ? { action: { instructions: "Join the video call at that time:", button: { color: "#4f7cff", text: "Join Google Meet", link: meetingUrl } } }
+                : {}),
+            outro: meetingUrl
+                ? "A calendar invite is on its way too. Reply to this email if you need a different time."
+                : "We'll send the video-call link shortly. Reply to this email if you need a different time.",
+        };
+    } else {
+        subject = `Consultation booked — ${studentName}, ${when}`;
+        body = {
+            name: "IVYhuts Team",
+            intro: `A consultation with ${studentName} is booked for ${when}.`,
+            table: { data: rows },
+            outro: meetingUrl ? "The calendar invite has been sent to every attendee." : "No Google Meet link yet — Google Workspace credentials are not configured.",
+        };
+    }
+
+    try {
+        const email = { body };
+        const html = mailGenerator.generate(email);
+        const text = mailGenerator.generatePlaintext(email);
+        const resend = new Resend(apiKey);
+        const { error } = await resend.emails.send({ from, to, subject, html, text });
+        if (error) {
+            console.error("[mailer] meeting email FAILED (non-fatal):", error.message || JSON.stringify(error));
+            return { sent: false, reason: "send_error" };
+        }
+        return { sent: true };
+    } catch (err) {
+        console.error("[mailer] meeting email threw (non-fatal):", err.message);
+        return { sent: false, reason: "exception" };
+    }
+}
+
+module.exports = { sendEnquiryEmail, sendInsightsDigestEmail, sendInsightsFailureAlertEmail, sendFollowUpEmail, sendMeetingInviteEmail };
