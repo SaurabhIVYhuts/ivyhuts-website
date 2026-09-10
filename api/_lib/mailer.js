@@ -277,4 +277,151 @@ async function sendInsightsFailureAlertEmail(dateStr, errorMessage, status = "fa
     return { sent: true };
 }
 
-module.exports = { sendEnquiryEmail, sendInsightsDigestEmail, sendInsightsFailureAlertEmail };
+// ── Lead follow-up notifications (CRM plan item 5) ────────────────────────
+// Unlike every other sender in this file, this one is SOFT-FAIL by design:
+// a follow-up notification is a courtesy, not a transaction (same
+// philosophy as api/_lib/notify.js). A missing RESEND_API_KEY, a missing
+// recipient, or a Resend error is caught and logged, and the function
+// returns { sent: false, reason } — it never throws, so it can never break
+// the follow-up create/complete/reminder path that calls it.
+//
+// One recipient per call, with audience-appropriate copy:
+//   audience "agent"    — the task, with a button back into the CRM lead
+//                         so they can log the outcome / set the next step.
+//   audience "customer"  — a plain heads-up, no internal links.
+// `kind` is "created" | "reminder" and only nuances the wording.
+function followUpDateLabel(dueAt) {
+    try {
+        return new Date(dueAt).toLocaleString("en-GB", { dateStyle: "full", timeStyle: "short" });
+    } catch {
+        return String(dueAt);
+    }
+}
+
+async function sendFollowUpEmail({ to, audience, kind = "created", lead, followUp, leadUrl }) {
+    if (!to) return { sent: false, reason: "no recipient" };
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+        console.warn("[mailer] RESEND_API_KEY not set — skipping follow-up email (non-fatal)");
+        return { sent: false, reason: "not_configured" };
+    }
+    const from = process.env.RESEND_FROM || "IVYhuts <onboarding@resend.dev>";
+    const studentName = (lead && lead.contact && lead.contact.name) || "the student";
+    const firstName = studentName.split(/\s+/)[0];
+    const dateLabel = followUpDateLabel(followUp && followUp.dueAt);
+
+    let subject;
+    let body;
+    if (audience === "agent") {
+        subject = `${kind === "reminder" ? "Reminder — " : ""}Follow-up due ${dateLabel}: ${studentName}`;
+        body = {
+            name: "IVYhuts Team",
+            intro: `A follow-up with ${studentName} is due ${dateLabel}.`,
+            table: {
+                data: [
+                    { Field: "Student", Details: studentName },
+                    { Field: "Type", Details: (followUp && followUp.type) || "follow-up" },
+                    { Field: "Priority", Details: (followUp && followUp.priority) || "medium" },
+                    { Field: "Due", Details: dateLabel },
+                    ...(followUp && followUp.notes ? [{ Field: "Notes", Details: followUp.notes }] : []),
+                ],
+            },
+            action: leadUrl
+                ? { instructions: "Open the lead to log the outcome and set the next step:", button: { color: "#4f7cff", text: "Open lead in CRM", link: leadUrl } }
+                : undefined,
+            outro: "You're receiving this because this lead is assigned to you.",
+        };
+    } else {
+        subject = `IVYHUTS — we'll be in touch ${dateLabel}`;
+        body = {
+            name: firstName,
+            intro: `Your IVYHUTS accommodation advisor will follow up with you around ${dateLabel} to help with your search.`,
+            outro: "No action needed right now — just a heads-up. Reply to this email if that timing doesn't work for you.",
+        };
+    }
+
+    try {
+        const email = { body };
+        const html = mailGenerator.generate(email);
+        const text = mailGenerator.generatePlaintext(email);
+        const resend = new Resend(apiKey);
+        const { error } = await resend.emails.send({ from, to, subject, html, text });
+        if (error) {
+            console.error("[mailer] follow-up email FAILED (non-fatal):", error.message || JSON.stringify(error));
+            return { sent: false, reason: "send_error" };
+        }
+        return { sent: true };
+    } catch (err) {
+        console.error("[mailer] follow-up email threw (non-fatal):", err.message);
+        return { sent: false, reason: "exception" };
+    }
+}
+
+// ── Meeting confirmation (CRM plan item 3) ────────────────────────────────
+// Google Calendar already emails a real invite to every attendee when the
+// Meet is created (sendUpdates=all), which is the better artefact — it
+// lands in the recipient's calendar. This is the belt-and-braces copy: a
+// plain confirmation that still goes out when Google isn't configured (no
+// link yet) or when its invite is filtered. Same SOFT-FAIL contract as
+// sendFollowUpEmail — never throws, never blocks the meeting record.
+async function sendMeetingInviteEmail({ to, audience, lead, scheduledAt, meetingUrl, notes }) {
+    if (!to) return { sent: false, reason: "no recipient" };
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+        console.warn("[mailer] RESEND_API_KEY not set — skipping meeting email (non-fatal)");
+        return { sent: false, reason: "not_configured" };
+    }
+    const from = process.env.RESEND_FROM || "IVYhuts <onboarding@resend.dev>";
+    const studentName = (lead && lead.contact && lead.contact.name) || "the student";
+    const firstName = studentName.split(/\s+/)[0];
+    const when = followUpDateLabel(scheduledAt);
+
+    const rows = [
+        { Field: "Student", Details: studentName },
+        { Field: "When", Details: when },
+        ...(meetingUrl ? [{ Field: "Google Meet", Details: meetingUrl }] : []),
+        ...(notes ? [{ Field: "Notes", Details: notes }] : []),
+    ];
+
+    let subject;
+    let body;
+    if (audience === "customer") {
+        subject = `Your IVYHUTS consultation — ${when}`;
+        body = {
+            name: firstName,
+            intro: `Your accommodation consultation is booked for ${when}.`,
+            ...(meetingUrl
+                ? { action: { instructions: "Join the video call at that time:", button: { color: "#4f7cff", text: "Join Google Meet", link: meetingUrl } } }
+                : {}),
+            outro: meetingUrl
+                ? "A calendar invite is on its way too. Reply to this email if you need a different time."
+                : "We'll send the video-call link shortly. Reply to this email if you need a different time.",
+        };
+    } else {
+        subject = `Consultation booked — ${studentName}, ${when}`;
+        body = {
+            name: "IVYhuts Team",
+            intro: `A consultation with ${studentName} is booked for ${when}.`,
+            table: { data: rows },
+            outro: meetingUrl ? "The calendar invite has been sent to every attendee." : "No Google Meet link yet — Google Workspace credentials are not configured.",
+        };
+    }
+
+    try {
+        const email = { body };
+        const html = mailGenerator.generate(email);
+        const text = mailGenerator.generatePlaintext(email);
+        const resend = new Resend(apiKey);
+        const { error } = await resend.emails.send({ from, to, subject, html, text });
+        if (error) {
+            console.error("[mailer] meeting email FAILED (non-fatal):", error.message || JSON.stringify(error));
+            return { sent: false, reason: "send_error" };
+        }
+        return { sent: true };
+    } catch (err) {
+        console.error("[mailer] meeting email threw (non-fatal):", err.message);
+        return { sent: false, reason: "exception" };
+    }
+}
+
+module.exports = { sendEnquiryEmail, sendInsightsDigestEmail, sendInsightsFailureAlertEmail, sendFollowUpEmail, sendMeetingInviteEmail };

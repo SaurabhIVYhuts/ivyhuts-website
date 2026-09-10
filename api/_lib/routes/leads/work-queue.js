@@ -8,11 +8,12 @@
 // Bucket semantics (not specified anywhere else, so decided and recorded
 // here — mutually exclusive per lead, priority order matches
 // WORK_QUEUE_BUCKETS in the CRM type). Milestone 23.12 extends the
-// original 6 buckets with 4 new operational-pipeline signals (meetingToday
-// / discoveryIncomplete / readyForFindRooms / presentationNoFollowUp);
-// Milestone 23.14 adds one more (transcriptAvailableNeedsReview) — every
-// addition reuses the SAME aggregation this route already runs rather than
-// a second/parallel queue system:
+// original 6 buckets with new operational-pipeline signals (meetingToday
+// / discoveryIncomplete / readyForFindRooms); Milestone 23.14 adds one more
+// (transcriptAvailableNeedsReview) — every addition reuses the SAME
+// aggregation this route already runs rather than a second/parallel queue
+// system. (The former presentationNoFollowUp bucket was removed with the
+// Presentation feature — CRM plan item 4.):
 //   overdue              — has a PENDING follow-up due before today
 //   meetingToday         — has a SCHEDULED (not completed/cancelled)
 //                           meeting whose scheduledAt falls today
@@ -45,11 +46,6 @@
 //                           property exists yet (an empty/never-saved
 //                           shortlist counts as "not ready", matching
 //                           hasCuratedProperties' own rule)
-//   presentationNoFollowUp — a READY Presentation exists, but this lead has
-//                           NO FollowUp at all (never recorded one) — a
-//                           generated PPT is not the same as the customer
-//                           having been followed up with (Milestone 23.12
-//                           Part 8: "A generated PPT != delivered PPT")
 //   upcoming             — has a PENDING follow-up due after today (and
 //                          didn't already match a higher bucket)
 //   nurturing            — status "nurturing" (and didn't match a higher bucket)
@@ -88,7 +84,6 @@ const WORK_QUEUE_BUCKETS = [
     "transcriptAvailableNeedsReview",
     "discoveryIncomplete",
     "readyForFindRooms",
-    "presentationNoFollowUp",
     "upcoming",
     "nurturing",
     "noNextAction",
@@ -135,19 +130,6 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
             },
         },
         { $addFields: { nextFollowUp: { $arrayElemAt: ["$_nextFollowUpArr", 0] } } },
-        // Milestone 23.12 — has this lead EVER had any follow-up at all
-        // (any status), distinct from `nextFollowUp` (pending, earliest
-        // only) — needed for the presentationNoFollowUp bucket ("no
-        // recorded follow-up" means none ever, not just none pending).
-        {
-            $lookup: {
-                from: "followups",
-                let: { leadId: "$_id" },
-                pipeline: [{ $match: { $expr: { $eq: ["$leadId", "$$leadId"] } } }, { $limit: 1 }, { $project: { _id: 1 } }],
-                as: "_anyFollowUpArr",
-            },
-        },
-        { $addFields: { _hasAnyFollowUp: { $gt: [{ $size: "$_anyFollowUpArr" }, 0] } } },
         {
             $lookup: {
                 from: "communications",
@@ -253,6 +235,16 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
                                     { $gt: ["$accommodation.sharing", 0] },
                                 ],
                             },
+                            // CRM plan item 2 — display-only requirement
+                            // fields for the Lead Inbox table. Snapshot of
+                            // what Discovery currently holds; Discovery
+                            // stays the source of truth.
+                            university: "$student.university",
+                            moveInDate: "$accommodation.moveInDate",
+                            moveOutDate: "$accommodation.moveOutDate",
+                            budgetMin: "$accommodation.budgetMin",
+                            budgetMax: "$accommodation.budgetMax",
+                            currency: "$accommodation.currency",
                         },
                     },
                 ],
@@ -260,6 +252,23 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
             },
         },
         { $addFields: { hasConfirmedRequirements: { $ifNull: [{ $arrayElemAt: ["$_discoveryArr.hasConfirmedRequirements", 0] }, false] } } },
+        {
+            $addFields: {
+                discovery: {
+                    $let: {
+                        vars: { d: { $arrayElemAt: ["$_discoveryArr", 0] } },
+                        in: {
+                            university: "$$d.university",
+                            moveInDate: "$$d.moveInDate",
+                            moveOutDate: "$$d.moveOutDate",
+                            budgetMin: "$$d.budgetMin",
+                            budgetMax: "$$d.budgetMax",
+                            currency: "$$d.currency",
+                        },
+                    },
+                },
+            },
+        },
         // Milestone 23.12 — a non-empty curated shortlist (same rule as
         // hasCuratedProperties in buildJourneyFlags).
         {
@@ -275,21 +284,6 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
             },
         },
         { $addFields: { hasCuratedProperties: { $ifNull: [{ $arrayElemAt: ["$_curationArr.hasProperties", 0] }, false] } } },
-        // Milestone 23.12 — at least one READY (never GENERATING/FAILED)
-        // presentation exists (same rule as hasReadyPresentation).
-        {
-            $lookup: {
-                from: "presentations",
-                let: { leadId: "$_id" },
-                pipeline: [
-                    { $match: { $expr: { $and: [{ $eq: ["$leadId", "$$leadId"] }, { $eq: ["$status", "READY"] }] } } },
-                    { $limit: 1 },
-                    { $project: { _id: 1 } },
-                ],
-                as: "_readyPresentationArr",
-            },
-        },
-        { $addFields: { hasReadyPresentation: { $gt: [{ $size: "$_readyPresentationArr" }, 0] } } },
         {
             $addFields: {
                 bucket: {
@@ -319,7 +313,6 @@ function buildEnrichmentStages(todayStart, tomorrowStart) {
                             // status string is no longer trusted alone.
                             { case: { $and: [{ $not: { $in: ["$status", ["nurturing", "converted", "lost"]] } }, { $eq: ["$hasConfirmedRequirements", false] }] }, then: "discoveryIncomplete" },
                             { case: { $and: [{ $not: { $in: ["$status", ["nurturing", "converted", "lost"]] } }, { $eq: ["$hasCuratedProperties", false] }] }, then: "readyForFindRooms" },
-                            { case: { $and: [{ $not: { $in: ["$status", ["nurturing", "converted", "lost"]] } }, "$hasReadyPresentation", { $eq: ["$_hasAnyFollowUp", false] }] }, then: "presentationNoFollowUp" },
                             { case: { $and: ["$nextFollowUp", { $gte: ["$nextFollowUp.dueAt", tomorrowStart] }] }, then: "upcoming" },
                             { case: { $eq: ["$status", "nurturing"] }, then: "nurturing" },
                         ],
@@ -339,10 +332,9 @@ const BUCKET_SORT_RANK = {
     transcriptAvailableNeedsReview: 4,
     discoveryIncomplete: 5,
     readyForFindRooms: 6,
-    presentationNoFollowUp: 7,
-    upcoming: 8,
-    nurturing: 9,
-    noNextAction: 10,
+    upcoming: 7,
+    nurturing: 8,
+    noNextAction: 9,
 };
 
 const handler = withErrorHandling(async (req, res) => {
@@ -411,6 +403,9 @@ const handler = withErrorHandling(async (req, res) => {
                                 property: 1,
                                 tags: 1,
                                 notes: 1,
+                                summary: 1,
+                                discovery: 1,
+                                partnerAvailability: 1,
                                 createdAt: 1,
                                 updatedAt: 1,
                                 firstContactAt: 1,
@@ -440,6 +435,9 @@ const handler = withErrorHandling(async (req, res) => {
         nextFollowUp: lead.nextFollowUp || null,
         nextMeeting: lead.nextMeeting || null,
         lastInboundCommunicationAt: lead.lastInboundCommunicationAt || null,
+        summary: lead.summary || null,
+        discovery: lead.discovery || null,
+        partnerAvailability: lead.partnerAvailability || null,
     }));
 
     sendSuccess(res, {

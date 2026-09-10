@@ -21,14 +21,21 @@
 // this preserves the existing, already-tested "scheduling a meeting always
 // succeeds" contract rather than making a new external dependency a hard
 // requirement of basic meeting tracking.
+//
+// CRM plan item 3 — when the lead's contact email (and the assigned
+// agent's) are known, they're added as event attendees with
+// sendUpdates=all, so Google itself emails the invite + Meet link to the
+// student. No email address → no invite, same as before.
 const { connectToDatabase } = require("../../../../mongodb");
 const { requireRole } = require("../../../../businessAuth");
 const { checkBusinessWriteRateLimit } = require("../../../../businessRateLimit");
 const { withCors } = require("../../../../cors");
 const Lead = require("../../../../models/Lead");
 const Meeting = require("../../../../models/Meeting");
+const User = require("../../../../models/User");
 const { createMeeting: createGoogleMeet } = require("../../../../providers/meeting/googleMeetProvider");
 const { createNotification } = require("../../../../notify");
+const { sendMeetingInviteEmail } = require("../../../../mailer");
 const { withErrorHandling, requireObjectId, notFound, badRequest, parseJsonBody, parseDate } = require("../../../../validation");
 const { sendSuccess, sendCollection } = require("../../../../apiResponse");
 
@@ -100,6 +107,34 @@ async function handlePost(req, res, leadId) {
         throw badRequest("VALIDATION_ERROR", "notes must be a string or null.");
     }
 
+    // CRM plan item 3 — invite the student (and the assigned agent, if
+    // any) so Google emails them the Meet link automatically. Only real
+    // addresses are passed; an empty list makes createGoogleMeet behave
+    // exactly as before (link on the record, no invite sent).
+    //
+    // MEETING_ALWAYS_INVITE is a comma-separated list of internal addresses
+    // added to EVERY consultation (management oversight) — kept in env, not
+    // hardcoded, so it changes without a deploy. createGoogleMeet
+    // de-duplicates, so an agent who is also on that list is invited once.
+    const rawAttendees = [];
+    if (lead.contact && lead.contact.email) rawAttendees.push(lead.contact.email);
+    if (lead.assignedTo) {
+        const agent = await User.findById(lead.assignedTo).select("email").lean();
+        if (agent && agent.email) rawAttendees.push(agent.email);
+    }
+    for (const email of String(process.env.MEETING_ALWAYS_INVITE || "").split(",")) {
+        if (email.trim()) rawAttendees.push(email.trim());
+    }
+    // De-duplicated here too (not only inside createGoogleMeet) so the
+    // confirmation email below can't send the same person two copies.
+    const seenAttendees = new Set();
+    const attendeeEmails = rawAttendees.filter((email) => {
+        const key = email.trim().toLowerCase();
+        if (!key || seenAttendees.has(key)) return false;
+        seenAttendees.add(key);
+        return true;
+    });
+
     // Best-effort real Google Meet creation — see this file's header
     // comment. Awaited (not fire-and-forget) so the response the agent sees
     // immediately reflects whether a real link is attached, but its own
@@ -109,6 +144,7 @@ async function handlePost(req, res, leadId) {
         scheduledAt,
         summary: lead.contact && lead.contact.name ? `IVYHUTS consultation — ${lead.contact.name}` : "IVYHUTS accommodation consultation",
         leadId: String(lead._id),
+        attendees: attendeeEmails,
     }).catch((err) => {
         console.error("[meetings] Google Meet provider threw unexpectedly (non-fatal):", err.message);
         return { status: "ERROR", provider: null, providerMeetingId: null, meetingUrl: null };
@@ -124,6 +160,22 @@ async function handlePost(req, res, leadId) {
         createdBy: identity.mongoUser._id,
         updatedBy: identity.mongoUser._id,
     });
+
+    // Belt-and-braces confirmation email to the student and everyone
+    // internal. Google Calendar already invites each attendee directly when
+    // the Meet is created; this still goes out when Google isn't configured
+    // (no link yet) or its invite gets filtered. Soft-fail — see mailer.js.
+    for (const email of attendeeEmails) {
+        const isCustomer = Boolean(lead.contact && lead.contact.email && email.toLowerCase() === String(lead.contact.email).toLowerCase());
+        await sendMeetingInviteEmail({
+            to: email,
+            audience: isCustomer ? "customer" : "internal",
+            lead,
+            scheduledAt,
+            meetingUrl: meetResult.status === "OK" ? meetResult.meetingUrl : null,
+            notes: body.notes || null,
+        });
+    }
 
     // The agent works the lead but does not choose the meeting time (see
     // MANAGEMENT_ROLES above) — same "assignment must trigger agent action"

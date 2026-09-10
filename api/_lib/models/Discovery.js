@@ -77,6 +77,12 @@ const DiscoverySchema = new Schema(
             budgetMax: { type: Number, default: null },
             currency: { type: String, default: null },
             moveInDate: { type: String, default: null },
+            // CRM plan item 2 — when the student plans to move out. Kept as
+            // a plain string (same shape/convention as moveInDate), and
+            // deliberately independent of stayDurationMonths: an agent may
+            // know one, the other, or both, and neither is ever derived
+            // from the other.
+            moveOutDate: { type: String, default: null },
             stayDurationMonths: { type: Number, default: null },
             preferredLocation: { type: String, default: null },
             roomPreference: { type: String, default: null },

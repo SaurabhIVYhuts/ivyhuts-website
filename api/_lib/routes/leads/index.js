@@ -10,6 +10,7 @@ const Lead = require("../../models/Lead");
 const User = require("../../models/User");
 const { toSafeLead } = require("../../leadView");
 const { recordEvent } = require("../../events");
+const { assignLeadAutomatically } = require("../../leadAutoAssign");
 const {
     withErrorHandling,
     badRequest,
@@ -127,6 +128,11 @@ async function handleCreate(req, res) {
         event: "LEAD_CREATED",
         properties: { leadId: String(lead._id), source: lead.source },
     });
+
+    // CRM plan item 3 — round-robin the lead to the least-loaded active
+    // agent (no-op unless LEAD_AUTO_ASSIGN=true). Mutates `lead` in place;
+    // never throws.
+    await assignLeadAutomatically(lead);
 
     sendSuccess(res, toSafeLead(lead), 201);
 }

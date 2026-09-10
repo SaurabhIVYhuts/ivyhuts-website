@@ -8,6 +8,8 @@ const User = require("../../../models/User");
 const { toSafeLead } = require("../../../leadView");
 const { recordEvent } = require("../../../events");
 const { createNotification } = require("../../../notify");
+const FollowUp = require("../../../models/FollowUp");
+const { ensureFirstContactTask } = require("../../../firstContactTask");
 const { withErrorHandling, requireObjectId, notFound, badRequest, parseJsonBody } = require("../../../validation");
 const { sendSuccess } = require("../../../apiResponse");
 const { withCors } = require("../../../cors");
@@ -77,6 +79,25 @@ module.exports = withErrorHandling(async (req, res) => {
             actionHref: `/dashboard/leads/${lead._id}#meeting`,
         });
     }
+
+    // A FollowUp's assignedTo is DERIVED from the lead's own assignment
+    // (see routes/leads/[id]/follow-ups/index.js) — so when the lead moves,
+    // its outstanding work has to move with it. Without this, reassigning a
+    // lead left every pending task sitting in the previous agent's queue
+    // and gave the new one an empty one. Completed/cancelled tasks are
+    // history and stay attributed to whoever actually did them.
+    if (previousAssignedTo !== lead.assignedTo) {
+        try {
+            await FollowUp.updateMany({ leadId: lead._id, status: "pending" }, { $set: { assignedTo: lead.assignedTo || null } });
+        } catch (err) {
+            console.error("[assignment] failed to move pending follow-ups (non-fatal):", err.message);
+        }
+    }
+
+    // Flow step 5 — a lead assigned by hand deserves the same chaseable
+    // first-contact task an auto-assigned one gets. No-op when this lead
+    // already has any follow-up, so reassignment never stacks duplicates.
+    if (newlyAssignedAgent) await ensureFirstContactTask(lead);
 
     sendSuccess(res, toSafeLead(lead));
 });

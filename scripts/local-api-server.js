@@ -55,6 +55,12 @@ const businessRoutes = [
     { pattern: "/api/leads/assignment-summary", handler: require("../api/_lib/routes/leads/assignment-summary.js") },
     { pattern: "/api/leads/work-queue", handler: require("../api/_lib/routes/leads/work-queue.js") },
     { pattern: "/api/leads/import/google-sheet", handler: require("../api/leads/import/google-sheet.js") },
+    // Standalone Vercel Functions (real files under api/leads/**, served
+    // directly by Vercel rather than through the /api/leads dispatcher) —
+    // they need an explicit entry here, since this plain Node server has no
+    // filesystem routing. Listed before "/api/leads" so neither is shadowed.
+    { pattern: "/api/leads/import/sync-cron", handler: require("../api/leads/import/sync-cron.js") },
+    { pattern: "/api/leads/follow-ups/remind-cron", handler: require("../api/leads/follow-ups/remind-cron.js") },
     { pattern: "/api/leads", handler: require("../api/_lib/routes/leads/index.js") },
     { pattern: "/api/leads/:id/assignment", handler: require("../api/_lib/routes/leads/[id]/assignment.js") },
     { pattern: "/api/leads/:id/accommodation-curation", handler: require("../api/_lib/routes/leads/[id]/accommodation-curation.js") },

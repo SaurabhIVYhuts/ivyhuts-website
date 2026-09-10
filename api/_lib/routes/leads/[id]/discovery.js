@@ -57,6 +57,7 @@ function toSafeDiscovery(doc) {
             budgetMax: doc.accommodation.budgetMax,
             currency: doc.accommodation.currency,
             moveInDate: doc.accommodation.moveInDate,
+            moveOutDate: doc.accommodation.moveOutDate,
             stayDurationMonths: doc.accommodation.stayDurationMonths,
             preferredLocation: doc.accommodation.preferredLocation,
             roomPreference: doc.accommodation.roomPreference,
@@ -101,6 +102,7 @@ const ACCOMMODATION_KEYS = [
     "budgetMax",
     "currency",
     "moveInDate",
+    "moveOutDate",
     "stayDurationMonths",
     "preferredLocation",
     "roomPreference",
@@ -163,7 +165,7 @@ function validateEffectiveAccommodation(accommodation) {
         }
     }
 
-    for (const key of ["moveInDate", "preferredLocation", "roomPreference", "distancePreference"]) {
+    for (const key of ["moveInDate", "moveOutDate", "preferredLocation", "roomPreference", "distancePreference"]) {
         if (accommodation[key] != null && typeof accommodation[key] !== "string") {
             throw badRequest("VALIDATION_ERROR", `accommodation.${key} must be a string or null.`);
         }
@@ -231,7 +233,7 @@ async function handlePut(req, res, leadId) {
     const existingStudent = existing ? existing.student.toObject() : { university: null, universityResolved: null, course: null, intake: null };
     const existingAccommodation = existing
         ? existing.accommodation.toObject()
-        : { budgetMin: null, budgetMax: null, currency: null, moveInDate: null, stayDurationMonths: null, preferredLocation: null, roomPreference: null, sharing: null, distancePreference: null };
+        : { budgetMin: null, budgetMax: null, currency: null, moveInDate: null, moveOutDate: null, stayDurationMonths: null, preferredLocation: null, roomPreference: null, sharing: null, distancePreference: null };
 
     const existingRequirementSources = existing && existing.requirementSources
         ? existing.requirementSources.toObject()

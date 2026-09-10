@@ -4,11 +4,27 @@
 // conference attached (the standard, correct way to obtain a genuine
 // meet.google.com link via API — there is no separate "just create a Meet
 // link" endpoint; Meet links are always minted as part of a Calendar
-// event's conferenceData). Requires Google Workspace domain-wide
-// delegation (the service account impersonates a real Workspace user via
-// GOOGLE_WORKSPACE_IMPERSONATE_SUBJECT — see googleAuth.js and
-// .env.example) so the event lands on a real calendar, not the service
-// account's own empty one.
+// event's conferenceData).
+//
+// TWO SUPPORTED MODES, because domain-wide delegation needs a Super Admin
+// and not every deployment can get one:
+//
+//   1. DELEGATED (preferred). Set GOOGLE_WORKSPACE_IMPERSONATE_SUBJECT and
+//      authorise the service account's client id for the
+//      calendar.events scope under Workspace Admin → Domain-wide
+//      delegation. The service account acts AS that real Workspace user,
+//      so Meet links mint reliably and events land on their calendar.
+//
+//   2. SHARED CALENDAR (fallback, no Super Admin needed). Leave the
+//      subject unset, create a normal Google Calendar, share it with the
+//      service account's own email granting "Make changes to events", and
+//      point GOOGLE_CALENDAR_ID at that calendar's id. The service account
+//      acts as ITSELF. Calendar events work; a Meet link is NOT guaranteed
+//      — Google only mints conferenceData when the acting identity has a
+//      Meet-enabled Workspace licence, which a bare service account does
+//      not. createMeeting reports that honestly (status OK, meetingUrl
+//      null) rather than failing the whole call, so the event is still
+//      tracked and reschedule/cancel keep working.
 //
 // FAILS CLOSED: confirmed by audit before writing this file that no
 // Google Calendar/Meet integration existed anywhere in this codebase.
@@ -24,18 +40,25 @@ const { createNotConfiguredMeetingProvider } = require("./notConfigured");
 const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || "primary";
 
+// Credentials plus EITHER an impersonation subject (delegated mode) or an
+// explicitly-configured calendar id (shared-calendar mode). "primary" is
+// not enough on its own — for a non-impersonating service account that
+// means its own empty, unshareable calendar, which would silently create
+// events nobody can see.
 function isMeetProviderConfigured() {
-    return Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY && IMPERSONATE_SUBJECT);
+    const hasCredentials = Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
+    const hasTarget = Boolean(IMPERSONATE_SUBJECT || process.env.GOOGLE_CALENDAR_ID);
+    return hasCredentials && hasTarget;
 }
 
 // Returns { status: "OK", provider: "google_meet", providerMeetingId, meetingUrl }
 // or { status: "NOT_CONFIGURED" | "ERROR", reason, provider: null, providerMeetingId: null, meetingUrl: null }.
 // Never throws — a Meet-creation failure must never block the underlying
 // Meeting record from being created (see the route that calls this).
-async function createMeeting({ scheduledAt, durationMinutes = 30, summary, leadId }) {
+async function createMeeting({ scheduledAt, durationMinutes = 30, summary, leadId, attendees = [] }) {
     if (!isMeetProviderConfigured()) {
         return createNotConfiguredMeetingProvider(
-            "Google Workspace credentials are not configured (GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY / GOOGLE_WORKSPACE_IMPERSONATE_SUBJECT)."
+            "Google Calendar is not configured. Set GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY, plus either GOOGLE_WORKSPACE_IMPERSONATE_SUBJECT (domain-wide delegation) or GOOGLE_CALENDAR_ID (a calendar shared with the service account)."
         ).createMeeting();
     }
 
@@ -45,7 +68,28 @@ async function createMeeting({ scheduledAt, durationMinutes = 30, summary, leadI
         const end = new Date(start.getTime() + durationMinutes * 60_000);
         const requestId = `ivyhuts-meeting-${leadId}-${Date.now()}`;
 
-        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?conferenceDataVersion=1`;
+        // CRM plan item 3 — when the student's (and agent's) email is
+        // known, add them as attendees and ask Google to email the
+        // invite + Meet link itself (sendUpdates=all). No attendee list
+        // → behave exactly as before (no invite, just a link on the
+        // record).
+        // De-duplicated case-insensitively — the same person can arrive from
+        // more than one source (e.g. the assigned agent who is also on
+        // MEETING_ALWAYS_INVITE), and Google rejects a duplicate attendee.
+        const seen = new Set();
+        const cleanAttendees = (Array.isArray(attendees) ? attendees : [])
+            .map((email) => (typeof email === "string" ? email.trim() : ""))
+            .filter((email) => /.+@.+\..+/.test(email))
+            .filter((email) => {
+                const key = email.toLowerCase();
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            })
+            .map((email) => ({ email }));
+        const sendUpdates = cleanAttendees.length > 0 ? "all" : "none";
+
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?conferenceDataVersion=1&sendUpdates=${sendUpdates}`;
         const response = await client.request({
             url,
             method: "POST",
@@ -53,6 +97,7 @@ async function createMeeting({ scheduledAt, durationMinutes = 30, summary, leadI
                 summary: summary || "IVYHUTS accommodation consultation",
                 start: { dateTime: start.toISOString() },
                 end: { dateTime: end.toISOString() },
+                ...(cleanAttendees.length > 0 ? { attendees: cleanAttendees } : {}),
                 conferenceData: {
                     createRequest: {
                         requestId,
@@ -65,7 +110,19 @@ async function createMeeting({ scheduledAt, durationMinutes = 30, summary, leadI
         const event = response.data || {};
         const meetingUrl = event.hangoutLink || null;
         if (!meetingUrl) {
-            return { status: "ERROR", reason: "Google Calendar accepted the event but returned no Meet link.", provider: null, providerMeetingId: null, meetingUrl: null };
+            // The event WAS created — don't throw that away. Expected in
+            // shared-calendar mode, where the acting service account has no
+            // Meet licence. Reported honestly: the calendar event is
+            // tracked (so reschedule/cancel still work) and meetingUrl stays
+            // null rather than being fabricated.
+            console.warn("[googleMeetProvider] Calendar event created but Google returned no Meet link (expected without domain-wide delegation).");
+            return {
+                status: "OK",
+                provider: "google_meet",
+                providerMeetingId: event.id || null,
+                meetingUrl: null,
+                reason: "Calendar event created, but no Meet link — the acting identity has no Meet licence. Use domain-wide delegation for automatic Meet links.",
+            };
         }
         return { status: "OK", provider: "google_meet", providerMeetingId: event.id || null, meetingUrl };
     } catch (err) {

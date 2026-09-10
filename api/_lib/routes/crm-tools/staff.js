@@ -26,7 +26,7 @@ module.exports = withErrorHandling(async (req, res) => {
 
     await connectToDatabase();
     const staff = await User.find({ role: { $in: INTERNAL_ROLES } })
-        .select("name email role")
+        .select("name email role active")
         .sort({ name: 1 });
 
     sendSuccess(res, staff.map(toSafeStaff));

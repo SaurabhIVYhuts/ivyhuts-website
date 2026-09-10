@@ -8,6 +8,9 @@ function toSafeStaff(user) {
         name: user.name,
         email: user.email,
         role: user.role,
+        // CRM plan item 3 — false = benched, i.e. excluded from lead
+        // auto-assignment. Absent on legacy docs → treated as active.
+        active: user.active !== false,
     };
 }
 

@@ -16,6 +16,22 @@ const { Schema } = mongoose;
 const LEAD_STATUSES = ["new", "contacted", "qualified", "nurturing", "converted", "lost"];
 const LEAD_TEMPERATURES = ["cold", "warm", "hot"];
 
+// CRM plan item 2 — the agent's own record of an availability check with an
+// accommodation partner: where it stands, plus whatever the partner said
+// back. Entirely agent-entered — there is NO integration with any partner
+// API here (that stays true of the whole CRM sales workflow). "no_reply" =
+// asked, heard nothing.
+const PARTNER_AVAILABILITY_STATUSES = ["not_requested", "requested", "available", "unavailable", "no_reply"];
+const PartnerAvailabilityBlockSchema = new Schema(
+    {
+        status: { type: String, enum: PARTNER_AVAILABILITY_STATUSES, default: "not_requested" },
+        reply: { type: String, default: null },
+        updatedAt: { type: Date, default: null },
+        updatedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    },
+    { _id: false }
+);
+
 const LeadSchema = new Schema(
     {
         userId: { type: Schema.Types.ObjectId, ref: "User", default: null },
@@ -54,6 +70,18 @@ const LeadSchema = new Schema(
         lostReason: { type: String, default: null },
         tags: { type: [String], default: [] },
         notes: { type: String, default: null },
+
+        // CRM plan item 2 — a one-line, agent-written status summary shown
+        // in the lead list ("waiting on uHomes", "budget too low for area").
+        summary: { type: String, default: null },
+
+        // CRM plan item 2 — per-partner availability tracking (see
+        // PartnerAvailabilityBlockSchema above). Both blocks always exist so
+        // the API can $set into either without an upsert dance.
+        partnerAvailability: {
+            amber: { type: PartnerAvailabilityBlockSchema, default: () => ({}) },
+            uhomes: { type: PartnerAvailabilityBlockSchema, default: () => ({}) },
+        },
 
         // Added in Milestone 2 — gap found while building lead creation: a
         // Lead can exist with no userId at all (anonymous), and without its
@@ -112,3 +140,4 @@ LeadSchema.index({ archivedAt: 1 });
 LeadSchema.index({ externalLeadId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.models.Lead || mongoose.model("Lead", LeadSchema);
+module.exports.PARTNER_AVAILABILITY_STATUSES = PARTNER_AVAILABILITY_STATUSES;

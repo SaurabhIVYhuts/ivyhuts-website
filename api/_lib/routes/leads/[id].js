@@ -162,6 +162,37 @@ async function handlePatch(req, res, id) {
     if (body.score !== undefined) lead.score = parseNumberParam(body.score, "score");
     if (body.lostReason !== undefined) lead.lostReason = body.lostReason;
 
+    // CRM plan item 2 — one-line agent status summary.
+    if (body.summary !== undefined) {
+        if (body.summary !== null && typeof body.summary !== "string") throw badRequest("VALIDATION_ERROR", "summary must be a string or null.");
+        lead.summary = body.summary ? String(body.summary).trim().slice(0, 280) : null;
+    }
+
+    // CRM plan item 2 — partner availability blocks (amber / uhomes). A
+    // partial update: only the partner(s) present in the body are touched,
+    // and within a block only the keys present. updatedAt/updatedBy are
+    // stamped automatically, never taken from the client.
+    if (body.partnerAvailability && typeof body.partnerAvailability === "object") {
+        for (const partner of ["amber", "uhomes"]) {
+            const patch = body.partnerAvailability[partner];
+            if (!patch || typeof patch !== "object") continue;
+            const block = lead.partnerAvailability[partner] || (lead.partnerAvailability[partner] = {});
+            if (patch.status !== undefined) {
+                if (!Lead.PARTNER_AVAILABILITY_STATUSES.includes(patch.status)) {
+                    throw badRequest("VALIDATION_ERROR", `partnerAvailability.${partner}.status must be one of: ${Lead.PARTNER_AVAILABILITY_STATUSES.join(", ")}.`);
+                }
+                block.status = patch.status;
+            }
+            if (patch.reply !== undefined) {
+                if (patch.reply !== null && typeof patch.reply !== "string") throw badRequest("VALIDATION_ERROR", `partnerAvailability.${partner}.reply must be a string or null.`);
+                block.reply = patch.reply ? String(patch.reply).trim().slice(0, 2000) : null;
+            }
+            block.updatedAt = new Date();
+            block.updatedBy = identity.mongoUser._id;
+        }
+        lead.markModified("partnerAvailability");
+    }
+
     if (body.contact && typeof body.contact === "object") {
         if (body.contact.name !== undefined) lead.contact.name = body.contact.name;
         if (body.contact.email !== undefined) lead.contact.email = body.contact.email;

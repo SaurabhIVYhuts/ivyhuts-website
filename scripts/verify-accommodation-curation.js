@@ -115,9 +115,10 @@ async function main() {
         assert.ok(!/\bamber\b/i.test(routeSrc), "accommodation-curation.js route must not reference Amber outside comments");
     });
 
-    await test("STRUCTURAL: provider enum is exactly the four approved providers", () => {
+    await test("STRUCTURAL: provider enum is the four approved providers plus 'other' (CRM plan item 7 — pasted links), never amber", () => {
         const AccommodationCuration = require(path.join(ROOT, "api", "_lib", "models", "AccommodationCuration"));
-        assert.deepStrictEqual([...AccommodationCuration.PROVIDERS].sort(), ["gradding_homes", "uhomes", "uniacco", "university_living"]);
+        assert.deepStrictEqual([...AccommodationCuration.PROVIDERS].sort(), ["gradding_homes", "other", "uhomes", "uniacco", "university_living"]);
+        assert.ok(!AccommodationCuration.PROVIDERS.includes("amber"));
     });
 
     // ══════════════════ VALIDATION (pure — no Mongo needed) ══════════════════

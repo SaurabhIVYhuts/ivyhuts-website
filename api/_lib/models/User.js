@@ -52,6 +52,13 @@ const UserSchema = new Schema(
         // internal business API (api/_lib/businessAuth.js), never login itself.
         role: { type: String, enum: USER_ROLES, default: "USER", index: true },
 
+        // CRM plan item 3 — an internal user can be taken out of the
+        // lead auto-assignment rotation without changing their role or
+        // access (e.g. on leave). Defaults true; only ever false when a
+        // manager explicitly benches them. A missing field (every existing
+        // document) reads as active — see leadAutoAssign.js's `$ne: false`.
+        active: { type: Boolean, default: true },
+
         auth: {
             emailVerified: { type: Boolean, default: false },
             // Separate from the schema-level createdAt/updatedAt below: a

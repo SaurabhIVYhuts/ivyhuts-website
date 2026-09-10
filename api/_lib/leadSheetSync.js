@@ -16,11 +16,17 @@ const { isSheetsImportConfigured, fetchLeadSheetRows } = require("./googleSheets
 const { normalizeMetaSheetRow, computeFillMissingUpdate } = require("./leadIntake");
 const Lead = require("./models/Lead");
 const { recordEvent } = require("./events");
+const { assignLeadAutomatically } = require("./leadAutoAssign");
+const { ensureFirstContactTask } = require("./firstContactTask");
 
 // Defensive cap — this is a batch job (manual or scheduled), not a
 // paginated list endpoint; a hard ceiling prevents one run from ever
 // attempting an unbounded write burst even if the sheet grows very large.
 const MAX_ROWS_PER_RUN = 500;
+// Ceiling on per-lead assignment notifications in a single sync run — a
+// routine 15-minute sync creates a handful of leads and stays well under
+// it; only a bulk backfill ever hits it.
+const MAX_NOTIFICATIONS_PER_RUN = 20;
 
 // Returns { status: "NOT_CONFIGURED" | "UPSTREAM_ERROR" | "OK", reason?, summary?, details? }.
 // `actor` identifies who/what triggered this run for the audit trail
@@ -43,6 +49,7 @@ async function runLeadSheetSync({ actorUserId = null, actorRole = "cron" } = {})
     const rows = sheetResult.rows.slice(0, MAX_ROWS_PER_RUN);
     const summary = { totalRows: rows.length, created: 0, merged: 0, unchanged: 0, skipped: 0 };
     const details = [];
+    let notified = 0; // in-app assignment notifications sent this run — see the cap below
 
     for (const row of rows) {
         const normalized = normalizeMetaSheetRow(row);
@@ -71,6 +78,26 @@ async function runLeadSheetSync({ actorUserId = null, actorRole = "cron" } = {})
                 properties: { leadId: String(lead._id), externalLeadId: normalized.externalLeadId, source: normalized.source },
                 metadata: { importedBy: actorUserId, importedByRole: actorRole },
             });
+            // CRM plan item 3 — round-robin to the least-loaded agent
+            // (unless LEAD_AUTO_ASSIGN=false). The sheet is the LIVE lead
+            // source, so suppressing its notifications outright (as this
+            // did) meant the agents who receive nearly every real lead were
+            // the only ones never told. Notifications are capped per run
+            // instead: a routine sync of a few new rows nudges each agent,
+            // while a first-time backfill of hundreds stops at the cap
+            // rather than flooding anyone. Beyond the cap the lead is still
+            // assigned and still gets its first-contact task — it simply
+            // arrives quietly, in the work queue where it belongs. Email
+            // is off for every imported row regardless of the cap — this
+            // job runs every 15 minutes and must never become a mailer.
+            const notify = notified < MAX_NOTIFICATIONS_PER_RUN;
+            if (await assignLeadAutomatically(lead, { notify, taskEmail: false })) {
+                if (notify) notified += 1;
+            } else {
+                // Not auto-assigned (feature off, or no eligible agent) —
+                // still try the task, which no-ops without an assignee.
+                await ensureFirstContactTask(lead, { notifyAgent: false });
+            }
             continue;
         }
 
