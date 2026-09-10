@@ -4,6 +4,10 @@
 // heads-up. One place so the follow-up route and the daily reminder cron
 // send identical messages.
 //
+// "Both parties" holds only for a follow-up a HUMAN scheduled. A
+// system-created task (followUp.origin === "system") is internal and
+// reaches the agent alone — see the guard in notifyFollowUpParties.
+//
 // Soft-fail throughout (see mailer.sendFollowUpEmail's own comment) — a
 // notification is a courtesy, never a transaction; nothing here throws.
 "use strict";
@@ -35,7 +39,12 @@ async function notifyFollowUpParties(lead, followUp, kind = "created") {
                 });
             }
         }
-        if (lead && lead.contact && lead.contact.email) {
+        // A CRM-generated task (origin "system" — the first-contact call)
+        // is INTERNAL. The student never agreed to it and must not be
+        // emailed "your advisor will follow up around 4pm" about it; only
+        // a follow-up a human actually scheduled earns that heads-up.
+        const internalOnly = followUp && followUp.origin === "system";
+        if (!internalOnly && lead && lead.contact && lead.contact.email) {
             result.customer = await sendFollowUpEmail({
                 to: lead.contact.email,
                 audience: "customer",

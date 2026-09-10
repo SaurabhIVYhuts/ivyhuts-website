@@ -33,6 +33,10 @@ function toSafeFollowUp(doc) {
         priority: doc.priority,
         dueAt: doc.dueAt,
         status: doc.status,
+        // "agent" | "system" — lets the CRM label a task the system raised
+        // by itself (the first-contact call) rather than passing it off as
+        // something a colleague scheduled. See api/_lib/firstContactTask.js.
+        origin: doc.origin || "agent",
         notes: doc.notes,
         completedAt: doc.completedAt,
         createdAt: doc.createdAt,

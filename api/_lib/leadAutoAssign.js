@@ -4,16 +4,22 @@
 // a stable order (agents come back sorted by _id) so the rotation is
 // deterministic, not random.
 //
-// Gated by env LEAD_AUTO_ASSIGN === "true" so it can be switched off
-// without a code change. Fire-and-forget-safe: every failure here is caught
-// and logged — lead creation must never fail because auto-assignment did
-// (same philosophy as api/_lib/notify.js).
+// ON by default; set env LEAD_AUTO_ASSIGN=false to switch it off without a
+// code change. (It shipped opt-in, which meant every deployment that never
+// set the flag quietly landed its leads unassigned — the sales flow's step
+// 4, "leads booked against the sales guy", simply didn't happen. Opt-out
+// makes the default match the documented process; nothing is irreversible,
+// since an assignment can be changed from the Lead Inbox at any time.)
+// Fire-and-forget-safe: every failure here is caught and logged — lead
+// creation must never fail because auto-assignment did (same philosophy as
+// api/_lib/notify.js).
 "use strict";
 
 const Lead = require("./models/Lead");
 const User = require("./models/User");
 const { recordEvent } = require("./events");
 const { createNotification } = require("./notify");
+const { ensureFirstContactTask } = require("./firstContactTask");
 
 // Only these roles can hold a lead (mirrors every lead route's
 // INTERNAL_ROLES). MARKETING_MANAGER / ADMIN are included so a small team
@@ -21,7 +27,7 @@ const { createNotification } = require("./notify");
 const ASSIGNABLE_ROLES = ["MARKETING_AGENT", "MARKETING_MANAGER", "ADMIN"];
 
 function isEnabled() {
-    return String(process.env.LEAD_AUTO_ASSIGN || "").trim().toLowerCase() === "true";
+    return String(process.env.LEAD_AUTO_ASSIGN || "").trim().toLowerCase() !== "false";
 }
 
 // The active, assignable agent with the fewest open leads — or null when
@@ -54,10 +60,15 @@ async function pickLeastLoadedAgent() {
 
 // Assigns `lead` in place (mutates + saves it) when auto-assign is enabled
 // and the lead has no agent yet. Returns the chosen agent (lean doc) or
-// null. `notify` controls the in-app Notification — callers doing a bulk
-// import (leadSheetSync) pass false so a backfill of hundreds of rows
-// doesn't fan out hundreds of notifications.
-async function assignLeadAutomatically(lead, { notify = true } = {}) {
+// null.
+//
+// Two independent notification budgets, because the two channels cost very
+// different things: `notify` controls the in-app Notification (cheap and
+// internal — leadSheetSync caps it per run), while `taskEmail` controls the
+// first-contact task's EMAIL to that agent. A bulk importer passes
+// taskEmail:false unconditionally: an inbox is not a work queue, and the
+// task is waiting in the CRM either way.
+async function assignLeadAutomatically(lead, { notify = true, taskEmail = notify } = {}) {
     if (!isEnabled()) return null;
     if (!lead || lead.assignedTo) return null; // never override an existing assignment
 
@@ -86,6 +97,11 @@ async function assignLeadAutomatically(lead, { notify = true } = {}) {
                 actionHref: `/dashboard/leads/${lead._id}`,
             });
         }
+
+        // Flow step 5 — a notification is read once and gone, so give the
+        // agent a dated task to actually chase.
+        await ensureFirstContactTask(lead, { notifyAgent: taskEmail });
+
         return agent;
     } catch (err) {
         console.error("[leadAutoAssign] failed (non-fatal — lead creation still succeeds):", err.message);

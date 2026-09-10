@@ -7,6 +7,7 @@ const { Schema } = mongoose;
 const FOLLOWUP_TYPES = ["call", "email", "whatsapp", "meeting", "other"];
 const FOLLOWUP_PRIORITIES = ["low", "medium", "high"];
 const FOLLOWUP_STATUSES = ["pending", "completed", "cancelled"];
+const FOLLOWUP_ORIGINS = ["agent", "system"];
 
 const FollowUpSchema = new Schema(
     {
@@ -25,6 +26,16 @@ const FollowUpSchema = new Schema(
         // and the customer about this follow-up, so it's never emailed
         // twice. Null = not yet reminded.
         reminderSentAt: { type: Date, default: null },
+
+        // Who put this task here. "agent" = a person scheduled it through
+        // POST /api/leads/:id/follow-ups; "system" = the CRM created it
+        // itself (today: the first-contact call task — see
+        // api/_lib/firstContactTask.js). The distinction is not cosmetic:
+        // followUpNotify.js never emails the CUSTOMER about a "system"
+        // task, because a student agreed to no such appointment. Defaults
+        // to "agent" so every follow-up written before this field existed
+        // keeps its original, human-scheduled meaning.
+        origin: { type: String, enum: FOLLOWUP_ORIGINS, default: "agent" },
     },
     { timestamps: true }
 );
@@ -48,3 +59,4 @@ module.exports = mongoose.models.FollowUp || mongoose.model("FollowUp", FollowUp
 module.exports.FOLLOWUP_TYPES = FOLLOWUP_TYPES;
 module.exports.FOLLOWUP_PRIORITIES = FOLLOWUP_PRIORITIES;
 module.exports.FOLLOWUP_STATUSES = FOLLOWUP_STATUSES;
+module.exports.FOLLOWUP_ORIGINS = FOLLOWUP_ORIGINS;
