@@ -71,7 +71,7 @@ const { connectToDatabase } = require("../../mongodb");
 const { requireRole } = require("../../businessAuth");
 const { withCors } = require("../../cors");
 const Lead = require("../../models/Lead");
-const { withErrorHandling, escapeRegex, parseEnumParam } = require("../../validation");
+const { withErrorHandling, escapeRegex, parseEnumParam, parseEnumListParam } = require("../../validation");
 const { sendSuccess } = require("../../apiResponse");
 
 const INTERNAL_ROLES = ["MARKETING_AGENT", "MARKETING_MANAGER", "ADMIN"];
@@ -101,8 +101,11 @@ function buildBaseMatch(query) {
         const pattern = new RegExp(escapeRegex(query.search.trim()), "i");
         match.$or = [{ "contact.name": pattern }, { "contact.email": pattern }];
     }
-    const status = parseEnumParam(query.status, LEAD_STATUSES, "status");
-    if (status) match.status = status;
+    // One status or a comma-separated list. The CRM splits its pipeline
+    // into two pages by status — Leads (new) and Contacted Leads (every
+    // other status) — and the second needs a set, not a single value.
+    const statuses = parseEnumListParam(query.status, LEAD_STATUSES, "status");
+    if (statuses) match.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
     if (query.source) match.source = query.source;
     if (query.assignedTo) match.assignedTo = query.assignedTo === "unassigned" ? null : query.assignedTo;
     return match;

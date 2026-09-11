@@ -120,6 +120,22 @@ function parseEnumParam(value, allowed, label) {
     return value;
 }
 
+// parseEnumParam's multi-value sibling: accepts one value or a comma-
+// separated list ("contacted,qualified") and returns a de-duplicated array,
+// or undefined when absent. Every entry is checked against the whitelist,
+// and ONE bad entry rejects the whole list — a filter that silently dropped
+// half its input would answer with the wrong leads and a 200.
+function parseEnumListParam(value, allowed, label) {
+    if (value === undefined || value === null || value === "") return undefined;
+    const items = String(value).split(",").map((v) => v.trim()).filter(Boolean);
+    if (items.length === 0) return undefined;
+    const invalid = items.find((v) => !allowed.includes(v));
+    if (invalid !== undefined) {
+        throw badRequest("INVALID_ENUM", `${label} must be one or more of: ${allowed.join(", ")} (comma-separated).`);
+    }
+    return [...new Set(items)];
+}
+
 function parseDate(value, label) {
     if (value === undefined || value === null || value === "") return undefined;
     const date = new Date(value);
@@ -177,6 +193,7 @@ module.exports = {
     buildPaginationMeta,
     escapeRegex,
     parseEnumParam,
+    parseEnumListParam,
     parseDate,
     parseNumberParam,
     applyCreatedAtRange,
