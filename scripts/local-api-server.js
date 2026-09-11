@@ -60,7 +60,7 @@ const businessRoutes = [
     // they need an explicit entry here, since this plain Node server has no
     // filesystem routing. Listed before "/api/leads" so neither is shadowed.
     { pattern: "/api/leads/import/sync-cron", handler: require("../api/leads/import/sync-cron.js") },
-    { pattern: "/api/leads/follow-ups/remind-cron", handler: require("../api/leads/follow-ups/remind-cron.js") },
+    { pattern: "/api/leads/follow-ups/remind-cron", handler: require("../api/_lib/routes/leads/follow-ups-remind-cron.js") },
     { pattern: "/api/leads", handler: require("../api/_lib/routes/leads/index.js") },
     { pattern: "/api/leads/:id/assignment", handler: require("../api/_lib/routes/leads/[id]/assignment.js") },
     { pattern: "/api/leads/:id/accommodation-curation", handler: require("../api/_lib/routes/leads/[id]/accommodation-curation.js") },

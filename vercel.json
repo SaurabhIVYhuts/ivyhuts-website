@@ -8,6 +8,7 @@
     { "source": "/api/enquiries", "destination": "/api/enquiries/__base__" },
     { "source": "/api/customers", "destination": "/api/customers/__base__" },
     { "source": "/api/customers/:id/lifecycle", "destination": "/api/customers/lifecycle--:id" },
+    { "source": "/api/leads/follow-ups/remind-cron", "destination": "/api/leads/__followups-remind-cron__" },
     { "source": "/api/leads", "destination": "/api/leads/__base__" },
     { "source": "/api/leads/:id/assignment", "destination": "/api/leads/assignment--:id" },
     { "source": "/api/leads/:id/accommodation-curation", "destination": "/api/leads/accommodation-curation--:id" },

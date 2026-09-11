@@ -22,7 +22,7 @@ const FollowUpSchema = new Schema(
         completedAt: { type: Date, default: null },
 
         // CRM plan item 5 — set the first time the daily reminder job
-        // (api/leads/follow-ups/remind-cron.js) emails the assigned agent
+        // (api/_lib/routes/leads/follow-ups-remind-cron.js) emails the assigned agent
         // and the customer about this follow-up, so it's never emailed
         // twice. Null = not yet reminded.
         reminderSentAt: { type: Date, default: null },

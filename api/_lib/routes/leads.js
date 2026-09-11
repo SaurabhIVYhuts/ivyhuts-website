@@ -38,6 +38,10 @@
 module.exports = [
     { segments: ["assignment-summary"], handler: require("./leads/assignment-summary.js") },
     { segments: ["work-queue"], handler: require("./leads/work-queue.js") },
+    // The daily follow-up reminder cron — here rather than its own
+    // function to stay within Vercel Hobby's 12-function limit (see that
+    // file's header).
+    { segments: ["__followups-remind-cron__"], handler: require("./leads/follow-ups-remind-cron.js") },
     { segments: [], handler: require("./leads/index.js") },
     { segments: ["__base__"], handler: require("./leads/index.js") },
     { segments: [{ prefix: "assignment--", params: ["id"] }], handler: require("./leads/[id]/assignment.js") },

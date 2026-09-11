@@ -1,3 +1,11 @@
+// Served at GET /api/leads/follow-ups/remind-cron through the /api/leads
+// dispatcher: vercel.json rewrites that URL to the one-segment
+// /api/leads/__followups-remind-cron__, the same flattening every other
+// multi-segment lead route uses (see api/_lib/routes/leads.js). It used to
+// be its own file under api/leads/ — i.e. its own Vercel Function, the
+// 13th, one past the Hobby plan's 12-per-deployment limit, which failed
+// every production deploy until it moved here.
+//
 // Daily follow-up reminder — CRM plan item 5. Emails the assigned agent
 // (the task + a button back into the CRM lead) and the customer (a plain
 // heads-up) about every PENDING follow-up due within the next 24 hours
@@ -10,10 +18,10 @@
 // refuses every request (fails closed). Email delivery itself is soft-fail
 // (see api/_lib/mailer.js): a Resend problem is logged and the run still
 // reports which follow-ups it reached.
-const { connectToDatabase } = require("../../_lib/mongodb");
-const FollowUp = require("../../_lib/models/FollowUp");
-const Lead = require("../../_lib/models/Lead");
-const { notifyFollowUpParties } = require("../../_lib/followUpNotify");
+const { connectToDatabase } = require("../../mongodb");
+const FollowUp = require("../../models/FollowUp");
+const Lead = require("../../models/Lead");
+const { notifyFollowUpParties } = require("../../followUpNotify");
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_PER_RUN = 200; // defensive ceiling — this is a batch job, not a list endpoint.

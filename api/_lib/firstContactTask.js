@@ -10,7 +10,7 @@
 // free and no second reminder mechanism enters the codebase: the Lead
 // Inbox's Next Step column and its overdue/today priority pills, the lead
 // page's Next Action card, and the daily reminder email
-// (api/leads/follow-ups/remind-cron.js).
+// (api/_lib/routes/leads/follow-ups-remind-cron.js).
 //
 // The one thing that marks it out is `origin: "system"`, which keeps the
 // CUSTOMER out of its notifications (see followUpNotify.js): a student must
