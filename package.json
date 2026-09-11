@@ -29,7 +29,8 @@
     "start": "node scripts/start-local.js",
     "start:frontend-only": "react-scripts start",
     "dev": "node scripts/run-dev-server.js",
-    "build": "react-scripts build",
+    "build": "cross-env INLINE_RUNTIME_CHUNK=false react-scripts build",
+    "postbuild": "node scripts/prerender.js",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -52,8 +53,10 @@
     ]
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "dotenv": "^17.4.2",
     "jszip": "^3.10.1",
+    "puppeteer": "^24.15.0",
     "vercel": "^58.7.1"
   }
 }

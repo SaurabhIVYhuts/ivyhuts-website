@@ -1,7 +1,24 @@
 User-agent: *
 Allow: /
+
+# Utility / no-value routes (also carry <meta robots noindex>)
 Disallow: /login
 Disallow: /wishlist
 Disallow: /thank-you
+Disallow: /insight
+
+# Faceted-filter and view-mode permutations of the listing pages produce
+# effectively unlimited near-duplicate URLs. The canonical city / university
+# pages (?city= , ?country= , ?university=) stay fully crawlable; only the
+# filter/sort/view combinations are blocked.
+Disallow: /*?*view=map
+Disallow: /*?*sortBy=
+Disallow: /*?*minPrice=
+Disallow: /*?*maxPrice=
+Disallow: /*?*roomType=
+Disallow: /*?*amenities=
+Disallow: /*?*billsOnly=
+Disallow: /*?*moveInMonth=
+Disallow: /*?*stayDuration=
 
 Sitemap: https://www.ivyhuts.com/sitemap.xml

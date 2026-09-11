@@ -26,4 +26,10 @@ module.exports = [
     { segments: ["enquire"], handler: require("./content/enquire.js") },
     { segments: ["events"], handler: require("./content/events/index.js") },
     { segments: ["warm-amber-cache"], handler: require("./content/warm-amber-cache.js") },
+    { segments: ["prune-stale-residences-cron"], handler: require("./content/prune-stale-residences-cron.js") },
+    { segments: ["advance-crawl-cron"], handler: require("./content/advance-crawl-cron.js") },
+    // /sitemap.xml -> /api/content/sitemap (vercel.json rewrite). Replaces
+    // the hand-maintained public/sitemap.xml with one generated from the
+    // live AccommodationResidence mirror so every /property/<slug> is listed.
+    { segments: ["sitemap"], handler: require("./content/sitemap.js") },
 ];

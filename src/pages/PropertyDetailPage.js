@@ -183,6 +183,7 @@ export default function PropertyDetailPage() {
         canonical={`/property/${encodeURIComponent(slug)}`}
         image={images?.[0]?.url || undefined}
         type="article"
+        noindex={isSoldOut || available === false}
       />
       <SiteNavbar />
 
