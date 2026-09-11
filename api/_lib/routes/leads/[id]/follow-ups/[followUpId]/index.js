@@ -80,6 +80,11 @@ async function handlePatch(req, res, leadId, followUpId) {
     if (body.dueAt !== undefined) {
         const dueAt = parseDate(body.dueAt, "dueAt");
         if (!dueAt) throw badRequest("VALIDATION_ERROR", "dueAt must be a valid date.");
+        // A rescheduled follow-up is a new appointment as far as reminders
+        // go: clear the "already reminded" stamp so the daily reminder job
+        // (remind-cron.js) emails about the NEW time, instead of staying
+        // silent because it once emailed about the old one.
+        if (!followUp.dueAt || followUp.dueAt.getTime() !== dueAt.getTime()) followUp.reminderSentAt = null;
         followUp.dueAt = dueAt;
     }
     if (body.notes !== undefined) {
