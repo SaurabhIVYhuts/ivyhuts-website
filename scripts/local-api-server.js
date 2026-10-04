@@ -85,6 +85,8 @@ const businessRoutes = [
     { pattern: "/api/wishlist/:propertyId", handler: require("../api/_lib/routes/wishlist/[propertyId].js") },
     { pattern: "/api/events", handler: require("../api/_lib/routes/content/events/index.js") },
     { pattern: "/api/warm-amber-cache", handler: require("../api/_lib/routes/content/warm-amber-cache.js") },
+    { pattern: "/api/blogs", handler: require("../api/_lib/routes/content/blogs/index.js") },
+    { pattern: "/api/blogs/:slug", handler: require("../api/_lib/routes/content/blogs/[slug].js") },
 ].map((route) => ({
     ...route,
     paramNames: (route.pattern.match(/:([^/]+)/g) || []).map((p) => p.slice(1)),

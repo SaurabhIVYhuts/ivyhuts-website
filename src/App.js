@@ -21,6 +21,8 @@ const TermsPage                = lazy(() => import("./pages/legal/TermsPage"));
 const PrivacyPage              = lazy(() => import("./pages/legal/PrivacyPage"));
 const ThankYouPage             = lazy(() => import("./pages/ThankYouPage"));
 const NotFoundPage             = lazy(() => import("./pages/NotFoundPage"));
+const BlogPage                 = lazy(() => import("./pages/BlogPage"));
+const BlogPostPage             = lazy(() => import("./pages/BlogPostPage"));
 
 /* ── DEDICATED MAP ROUTES — /properties/map and /find-rooms/map are thin
    redirects onto the SAME PropertyListingPage + ?view=map query param every
@@ -113,6 +115,8 @@ function App() {
             <Route path="/privacy"        element={<PrivacyPage />} />
             <Route path="/login"          element={<LoginPage />} />
             <Route path="/wishlist"       element={<WishlistPage />} />
+            <Route path="/blog"           element={<BlogPage />} />
+            <Route path="/blog/:slug"     element={<BlogPostPage />} />
             <Route path="/properties" element={<FindRoomCompatibilityRoute />} />
             <Route path="/properties/map" element={<MapRouteRedirect />} />
             <Route path="/find-rooms/map" element={<MapRouteRedirect />} />

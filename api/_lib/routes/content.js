@@ -26,4 +26,9 @@ module.exports = [
     { segments: ["enquire"], handler: require("./content/enquire.js") },
     { segments: ["events"], handler: require("./content/events/index.js") },
     { segments: ["warm-amber-cache"], handler: require("./content/warm-amber-cache.js") },
+    // Blog: /api/blogs -> /api/content/blogs, and /api/blogs/:slug ->
+    // /api/content/blog--:slug (same one-segment flattening as leads.js;
+    // slugs never contain "--" — enforced by models/Blog.js SLUG_PATTERN).
+    { segments: ["blogs"], handler: require("./content/blogs/index.js") },
+    { segments: [{ prefix: "blog--", params: ["slug"] }], handler: require("./content/blogs/[slug].js") },
 ];
