@@ -15,6 +15,10 @@ const { Schema } = mongoose;
 // must be kept in sync if it ever changes again.
 const LEAD_STATUSES = ["new", "contacted", "qualified", "nurturing", "converted", "lost"];
 const LEAD_TEMPERATURES = ["cold", "warm", "hot"];
+// The agent's own judgement of a lead, separate from where it is in the
+// pipeline (status). null = not rated yet. The CRM gives each rating its own
+// page (Good / Bad / Perfect Leads); unrated leads stay on Leads.
+const LEAD_RATINGS = ["good", "bad", "perfect"];
 
 // CRM plan item 2 — the agent's own record of an availability check with an
 // accommodation partner: where it stands, plus whatever the partner said
@@ -37,6 +41,7 @@ const LeadSchema = new Schema(
         userId: { type: Schema.Types.ObjectId, ref: "User", default: null },
         status: { type: String, enum: LEAD_STATUSES, default: "new" },
         temperature: { type: String, enum: LEAD_TEMPERATURES, default: "cold" },
+        rating: { type: String, enum: [...LEAD_RATINGS, null], default: null },
         score: { type: Number, default: 0 },
         source: { type: String, default: null }, // e.g. "find-rooms-form", "contact-form", "signup", "facebook_lead_ads"
         // Milestone 23.10 — the id Meta (or any future external lead
@@ -117,6 +122,8 @@ const LeadSchema = new Schema(
 LeadSchema.index({ userId: 1 });
 // status: query pattern = pipeline board filtering ("show me all 'qualified' leads").
 LeadSchema.index({ status: 1 });
+// rating: query pattern = the CRM's per-rating lead pages.
+LeadSchema.index({ rating: 1 });
 // assignedTo: query pattern = "my assigned leads" for a given sales agent.
 LeadSchema.index({ assignedTo: 1 });
 // score: query pattern = sorting by priority.
@@ -141,3 +148,4 @@ LeadSchema.index({ externalLeadId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.models.Lead || mongoose.model("Lead", LeadSchema);
 module.exports.PARTNER_AVAILABILITY_STATUSES = PARTNER_AVAILABILITY_STATUSES;
+module.exports.LEAD_RATINGS = LEAD_RATINGS;

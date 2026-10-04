@@ -106,6 +106,8 @@ function buildBaseMatch(query) {
     // other status) — and the second needs a set, not a single value.
     const statuses = parseEnumListParam(query.status, LEAD_STATUSES, "status");
     if (statuses) match.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
+    // The CRM's per-rating pages: one rating, or "none" for unrated leads.
+    if (query.rating) match.rating = query.rating === "none" ? null : parseEnumParam(query.rating, Lead.LEAD_RATINGS, "rating");
     if (query.source) match.source = query.source;
     if (query.assignedTo) match.assignedTo = query.assignedTo === "unassigned" ? null : query.assignedTo;
     return match;
@@ -400,6 +402,7 @@ const handler = withErrorHandling(async (req, res) => {
                                 contact: 1,
                                 status: 1,
                                 temperature: 1,
+                                rating: 1,
                                 score: 1,
                                 source: 1,
                                 assignedTo: 1,
@@ -439,6 +442,7 @@ const handler = withErrorHandling(async (req, res) => {
         nextMeeting: lead.nextMeeting || null,
         lastInboundCommunicationAt: lead.lastInboundCommunicationAt || null,
         summary: lead.summary || null,
+        rating: lead.rating || null,
         discovery: lead.discovery || null,
         partnerAvailability: lead.partnerAvailability || null,
     }));

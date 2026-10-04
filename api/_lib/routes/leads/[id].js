@@ -154,6 +154,8 @@ async function handlePatch(req, res, id) {
     const previousStatus = lead.status;
 
     if (body.status !== undefined) lead.status = parseEnumParam(body.status, LEAD_STATUSES, "status");
+    // null clears the rating (back to the CRM's unrated Leads page).
+    if (body.rating !== undefined) lead.rating = body.rating === null ? null : parseEnumParam(body.rating, Lead.LEAD_RATINGS, "rating");
     if (body.temperature !== undefined) lead.temperature = parseEnumParam(body.temperature, LEAD_TEMPERATURES, "temperature");
     if (body.source !== undefined) lead.source = body.source;
     if (body.sourceDetails !== undefined && typeof body.sourceDetails === "object") lead.sourceDetails = body.sourceDetails;
