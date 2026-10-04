@@ -43,12 +43,16 @@ export default function SiteNavbar() {
     { to: "/",               label: "Home" },
     { to: "/university-housing", label: "University Housing" },
     { to: "/life-abroad",    label: "Placement Podcast" },
+    { to: "/blog",           label: "Blog" },
     { to: "/list-your-stay", label: "List Your Stay" },
     { to: "/partner",        label: "Partner with Us" },
     { to: "/contact",        label: "Contact Us" },
   ];
 
   const close = () => setMenuOpen(false);
+  // Blog stays highlighted on its article pages (/blog/:slug); every other
+  // link keeps its exact-match behavior.
+  const isActive = (to) => pathname === to || (to === "/blog" && pathname.startsWith("/blog/"));
 
   return (
     <>
@@ -70,7 +74,7 @@ export default function SiteNavbar() {
         {/* Desktop nav */}
         <div className="nav-links">
           {links.map(({ to, label }) => (
-            <Link key={to} to={to} className={pathname === to ? "nav-link nav-active" : "nav-link"}>
+            <Link key={to} to={to} className={isActive(to) ? "nav-link nav-active" : "nav-link"}>
               {label}
             </Link>
           ))}
@@ -117,7 +121,7 @@ export default function SiteNavbar() {
       {menuOpen && (
         <div className="mobile-nav">
           {links.map(({ to, label }) => (
-            <Link key={to} to={to} className={pathname === to ? "mobile-nav-link mobile-nav-active" : "mobile-nav-link"} onClick={close}>
+            <Link key={to} to={to} className={isActive(to) ? "mobile-nav-link mobile-nav-active" : "mobile-nav-link"} onClick={close}>
               {label}
             </Link>
           ))}

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  X, Headset, Heart, Mic, Handshake, Building2, Mail, FileText, Lock, ArrowRight, GraduationCap,
+  X, Headset, Heart, Mic, Handshake, Building2, Mail, FileText, Lock, ArrowRight, GraduationCap, Newspaper,
 } from "lucide-react";
 import "./MobileMenuSheet.css";
 
@@ -21,6 +21,7 @@ const PRIMARY_ROWS = [
   { label: "Shortlist", to: "/wishlist", Icon: Heart },
   { label: "University Housing", to: "/university-housing", Icon: GraduationCap },
   { label: "Placement Podcast", to: "/life-abroad", Icon: Mic },
+  { label: "Blog", to: "/blog", Icon: Newspaper },
 ];
 const PARTNER_ROWS = [
   { label: "Partner with Us", to: "/partner", Icon: Handshake },

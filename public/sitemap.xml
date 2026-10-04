@@ -11,6 +11,8 @@
   <url><loc>https://www.ivyhuts.com/list-your-stay</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://www.ivyhuts.com/partner</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.ivyhuts.com/contact</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.ivyhuts.com/blog</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.ivyhuts.com/blog/how-to-choose-student-accommodation-abroad</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.ivyhuts.com/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://www.ivyhuts.com/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
 

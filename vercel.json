@@ -34,6 +34,8 @@
     { "source": "/api/enquire", "destination": "/api/content/enquire" },
     { "source": "/api/events", "destination": "/api/content/events" },
     { "source": "/api/warm-amber-cache", "destination": "/api/content/warm-amber-cache" },
+    { "source": "/api/blogs", "destination": "/api/content/blogs" },
+    { "source": "/api/blogs/:slug", "destination": "/api/content/blog--:slug" },
     { "source": "/api/properties/search", "destination": "/api/crm-tools/__properties-search__" },
     { "source": "/api/universities/resolve", "destination": "/api/crm-tools/__universities-resolve__" },
     { "source": "/api/staff", "destination": "/api/crm-tools/staff" },
