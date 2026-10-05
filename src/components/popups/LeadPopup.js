@@ -27,6 +27,11 @@ function validate(data) {
   } else if (data.name.trim().length < 2) {
     errors.name = "Please enter your full name.";
   }
+  if (!data.email.trim()) {
+    errors.email = "Please enter your email address.";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(data.email.trim())) {
+    errors.email = "Please enter a valid email address.";
+  }
   if (!data.phone.trim()) {
     errors.phone = "Please enter your phone number.";
   } else if (!/^\+?[\d\s\-().]{7,20}$/.test(data.phone.trim())) {
@@ -38,7 +43,7 @@ function validate(data) {
 export default function LeadPopup() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState({ name: "", phone: "" });
+  const [data, setData] = useState({ name: "", email: "", phone: "" });
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState("idle"); // idle | sending | success | error
   const [honeypot, setHoneypot] = useState("");
@@ -99,6 +104,7 @@ export default function LeadPopup() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentName: data.name.trim(),
+          studentEmail: data.email.trim(),
           phoneNumber: data.phone.trim(),
           message: "Submitted via homepage lead popup",
           websiteSource: "ivyhuts.com/homepage-popup",
@@ -149,6 +155,21 @@ export default function LeadPopup() {
               maxLength={60}
             />
             {errors.name && <span className="lead-popup-error">{errors.name}</span>}
+          </div>
+
+          <div className="lead-popup-field">
+            <label>Email</label>
+            <input
+              type="email"
+              className={errors.email ? "input-error" : ""}
+              placeholder="you@example.com"
+              value={data.email}
+              onChange={(e) => set("email", e.target.value)}
+              maxLength={120}
+              autoComplete="email"
+              inputMode="email"
+            />
+            {errors.email && <span className="lead-popup-error">{errors.email}</span>}
           </div>
 
           <div className="lead-popup-field">
