@@ -20,6 +20,13 @@ const EXPLORE_LINKS = [
   { to: "/life-abroad", title: "Placement Podcast", text: "Hear real stories from students living abroad." },
 ];
 
+// CTA defaults — an article overrides them via `cta` in blogExtras.js
+// (e.g. a city guide linking to that city's listings).
+const DEFAULT_CTA = {
+  help: { to: "/university-housing", label: "Explore University Housing" },
+  final: { heading: "Ready to Find Your Student Home?", to: "/university-housing", label: "Explore Accommodation" },
+};
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function Figure({ image, priority = false, className = "" }) {
@@ -57,7 +64,7 @@ function TipBox({ tip }) {
   );
 }
 
-function ArticleSection({ section, extra }) {
+function ArticleSection({ section, extra, helpCta }) {
   const [firstBlock, ...rest] = section.blocks;
   // The image sits after the section's opening paragraph so the heading and
   // its lead sentence stay together.
@@ -69,8 +76,8 @@ function ArticleSection({ section, extra }) {
         <h2 id={section.id}>{section.title}</h2>
         <BlogBlocks blocks={section.blocks} keyPrefix={`${section.id}-`} />
         <div className="blog-help-actions">
-          <Link to="/university-housing" className="btn btn-primary">
-            Explore University Housing <ArrowRight size={16} aria-hidden="true" />
+          <Link to={helpCta.to} className="btn btn-primary">
+            {helpCta.label} <ArrowRight size={16} aria-hidden="true" />
           </Link>
           <Link to="/contact" className="btn btn-outline">
             <MessageCircle size={16} aria-hidden="true" /> Talk to Our Team
@@ -206,6 +213,8 @@ export default function BlogPostPage() {
   const ogImage = hero ? (hero.src.startsWith("http") ? hero.src : `${CANONICAL_ORIGIN}${hero.src}`) : undefined;
   const updated = blog?.updatedAt && blog?.publishedAt && new Date(blog.updatedAt) - new Date(blog.publishedAt) > DAY_MS;
   const [lead, ...introRest] = parsed?.intro || [];
+  const helpCta = extras?.cta?.help || DEFAULT_CTA.help;
+  const finalCta = extras?.cta?.final || DEFAULT_CTA.final;
 
   return (
     <div className="blog-page blog-page--article">
@@ -276,15 +285,15 @@ export default function BlogPostPage() {
                 <BlogToc items={tocItems} variant="inline" />
 
                 {parsed.sections.map((section) => (
-                  <ArticleSection key={section.id} section={section} extra={extras?.sections?.[section.id]} />
+                  <ArticleSection key={section.id} section={section} extra={extras?.sections?.[section.id]} helpCta={helpCta} />
                 ))}
 
                 <BlogFaq faqs={extras?.faqs} />
 
                 <section className="blog-cta" aria-labelledby="blog-cta-heading">
-                  <h2 id="blog-cta-heading">Ready to Find Your Student Home?</h2>
-                  <Link to="/university-housing" className="btn btn-lg blog-cta-btn">
-                    Explore Accommodation <ArrowRight size={18} aria-hidden="true" />
+                  <h2 id="blog-cta-heading">{finalCta.heading}</h2>
+                  <Link to={finalCta.to} className="btn btn-lg blog-cta-btn">
+                    {finalCta.label} <ArrowRight size={18} aria-hidden="true" />
                   </Link>
                 </section>
               </div>

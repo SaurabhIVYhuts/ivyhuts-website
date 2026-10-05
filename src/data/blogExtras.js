@@ -6,7 +6,9 @@
     `sections` is keyed by heading id (see slugifyHeading in
     src/components/blog/BlogContent.js — the "## " heading text without its
     leading number). `variant: "cta"` renders that section as a highlighted
-    call-to-action panel.
+    call-to-action panel. Optional `cta: { help, final }` overrides that
+    panel's primary button and the closing CTA (defaults: University
+    Housing — see DEFAULT_CTA in src/pages/BlogPostPage.js).
 
     Photos: real photography from Unsplash (https://unsplash.com/license —
     free for commercial use, attribution NOT required), stored locally under
@@ -16,6 +18,7 @@
     (`credit.required: true`, e.g. CC BY photos).  */
 
 const IMG = "/images/blog/how-to-choose-student-accommodation-abroad";
+const LONDON_IMG = "/images/blog/student-accommodation-in-london";
 
 const unsplash = (name, url) => ({ name, url, source: "Unsplash", required: false });
 
@@ -130,6 +133,121 @@ const BLOG_EXTRAS = {
       {
         q: "Can IvyHuts help me find student accommodation near my university?",
         a: "Yes. IvyHuts helps students explore accommodation options for their study journey abroad, so you can compare properties by location, budget, facilities and overall suitability, not just price or photos.",
+      },
+    ],
+  },
+
+  "student-accommodation-in-london": {
+    category: "City Guide",
+    hero: {
+      src: `${LONDON_IMG}/hero-london-street.jpg`,
+      width: 1600,
+      height: 900,
+      alt: "International students in London looking for student accommodation",
+      credit: unsplash("Tamara Menzi", "https://unsplash.com/photos/Mptbg_EWLUs"),
+    },
+    cta: {
+      help: { to: "/find-rooms?city=London", label: "Find Student Accommodation in London" },
+      final: { heading: "Ready to find your accommodation in London?", to: "/find-rooms?city=London", label: "Explore London Student Accommodation" },
+    },
+    sections: {
+      "popular-universities-in-london": {
+        image: {
+          src: `${LONDON_IMG}/university-ucl-portico.jpg`,
+          alt: "International students near a London university",
+          credit: unsplash("Surya Prasad", "https://unsplash.com/photos/aMIDCQQUXZI"),
+        },
+        tip: {
+          title: "Important",
+          text: "These universities have different campuses and locations, so students should check their exact campus before choosing accommodation.",
+        },
+      },
+      "popular-areas-for-student-accommodation-in-london": {
+        image: {
+          src: `${LONDON_IMG}/areas-residential-street.jpg`,
+          alt: "Student neighbourhood in London",
+          credit: unsplash("Loris Boulinguez", "https://unsplash.com/photos/YjmnoFxpgIU"),
+        },
+        tip: {
+          title: "Tip",
+          text: "Before booking, compare: University → Distance → Transport → Rent → Facilities → Lifestyle",
+        },
+      },
+      "types-of-student-accommodation-in-london": {
+        image: {
+          src: `${LONDON_IMG}/room-student-bedroom.jpg`,
+          alt: "Student accommodation room in London",
+          credit: unsplash("Jonathan Borba", "https://unsplash.com/photos/wD3dur3v9aE"),
+        },
+      },
+      "choosing-accommodation-based-on-your-university": {
+        tip: {
+          title: "Important",
+          text: "Always check your exact campus because some universities operate across multiple locations.",
+        },
+      },
+      "getting-around-london": {
+        tip: {
+          title: "Tip",
+          text: "A room that looks cheaper may not actually be cheaper overall if you spend a lot of time and money commuting every day.",
+        },
+      },
+      "student-life-in-london": {
+        image: {
+          src: `${LONDON_IMG}/life-primrose-hill.jpg`,
+          alt: "International students enjoying student life in London",
+          credit: unsplash("Markus Freise", "https://unsplash.com/photos/ev3Txp-zuns"),
+        },
+      },
+      "how-to-choose-the-right-accommodation": {
+        tip: {
+          title: "Simple rule",
+          text: "University → Location → Budget → Transport → Room → Facilities → Contract → Reviews",
+        },
+      },
+      "how-ivyhuts-can-help": {
+        variant: "cta",
+      },
+      "final-thoughts": {
+        image: {
+          src: `${LONDON_IMG}/cta-students-london-eye.jpg`,
+          alt: "Student exploring London while studying abroad",
+          credit: unsplash("Hannah Smith", "https://unsplash.com/photos/oRKFBA2nQ6A"),
+        },
+      },
+    },
+    faqs: [
+      {
+        q: "Is London a good city for international students?",
+        a: "Yes. London has many universities, diverse communities, extensive public transport and a wide range of student activities.",
+      },
+      {
+        q: "What is the best area for student accommodation in London?",
+        a: "There is no single best area. The right area depends on your university, budget, commute and preferred lifestyle.",
+      },
+      {
+        q: "How much does student accommodation cost in London?",
+        a: "Costs vary depending on location, room type, facilities and other factors. Students should compare the total cost rather than rent alone.",
+      },
+      {
+        q: "Which area is best for UCL students?",
+        a: "Students can consider accommodation with convenient access to UCL's Bloomsbury area, while also comparing rent and transport.",
+      },
+      {
+        q: "Is public transport convenient in London?",
+        a: "Yes. London has Underground, buses, Overground, Elizabeth line, trams and National Rail services.",
+      },
+      {
+        q: "What should international students check before booking?",
+        a: "Students should check location, total cost, utilities, room type, tenancy agreement, deposit, property condition, safety and reviews.",
+      },
+      {
+        q: "Should students live close to their university?",
+        a: "Living close to university can reduce commuting time, but students should balance location with accommodation cost and transport connections.",
+      },
+      {
+        q: "Can students find accommodation before arriving in the UK?",
+        a: "Students can research and shortlist accommodation before travelling. However, they should verify the property, agreement and payment requirements carefully before making any payment.",
       },
     ],
   },
