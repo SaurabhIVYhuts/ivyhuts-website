@@ -1,0 +1,179 @@
+/* ═══ SHARED PHONE FIELD (country code + national number) ═══
+   Matches the input language both lead forms already use — 1.5px soft
+   border, --radius-md, rose focus ring — so it reads as one control that
+   happens to have a country picker attached, not a bolted-on widget. */
+
+.phone-field {
+  position: relative;
+}
+
+.phone-field-control {
+  display: flex;
+  align-items: stretch;
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: #fff;
+  overflow: hidden;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+/* The ring belongs to the whole control, so focusing either half lights up
+   one box rather than two neighbouring outlines. */
+.phone-field-control:focus-within {
+  border-color: #B07898;
+  box-shadow: 0 0 0 3px rgba(176, 120, 152, 0.12);
+}
+.phone-field--invalid .phone-field-control {
+  border-color: #C0392B;
+}
+
+.phone-field-country {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 0 10px 0 13px;
+  border: none;
+  border-right: 1.5px solid var(--border-soft);
+  background: #FBF4F8;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #3A2442;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.phone-field-country:hover { background: #F4E8F0; }
+.phone-field-country:focus-visible {
+  outline: 2px solid #B07898;
+  outline-offset: -2px;
+}
+
+.phone-field-flag {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+.phone-field-dial {
+  font-variant-numeric: tabular-nums;
+}
+.phone-field-chevron {
+  color: #A68E9B;
+  transition: transform var(--transition);
+}
+.phone-field-chevron--open { transform: rotate(180deg); }
+
+.phone-field-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  padding: 13px 14px;
+  font-family: inherit;
+  font-size: 0.94rem;
+  color: #3A2442;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.phone-field-input::placeholder { color: #A68E9B; }
+
+/* ── Country panel ── */
+/* Fixed, not absolute — see PhoneField.js: an absolute panel is clipped by
+   the homepage popup's own `overflow-y: auto`. left/top/bottom/width come
+   from the control's measured rect as inline styles. */
+.phone-field-panel {
+  position: fixed;
+  z-index: 600; /* above .lead-popup-overlay (z-index 500) */
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: phone-field-panel-in 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes phone-field-panel-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .phone-field-panel { animation: none; }
+  .phone-field-chevron { transition: none; }
+}
+
+.phone-field-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  color: #A68E9B;
+}
+.phone-field-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.88rem;
+  color: #3A2442;
+  background: transparent;
+}
+
+/* Flexes into whatever height the panel was given (the panel's own
+   max-height is measured from the space available on screen), with the
+   search box staying put above it. */
+.phone-field-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain; /* stops the page/modal behind scrolling once the list hits its end */
+}
+
+.phone-field-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.88rem;
+  color: #3A2442;
+  text-align: left;
+  cursor: pointer;
+}
+.phone-field-option--active { background: rgba(94, 58, 107, 0.07); }
+.phone-field-option--selected { font-weight: 700; }
+.phone-field-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.phone-field-option-dial {
+  flex-shrink: 0;
+  color: #7B5B70;
+  font-variant-numeric: tabular-nums;
+}
+
+.phone-field-empty {
+  padding: 14px 12px;
+  font-size: 0.84rem;
+  color: #7B5B70;
+  text-align: center;
+}
+
+/* Keeps the tap targets comfortable and stops iOS zooming the page on
+   focus (anything under 16px triggers that zoom). */
+@media (max-width: 480px) {
+  .phone-field-input,
+  .phone-field-search input { font-size: 16px; }
+  .phone-field-option { padding: 11px 10px; }
+}

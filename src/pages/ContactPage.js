@@ -8,6 +8,8 @@ import { SOCIAL_ICONS } from "../components/icons/SocialIcons";
 import { submitEnquiryToMongo } from "../lib/enquiryApi";
 import { trackFormSubmission } from "../lib/formConversionPixel";
 import Seo from "../components/Seo";
+import PhoneField from "../components/forms/PhoneField";
+import { DEFAULT_COUNTRY_CODE, findCountry, formatFullNumber, validateNationalNumber } from "../data/countryDialCodes";
 
 const SHEETS_URL = process.env.REACT_APP_SHEETS_URL;
 
@@ -36,9 +38,11 @@ export default function ContactPage() {
 
   const [form, setForm] = useState({
     name: "",
-    phone: "",
+    email: "",
+    phone: "", // national digits only — the dial code lives in `country` below
     message: "",
   });
+  const [country, setCountry] = useState(() => findCountry(DEFAULT_COUNTRY_CODE));
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState("idle");
   const [honeypot, setHoneypot] = useState("");
@@ -51,7 +55,15 @@ export default function ContactPage() {
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = "Please enter your name.";
-    if (!form.phone.trim()) e.phone = "Please enter your phone or WhatsApp number.";
+    if (!form.email.trim()) {
+      e.email = "Please enter your email address.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())) {
+      e.email = "Please enter a valid email address.";
+    }
+    // Same shared rule the homepage popup uses (countryDialCodes.js), so
+    // the two forms can't disagree about what a valid number is.
+    const phoneError = validateNationalNumber(country, form.phone);
+    if (phoneError) e.phone = phoneError;
     return e;
   };
 
@@ -71,7 +83,8 @@ export default function ContactPage() {
         body: JSON.stringify({
           _page:       "Contact Us",
           "Full Name": form.name.trim(),
-          "Phone":     form.phone.trim(),
+          "Email":     form.email.trim(),
+          "Phone":     formatFullNumber(country, form.phone),
           "Subject":   subjectDefault || "General Enquiry",
           "Message":   form.message.trim() || "N/A",
           ...(inventoryId ? { "Property Inventory ID": inventoryId } : {}),
@@ -113,7 +126,8 @@ export default function ContactPage() {
         moveOut: tenancyMoveOut || undefined,
         price: formattedPrice,
         studentName: form.name.trim(),
-        phoneNumber: form.phone.trim(),
+        studentEmail: form.email.trim(),
+        phoneNumber: formatFullNumber(country, form.phone),
         message: `Subject: ${subjectDefault || "General Enquiry"}\n\n${form.message.trim() || "N/A"}`,
         websiteSource: "ivyhuts.com/contact",
       };
@@ -141,11 +155,11 @@ export default function ContactPage() {
 
     // MongoDB capture (Milestone 3) — additional, non-blocking destination
     // alongside Sheets/email above; fired only once the enquiry email above
-    // is itself confirmed. This form no longer collects an email address
-    // (removed in the latest homepage/UI pass) — that's fine:
-    // Enquiry.contact.email is intentionally optional (see
-    // api/_lib/models/Enquiry.js), so omitting it here still captures the
-    // enquiry successfully with just name + phone.
+    // is itself confirmed. The email address is collected again as of this
+    // pass (it had been dropped in an earlier homepage/UI pass), so
+    // Enquiry.contact.email — optional in the model, see
+    // api/_lib/models/Enquiry.js — is now populated for every contact-form
+    // enquiry rather than left null.
     const mongoMessage = [
       `Subject: ${subjectDefault || "General Enquiry"}`,
       form.message.trim(),
@@ -161,7 +175,8 @@ export default function ContactPage() {
     submitEnquiryToMongo({
       contact: {
         name: form.name.trim(),
-        phone: form.phone.trim(),
+        email: form.email.trim(),
+        phone: formatFullNumber(country, form.phone),
       },
       ...(mongoProperty ? { property: mongoProperty } : {}),
       message: mongoMessage,
@@ -253,15 +268,40 @@ export default function ContactPage() {
 
               <div className="cp-form-row">
                 <div className="cp-field">
-                  <label>Full Name <span className="cp-req">*</span></label>
-                  <input placeholder="Your full name" value={form.name} onChange={(e) => set("name", e.target.value)} maxLength={80} />
+                  <label htmlFor="cp-name">Full Name <span className="cp-req">*</span></label>
+                  <input id="cp-name" autoComplete="name" placeholder="Your full name" value={form.name} onChange={(e) => set("name", e.target.value)} maxLength={80} />
                   {errors.name && <span className="cp-field-err">{errors.name}</span>}
                 </div>
                 <div className="cp-field">
-                  <label>Phone / WhatsApp <span className="cp-req">*</span></label>
-                  <input placeholder="+91 XXXXX XXXXX" value={form.phone} onChange={(e) => set("phone", e.target.value)} maxLength={30} />
-                  {errors.phone && <span className="cp-field-err">{errors.phone}</span>}
+                  <label htmlFor="cp-email">Email <span className="cp-req">*</span></label>
+                  <input
+                    id="cp-email"
+                    type="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    placeholder="you@example.com"
+                    value={form.email}
+                    onChange={(e) => set("email", e.target.value)}
+                    maxLength={120}
+                  />
+                  {errors.email && <span className="cp-field-err">{errors.email}</span>}
                 </div>
+              </div>
+
+              <div className="cp-field">
+                <label htmlFor="cp-phone">Phone / WhatsApp <span className="cp-req">*</span></label>
+                <PhoneField
+                  inputId="cp-phone"
+                  country={country}
+                  onCountryChange={(next) => {
+                    setCountry(next);
+                    if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }));
+                  }}
+                  value={form.phone}
+                  onChange={(digits) => set("phone", digits)}
+                  invalid={Boolean(errors.phone)}
+                />
+                {errors.phone && <span className="cp-field-err">{errors.phone}</span>}
               </div>
 
               <div className="cp-field">

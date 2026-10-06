@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { getPageViewCount } from "../../lib/pageViewCounter";
 import { trackFormSubmission } from "../../lib/formConversionPixel";
+import PhoneField from "../forms/PhoneField";
+import { DEFAULT_COUNTRY_CODE, findCountry, formatFullNumber, validateNationalNumber } from "../../data/countryDialCodes";
 
 // Re-arms after the visitor has explored a few more pages, rather than
 // suppressing the popup forever after one dismissal or gating it on a
@@ -20,7 +22,7 @@ const CONVERTED_KEY = "ivyhuts_lead_popup_converted";
 const SCROLL_TRIGGER_PX = 400;
 const PAGES_BEFORE_RESHOW = 1;
 
-function validate(data) {
+function validate(data, country) {
   const errors = {};
   if (!data.name.trim()) {
     errors.name = "Please enter your name.";
@@ -32,18 +34,19 @@ function validate(data) {
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(data.email.trim())) {
     errors.email = "Please enter a valid email address.";
   }
-  if (!data.phone.trim()) {
-    errors.phone = "Please enter your phone number.";
-  } else if (!/^\+?[\d\s\-().]{7,20}$/.test(data.phone.trim())) {
-    errors.phone = "Please enter a valid phone number.";
-  }
+  // Length rule is the selected country's own (see countryDialCodes.js) —
+  // the same function the contact form calls, so a number accepted by one
+  // form is accepted by the other.
+  const phoneError = validateNationalNumber(country, data.phone);
+  if (phoneError) errors.phone = phoneError;
   return errors;
 }
 
 export default function LeadPopup() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState({ name: "", email: "", phone: "" });
+  const [data, setData] = useState({ name: "", email: "", phone: "" }); // phone = national digits only; the dial code lives in `country`
+  const [country, setCountry] = useState(() => findCountry(DEFAULT_COUNTRY_CODE));
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState("idle"); // idle | sending | success | error
   const [honeypot, setHoneypot] = useState("");
@@ -91,7 +94,7 @@ export default function LeadPopup() {
     e.preventDefault();
     if (honeypot) return;
 
-    const validationErrors = validate(data);
+    const validationErrors = validate(data, country);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -105,7 +108,7 @@ export default function LeadPopup() {
         body: JSON.stringify({
           studentName: data.name.trim(),
           studentEmail: data.email.trim(),
-          phoneNumber: data.phone.trim(),
+          phoneNumber: formatFullNumber(country, data.phone),
           message: "Submitted via homepage lead popup",
           websiteSource: "ivyhuts.com/homepage-popup",
         }),
@@ -173,13 +176,17 @@ export default function LeadPopup() {
           </div>
 
           <div className="lead-popup-field">
-            <label>Phone Number</label>
-            <input
-              className={errors.phone ? "input-error" : ""}
-              placeholder="+91 XXXXX XXXXX"
+            <label htmlFor="lead-popup-phone">Phone Number</label>
+            <PhoneField
+              inputId="lead-popup-phone"
+              country={country}
+              onCountryChange={(next) => {
+                setCountry(next);
+                if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }));
+              }}
               value={data.phone}
-              onChange={(e) => set("phone", e.target.value.replace(/[^0-9+\s\-().]/g, ""))}
-              maxLength={20}
+              onChange={(digits) => set("phone", digits)}
+              invalid={Boolean(errors.phone)}
             />
             {errors.phone && <span className="lead-popup-error">{errors.phone}</span>}
           </div>
