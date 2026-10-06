@@ -19,6 +19,7 @@
 
 const IMG = "/images/blog/how-to-choose-student-accommodation-abroad";
 const LONDON_IMG = "/images/blog/student-accommodation-in-london";
+const MELBOURNE_IMG = "/images/blog/student-accommodation-in-melbourne";
 
 const unsplash = (name, url) => ({ name, url, source: "Unsplash", required: false });
 
@@ -248,6 +249,111 @@ const BLOG_EXTRAS = {
       {
         q: "Can students find accommodation before arriving in the UK?",
         a: "Students can research and shortlist accommodation before travelling. However, they should verify the property, agreement and payment requirements carefully before making any payment.",
+      },
+    ],
+  },
+
+  "student-accommodation-in-melbourne": {
+    category: "City Guide",
+    hero: {
+      src: `${MELBOURNE_IMG}/hero-melbourne-student-city.jpg`,
+      width: 1600,
+      height: 900,
+      alt: "Students and visitors on the steps of the State Library Victoria in central Melbourne, with city towers behind",
+      credit: unsplash("Slava Abramovitch", "https://unsplash.com/photos/3sBVvO-uCPc"),
+    },
+    cta: {
+      help: { to: "/find-rooms?city=Melbourne", label: "Find Student Accommodation in Melbourne" },
+      final: { heading: "Ready to find your student home in Melbourne?", to: "/find-rooms?city=Melbourne", label: "Find Student Accommodation in Melbourne" },
+    },
+    sections: {
+      "why-choose-melbourne-for-international-students": {
+        image: {
+          src: `${MELBOURNE_IMG}/melbourne-student-community.jpg`,
+          alt: "A group of young people relaxing together on sofas in a shared lounge",
+          credit: unsplash("Michael Proctor", "https://unsplash.com/photos/GaaVbBLDLv0"),
+        },
+      },
+      "major-universities-in-melbourne": {
+        image: {
+          src: `${MELBOURNE_IMG}/melbourne-university-student-life.jpg`,
+          alt: "A student walking through the sandstone cloisters at the University of Melbourne",
+          credit: unsplash("Steven Wong", "https://unsplash.com/photos/yYYLbTszuTU"),
+        },
+        tip: {
+          title: "Important",
+          text: "Clayton, Bundoora and Burwood are suburbs of Melbourne, not separate cities.",
+        },
+      },
+      "popular-areas-for-student-accommodation-in-melbourne": {
+        image: {
+          src: `${MELBOURNE_IMG}/melbourne-cbd-student-area.jpg`,
+          alt: "Trams and pedestrians on Bourke Street in the Melbourne CBD",
+          credit: unsplash("Nick Jones", "https://unsplash.com/photos/AlKQ_K837e8"),
+        },
+      },
+      "types-of-student-accommodation-in-melbourne": {
+        image: {
+          src: `${MELBOURNE_IMG}/melbourne-student-room.jpg`,
+          alt: "A modern student bedroom with a bed, study desk, laptop and desk chair",
+          credit: unsplash("Aleksandra Dementeva", "https://unsplash.com/photos/GzR2KS4ABYA"),
+        },
+      },
+      "accommodation-near-your-university": {
+        image: {
+          src: `${MELBOURNE_IMG}/melbourne-student-study-space.jpg`,
+          alt: "Students working on laptops and books at long desks in a shared study space",
+          credit: unsplash("Denise Jans", "https://unsplash.com/photos/cJuRGpJ13Po"),
+        },
+      },
+      "planning-to-study-in-melbourne": {
+        variant: "cta",
+      },
+    },
+    faqs: [
+      {
+        q: "What are the best areas for student accommodation in Melbourne?",
+        a: "Popular areas include Melbourne CBD, Carlton, Fitzroy, Brunswick, Footscray and South Yarra. Students studying at specific campuses can also consider Clayton, Bundoora and Burwood. The best location depends on your university, budget, transport requirements and lifestyle.",
+      },
+      {
+        q: "What types of student accommodation are available in Melbourne?",
+        a: "Students can consider purpose-built student accommodation, shared accommodation, private rentals, homestays and residential colleges.",
+      },
+      {
+        q: "Is it better to live close to university?",
+        a: "Living close to university can reduce travel time and make daily life more convenient. However, students can also consider areas farther away if they have reliable public transport and better accommodation options for their budget.",
+      },
+      {
+        q: "Is public transport important when choosing accommodation?",
+        a: "Yes. Students should check the availability of trains, trams and buses near their accommodation and university.",
+      },
+      {
+        q: "How much does student accommodation cost in Melbourne?",
+        a: "Accommodation costs vary based on location, property type, room type, facilities and other factors. Students should compare the total cost of living rather than considering rent alone.",
+      },
+      {
+        q: "Can international students share accommodation?",
+        a: "Yes. Shared accommodation can be an option for international students who want to share living expenses and live with other students.",
+      },
+      {
+        q: "Is Clayton a city?",
+        a: "No. Clayton is a suburb of Melbourne. Monash University's Clayton campus is located there.",
+      },
+      {
+        q: "Is Bundoora a city?",
+        a: "No. Bundoora is a suburb of Melbourne. La Trobe University's Melbourne campus is located in Bundoora.",
+      },
+      {
+        q: "Is Burwood a city?",
+        a: "No. Burwood is a suburb of Melbourne. Deakin University's Burwood campus is located there.",
+      },
+      {
+        q: "What should I check before booking student accommodation?",
+        a: "Students should check the location, university distance, transport, rent, additional charges, facilities, contract duration, cancellation conditions, bond/deposit requirements and property information.",
+      },
+      {
+        q: "Can I find student accommodation based on my university?",
+        a: "Yes. Students can search for accommodation based on their university or preferred location and compare options according to their requirements. IVYhuts focuses on helping students find accommodation according to factors such as city, university and budget.",
       },
     ],
   },
