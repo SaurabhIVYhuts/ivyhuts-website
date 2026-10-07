@@ -648,7 +648,10 @@ async function advanceCrawlSide(state, sideKey, availableFlag, callBudget) {
     while (callsUsed < callBudget && !side.done) {
         let result;
         try {
-            result = await fetchListings({ page: side.nextPage, limit: PAGE_LIMIT, available: availableFlag }, "LOW", `insights-market-crawl-${sideKey}`);
+            // noStore: these full-catalog pages are read once and never
+            // re-read, so caching them only burns Redis bandwidth (~5MB each,
+            // ~0.8GB per full pass). See amberGateway.js's fetchAmberInner.
+            result = await fetchListings({ page: side.nextPage, limit: PAGE_LIMIT, available: availableFlag }, "LOW", `insights-market-crawl-${sideKey}`, { noStore: true });
         } catch {
             break; // budget exhausted, cooldown, lock busy, upstream error — resume next advance
         }
@@ -674,7 +677,9 @@ async function advanceCrawlSide(state, sideKey, availableFlag, callBudget) {
         if (brokenAfterFirstFetch && callsUsed < callBudget) {
             let retryResult;
             try {
-                retryResult = await fetchListings({ page: side.nextPage, limit: PAGE_LIMIT, available: availableFlag }, "LOW", `insights-market-crawl-${sideKey}-retry`);
+                // Now a genuine re-ask of Amber: before noStore, this read
+                // back the broken page this same tick had just cached.
+                retryResult = await fetchListings({ page: side.nextPage, limit: PAGE_LIMIT, available: availableFlag }, "LOW", `insights-market-crawl-${sideKey}-retry`, { noStore: true });
             } catch {
                 retryResult = null;
             }

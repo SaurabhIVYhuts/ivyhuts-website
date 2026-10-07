@@ -102,6 +102,42 @@ class RedisUnavailableError extends Error {
 // meant to spend.
 const REDIS_TIMEOUT_MS = Number(process.env.REDIS_TIMEOUT_MS) || 3000;
 
+// ── Transparent compression for large values ──────────────────────────────
+// Upstash bills by bandwidth, and the biggest values this store holds are
+// raw Amber listing pages (~5MB of JSON for 50 properties) and the /insight
+// catalog-crawl state (~1.6MB). Moving those around uncompressed is what
+// exhausted the previous database's plan: a single full crawl pass pushed
+// ~0.8GB through Redis. Gzipping them before the write cuts that by roughly
+// an order of magnitude, with no change to what any caller sees — the value
+// handed to sharedSet is the exact value sharedGet returns.
+//
+// Rollout safety: READING both formats is unconditional (a plain JSON value
+// is returned as-is), but WRITING compressed is gated behind REDIS_COMPRESS=1
+// so read support can be deployed to every app sharing this Redis BEFORE
+// anything starts producing the new format. Without that ordering, an app
+// still running the old code would read {"__z":1,...} as if it were the real
+// value — silently empty listings or a reset crawl, not a loud failure.
+const zlib = require("zlib");
+const COMPRESS_WRITES = process.env.REDIS_COMPRESS === "1";
+// Below this, gzip + base64 overhead isn't worth the CPU: sessions, user
+// records, counters and locks are all well under a kilobyte and stay plain.
+const COMPRESS_MIN_BYTES = 64 * 1024;
+
+function encodeStoredValue(value) {
+    const json = JSON.stringify(value);
+    if (!COMPRESS_WRITES || json === undefined || Buffer.byteLength(json) < COMPRESS_MIN_BYTES) return json;
+    // base64 (not raw binary) because the Upstash REST body is itself JSON.
+    return JSON.stringify({ __z: 1, d: zlib.gzipSync(json).toString("base64") });
+}
+
+function decodeStoredValue(raw) {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && parsed.__z === 1 && typeof parsed.d === "string") {
+        return JSON.parse(zlib.gunzipSync(Buffer.from(parsed.d, "base64")).toString("utf8"));
+    }
+    return parsed;
+}
+
 async function redisFetch(url, options) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), REDIS_TIMEOUT_MS);
@@ -160,7 +196,7 @@ function pruneMemValues() {
 async function sharedGet(key) {
     if (REDIS_AVAILABLE) {
         const raw = await redisCommand("GET", key);
-        return raw != null ? JSON.parse(raw) : undefined;
+        return raw != null ? decodeStoredValue(raw) : undefined;
     }
     warnFallbackOnce();
     pruneMemValues();
@@ -182,11 +218,11 @@ async function sharedGet(key) {
 async function sharedSet(key, value, ttlSeconds) {
     if (REDIS_AVAILABLE) {
         if (ttlSeconds) {
-            await redisCommandPost(["SET", key, JSON.stringify(value), "EX", String(Math.max(1, Math.ceil(ttlSeconds)))]);
+            await redisCommandPost(["SET", key, encodeStoredValue(value), "EX", String(Math.max(1, Math.ceil(ttlSeconds)))]);
         } else {
             // No TTL: used by callers that need a permanent record (e.g. the
             // auth user store) rather than a cache entry.
-            await redisCommandPost(["SET", key, JSON.stringify(value)]);
+            await redisCommandPost(["SET", key, encodeStoredValue(value)]);
         }
         return;
     }
@@ -202,7 +238,7 @@ async function sharedSet(key, value, ttlSeconds) {
 // deleted via sharedDelete.
 async function sharedSetNX(key, value) {
     if (REDIS_AVAILABLE) {
-        const result = await redisCommandPost(["SET", key, JSON.stringify(value), "NX"]);
+        const result = await redisCommandPost(["SET", key, encodeStoredValue(value), "NX"]);
         return result === "OK";
     }
     warnFallbackOnce();
@@ -356,6 +392,10 @@ async function releaseLock(key, token) {
 
 module.exports = {
     REDIS_AVAILABLE,
+    // Exported for the round-trip verification script, not for app code.
+    encodeStoredValue,
+    decodeStoredValue,
+    COMPRESS_WRITES,
     RedisUnavailableError,
     sharedGet,
     sharedSet,

@@ -330,7 +330,15 @@ function staleOnRedisFailure(err, cached, source, priority, cacheKey) {
     return null;
 }
 
-async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "unknown", deadlineAt }) {
+// `noStore` (used only by the /insight catalog crawl) runs the request
+// through every one of this gateway's protections — cooldown, stampede lock,
+// shared rate budget — but never reads or writes the Redis cache for it.
+// A crawl page is fetched once per pass and never re-read, yet each one is
+// ~5MB of Amber JSON: caching them put ~0.8GB through Redis per full pass,
+// which is what exhausted the previous Upstash plan. It also fixes the
+// broken-item retry in insightsMarket.js, which used to re-read its own
+// just-cached broken page instead of actually re-asking Amber.
+async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "unknown", deadlineAt, noStore = false }) {
     const cacheKey = buildCacheKey(type, params);
     const ttl = TTL[type] || TTL.listings;
     // A single call defaults to a fresh full AMBER_FETCH_TIMEOUT_MS window
@@ -347,7 +355,7 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
     // fatal.
     let cached;
     try {
-        cached = await sharedGet(cacheKey);
+        cached = noStore ? undefined : await sharedGet(cacheKey);
     } catch (err) {
         if (!(err instanceof RedisUnavailableError)) throw err;
         cached = undefined;
@@ -359,7 +367,7 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
     // below), which looks identical to a real cache miss from here unless we
     // check: Redis has nothing not because nothing was ever fetched, but
     // because it couldn't hold onto what THIS instance already fetched once.
-    if (!cached) {
+    if (!cached && !noStore) {
         const shadow = shadowCacheGet(cacheKey);
         if (shadow) {
             cached = shadow;
@@ -511,6 +519,10 @@ async function fetchAmberInner({ type, params, priority = "MEDIUM", source = "un
         }
         console.log(`[AMBER] event=AMBER_SUCCESS type=${type} city=${params.city || "-"} durationMs=${Date.now() - amberStartedAt} source=${source}`);
         const freshEntry = { data: json, cachedAt: Date.now() };
+        if (noStore) {
+            log(`source=${source} priority=${priority} key=${cacheKey} action=CACHE_SKIPPED_NOSTORE`);
+            return { data: json, cacheStatus: "MISS" };
+        }
         try {
             await sharedSet(cacheKey, freshEntry, ttl.maxAgeSeconds);
         } catch (err) {
@@ -715,7 +727,7 @@ const FALLBACK_MAX_EXTRA_PAGES = 2;
 // full-catalog crawl (~86 pages).
 const FILTERED_PAGINATION_MAX_PAGES = 12;
 
-async function fetchListings(params, priority, source) {
+async function fetchListings(params, priority, source, { noStore = false } = {}) {
     const startedAt = Date.now();
     const deadlineAt = startedAt + AMBER_FETCH_TIMEOUT_MS;
     // Milestone 6 fix (IVYHUTS_MILESTONE_6_INVENTORY_LOSS_REPORT.md, Phase 4):
@@ -745,7 +757,7 @@ async function fetchListings(params, priority, source) {
     //                for more, which nothing previously allowed.
     const pageSize = Math.min(50, Number(params.limit) || 50);
     const targetCount = Number(params.limit) || 50; // NOT clamped to 50 — mirrors the sparse-fallback loop below, which already got this right
-    const primary = await fetchAmber({ type: "listings", params, priority, source, deadlineAt });
+    const primary = await fetchAmber({ type: "listings", params, priority, source, deadlineAt, noStore });
     if (!params.city) return { ...primary, complete: true }; // no pagination loop attempted — nothing to be incomplete about
 
     const primaryItems = extractResultArray(primary.data);
