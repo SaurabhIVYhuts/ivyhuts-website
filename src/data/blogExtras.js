@@ -20,8 +20,12 @@
 const IMG = "/images/blog/how-to-choose-student-accommodation-abroad";
 const LONDON_IMG = "/images/blog/student-accommodation-in-london";
 const MELBOURNE_IMG = "/images/blog/student-accommodation-in-melbourne";
+const BRIGHTON_IMG = "/images/blog/student-accommodation-in-brighton";
 
 const unsplash = (name, url) => ({ name, url, source: "Unsplash", required: false });
+// Wikimedia Commons photos carry their own licence: CC0 needs no
+// attribution; CC BY needs the visible caption (`required: true`).
+const commons = (name, url, licence, required) => ({ name, url, source: `Wikimedia Commons (${licence})`, required });
 
 const BLOG_EXTRAS = {
   "how-to-choose-student-accommodation-abroad": {
@@ -350,6 +354,135 @@ const BLOG_EXTRAS = {
       {
         q: "What should I check before booking student accommodation?",
         a: "Students should check the location, university distance, transport, rent, additional charges, facilities, contract duration, cancellation conditions, bond/deposit requirements and property information.",
+      },
+      {
+        q: "Can I find student accommodation based on my university?",
+        a: "Yes. Students can search for accommodation based on their university or preferred location and compare options according to their requirements. IVYhuts focuses on helping students find accommodation according to factors such as city, university and budget.",
+      },
+    ],
+  },
+
+  "student-accommodation-in-brighton": {
+    category: "City Guide",
+    hero: {
+      src: `${BRIGHTON_IMG}/hero-brighton-student-city.jpg`,
+      width: 1600,
+      height: 900,
+      alt: "Brighton seafront and beach seen from Brighton Palace Pier, with the city's Regency terraces along the coast",
+      credit: unsplash("Martina Jorden", "https://unsplash.com/photos/KKHAJSxeyus"),
+    },
+    cta: {
+      help: { to: "/find-rooms?city=Brighton", label: "Find Student Accommodation in Brighton" },
+      final: { heading: "Ready to find your student home in Brighton?", to: "/find-rooms?city=Brighton", label: "Find Student Accommodation in Brighton" },
+    },
+    sections: {
+      "major-universities-in-brighton": {
+        image: {
+          src: `${BRIGHTON_IMG}/university-of-sussex-brighton.jpg`,
+          alt: "Falmer House on the University of Sussex campus at Falmer, Brighton",
+          credit: commons("Hassocks5489", "https://commons.wikimedia.org/wiki/File:Falmer_House,_University_of_Sussex,_Falmer_(NHLE_Code_1381044)_(April_2013)_(1).JPG", "CC0", false),
+        },
+        tip: {
+          title: "Important",
+          text: "Falmer and Moulsecoomb are areas on the edge of Brighton, not separate cities.",
+        },
+      },
+      "popular-areas-for-student-accommodation-in-brighton": {
+        image: {
+          src: `${BRIGHTON_IMG}/brighton-student-area.jpg`,
+          alt: "A residential street of cream Regency terraced houses in Brighton, leading down towards the sea",
+          credit: unsplash("Martina Jorden", "https://unsplash.com/photos/5Ve4o9-8-EI"),
+        },
+      },
+      "types-of-student-accommodation-in-brighton": {
+        image: {
+          src: `${BRIGHTON_IMG}/brighton-student-room.jpg`,
+          alt: "A bright bedroom with a bed, study desk and chair",
+          credit: unsplash("Clay Banks", "https://unsplash.com/photos/bhoMFZB_6Bg"),
+        },
+      },
+      "student-accommodation-and-cost-considerations": {
+        tip: {
+          title: "Important",
+          text: "Full-time students are usually exempt from Council Tax in the UK, but students should check their own situation and confirm how Council Tax is handled for their accommodation.",
+        },
+      },
+      "public-transport-in-brighton": {
+        tip: {
+          title: "Tip",
+          text: "Choosing accommodation with good transport connectivity can make university travel more convenient.",
+        },
+      },
+      // Only one image per section is supported, so the University of
+      // Brighton photo sits with the university-wise guidance.
+      "accommodation-near-your-university": {
+        image: {
+          src: `${BRIGHTON_IMG}/university-of-brighton-campus.jpg`,
+          alt: "The University of Brighton's Cockcroft Building on Lewes Road at the Moulsecoomb campus",
+          credit: commons("Hassocks5489", "https://commons.wikimedia.org/wiki/File:University_of_Brighton_(Cockcroft_Building),_Lewes_Road,_Moulsecoomb_(February_2020)_(1).JPG", "CC0", false),
+        },
+        tip: {
+          title: "Important",
+          text: "These are starting points rather than fixed recommendations. Students should compare available accommodation, transport, budget and personal preferences before making a decision.",
+        },
+      },
+      "student-life-in-brighton": {
+        image: {
+          src: `${BRIGHTON_IMG}/brighton-student-community.jpg`,
+          alt: "Three students laughing together around a table with laptops and notebooks",
+          credit: unsplash("Brooke Cagle", "https://unsplash.com/photos/g1Kr4Ozfoac"),
+        },
+      },
+      "student-accommodation-booking-checklist": {
+        tip: {
+          title: "Before you pay",
+          text: "Students should avoid making rushed payments without checking the property and agreement details.",
+        },
+      },
+      "planning-to-study-in-brighton": {
+        variant: "cta",
+      },
+    },
+    faqs: [
+      {
+        q: "What are the best areas for student accommodation in Brighton?",
+        a: "Popular areas include Brighton city centre, North Laine, Kemptown, Hanover, the Lewes Road area, Hove and Preston Park. Students studying at specific campuses can also consider Moulsecoomb and Falmer. The best location depends on your campus, budget, transport requirements and lifestyle.",
+      },
+      {
+        q: "What types of student accommodation are available in Brighton?",
+        a: "Students can consider purpose-built student accommodation, university halls of residence, shared houses, private rentals and homestays.",
+      },
+      {
+        q: "Where is the University of Sussex located?",
+        a: "The University of Sussex campus is located at Falmer, about four miles from Brighton city centre. Falmer railway station is directly opposite the campus.",
+      },
+      {
+        q: "How many campuses does the University of Brighton have?",
+        a: "The University of Brighton has three campuses in Brighton: Moulsecoomb, City and Falmer. Students should check which campus their course is taught at before choosing accommodation.",
+      },
+      {
+        q: "Is Falmer a separate city?",
+        a: "No. Falmer is located on the edge of Brighton, near the South Downs. The University of Sussex campus and the University of Brighton's Falmer campus are located there.",
+      },
+      {
+        q: "Is it better to live close to university?",
+        a: "Living close to university can reduce travel time and make daily life more convenient. However, students can also consider areas farther away if they have reliable public transport and better accommodation options for their budget.",
+      },
+      {
+        q: "Is public transport important when choosing accommodation?",
+        a: "Yes. Students should check the availability of trains and buses near their accommodation and campus.",
+      },
+      {
+        q: "How much does student accommodation cost in Brighton?",
+        a: "Accommodation costs vary based on location, property type, room type, facilities and other factors. Students should compare the total cost of living rather than considering rent alone.",
+      },
+      {
+        q: "Can international students share accommodation?",
+        a: "Yes. Shared accommodation can be an option for international students who want to share living expenses and live with other students.",
+      },
+      {
+        q: "What should I check before booking student accommodation?",
+        a: "Students should check the location, campus distance, transport, rent, bills, additional charges, facilities, contract duration, cancellation conditions, deposit requirements and property information.",
       },
       {
         q: "Can I find student accommodation based on my university?",
