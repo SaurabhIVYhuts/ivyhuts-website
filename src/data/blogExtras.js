@@ -21,6 +21,7 @@ const IMG = "/images/blog/how-to-choose-student-accommodation-abroad";
 const LONDON_IMG = "/images/blog/student-accommodation-in-london";
 const MELBOURNE_IMG = "/images/blog/student-accommodation-in-melbourne";
 const BRIGHTON_IMG = "/images/blog/student-accommodation-in-brighton";
+const BARCELONA_IMG = "/images/blog/student-accommodation-in-barcelona";
 
 const unsplash = (name, url) => ({ name, url, source: "Unsplash", required: false });
 // Wikimedia Commons photos carry their own licence: CC0 needs no
@@ -487,6 +488,119 @@ const BLOG_EXTRAS = {
       {
         q: "Can I find student accommodation based on my university?",
         a: "Yes. Students can search for accommodation based on their university or preferred location and compare options according to their requirements. IVYhuts focuses on helping students find accommodation according to factors such as city, university and budget.",
+      },
+    ],
+  },
+
+  "student-accommodation-in-barcelona": {
+    category: "City Guide",
+    hero: {
+      src: `${BARCELONA_IMG}/hero-barcelona-student-city.jpg`,
+      width: 1600,
+      height: 900,
+      alt: "Aerial view of Barcelona's Eixample district and the Sagrada Família, with the Mediterranean Sea in the distance",
+      credit: unsplash("Logan Armstrong", "https://unsplash.com/photos/hVhfqhDYciU"),
+    },
+    cta: {
+      help: { to: "/find-rooms?city=Barcelona", label: "Find Student Accommodation in Barcelona" },
+      final: { heading: "Ready to start your search?", to: "/find-rooms?city=Barcelona", label: "Find Student Accommodation in Barcelona" },
+    },
+    sections: {
+      "major-universities-in-barcelona": {
+        image: {
+          src: `${BARCELONA_IMG}/barcelona-university-student-life.jpg`,
+          alt: "Tree-lined walkway between faculty buildings on the UPC Campus Nord in Barcelona's Zona Universitària",
+          credit: commons("Zarateman", "https://commons.wikimedia.org/wiki/File:Barcelona_-_Universidad_Polit%C3%A9cnica_de_Catalu%C3%B1a_(UPC)_-_Campus_Norte_2.jpg", "CC0", false),
+        },
+        tip: {
+          title: "Tip",
+          text: "Before choosing accommodation, check the exact location of your campus because universities can have multiple campuses or facilities.",
+        },
+      },
+      "popular-areas-for-student-accommodation-in-barcelona": {
+        image: {
+          src: `${BARCELONA_IMG}/barcelona-student-area.jpg`,
+          alt: "A tree-lined pedestrian street with balconied apartment buildings in central Barcelona",
+          credit: unsplash("Herr Kirlian", "https://unsplash.com/photos/X6o9QhsxkmM"),
+        },
+      },
+      "types-of-student-accommodation-in-barcelona": {
+        image: {
+          src: `${BARCELONA_IMG}/barcelona-student-room.jpg`,
+          alt: "A bright private bedroom with a double bed, bedside tables and a large window",
+          credit: unsplash("Steven Ungermann", "https://unsplash.com/photos/02iWOgPEbU8"),
+        },
+      },
+      "public-transport-in-barcelona": {
+        tip: {
+          title: "Tip",
+          text: "A slightly farther accommodation with a convenient direct transport connection may be more practical than a closer property requiring several changes.",
+        },
+      },
+      "accommodation-near-your-university": {
+        image: {
+          src: `${BARCELONA_IMG}/barcelona-student-study-space.jpg`,
+          alt: "Students laughing together while working on laptops in a library study space",
+          credit: unsplash("Priscilla Du Preez", "https://unsplash.com/photos/XkKCui44iM0"),
+        },
+      },
+      "student-life-in-barcelona": {
+        image: {
+          src: `${BARCELONA_IMG}/barcelona-student-community.jpg`,
+          alt: "Three students talking and working on a laptop together at an outdoor cafe table",
+          credit: unsplash("Helena Lopes", "https://unsplash.com/photos/UZe35tk5UoA"),
+        },
+      },
+      "student-accommodation-booking-checklist": {
+        tip: {
+          title: "Important Tip",
+          text: "Be careful with requests for large upfront payments or unclear fees. UPC specifically warns students about unreliable housing agencies that may request payment before providing genuine accommodation services.",
+        },
+      },
+      "how-ivyhuts-can-help": {
+        variant: "cta",
+      },
+    },
+    faqs: [
+      {
+        q: "What are the best areas for student accommodation in Barcelona?",
+        a: "Popular areas include Eixample, Gràcia, El Raval, the Gothic Quarter, Poblenou and Sants. The best option depends on your university, budget and preferred lifestyle.",
+      },
+      {
+        q: "What types of student accommodation are available in Barcelona?",
+        a: "Students can consider student residences, shared apartments, private rentals, homestays and university accommodation.",
+      },
+      {
+        q: "Is it better to live close to the university?",
+        a: "Living close to your university can reduce daily travel time. However, a well-connected area farther away can also be practical.",
+      },
+      {
+        q: "Is public transport convenient for students?",
+        a: "Barcelona has an extensive metro and bus network, along with tram and railway connections.",
+      },
+      {
+        q: "How much does student accommodation cost in Barcelona?",
+        a: "Costs vary depending on location, accommodation type, room type, facilities and other charges. Students should compare the total monthly cost rather than rent alone.",
+      },
+      {
+        q: "Can students find shared accommodation in Barcelona?",
+        a: "Yes. Shared apartments are one of the accommodation options available to students. University housing services also provide information about shared apartments and rooms.",
+      },
+      {
+        q: "What should I check before booking accommodation?",
+        a: "Check the location, university commute, total cost, facilities, contract, cancellation policy, deposit, payment terms and property/provider information.",
+      },
+      {
+        q: "Can I find accommodation based on my university?",
+        a: "Yes. Students can narrow their search based on their university or campus location and then compare suitable areas and accommodation options.",
+      },
+      {
+        q: "Should international students book accommodation early?",
+        a: "Yes. Starting early gives students more time to compare properties, locations, prices and contract conditions.",
+      },
+      {
+        q: "Can IVYhuts help me find student accommodation in Barcelona?",
+        a: "IVYhuts allows students to explore accommodation options based on their city, university and preferences.",
       },
     ],
   },
