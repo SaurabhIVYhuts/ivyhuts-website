@@ -266,8 +266,8 @@ async function main() {
 
     // ══════════════════════ TEST 15 ══════════════════════
     await test("TEST 15: University Housing consumes the canonical live mapper (safeListingList / amberMapper.js), not an ad-hoc parallel one", () => {
-        const src = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
-        assert.ok(/import\s*\{[^}]*safeListingList[^}]*\}\s*from\s*["']\.\.\/services\/amberMapper["']/.test(src), "UniversityHousingPage.js must import safeListingList from the canonical amberMapper.js");
+        const src = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
+        assert.ok(/import\s*\{[^}]*safeListingList[^}]*\}\s*from\s*["']\.\.\/\.\.\/services\/amberMapper["']/.test(src), "AccommodationSearchExperience.js (formerly UniversityHousingPage.js) must import safeListingList from the canonical amberMapper.js");
     });
 
     // ══════════════════════ TEST 16 ══════════════════════

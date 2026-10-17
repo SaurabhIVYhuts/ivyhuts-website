@@ -318,7 +318,7 @@ async function main() {
 
     // ══════════════════════════ FRONTEND STRUCTURAL — UI consumes the normalized state, no duplicate logic ══════════════════════════
     const filesToCheck = [
-        ["src", "pages", "UniversityHousingPage.js"],
+        ["src", "components", "universityHousing", "AccommodationSearchExperience.js"],
         ["src", "components", "universityHousing", "PropertyListPanel.js"],
         ["src", "components", "universityHousing", "UniversityHousingMap.js"],
         ["src", "components", "listing", "ListingCard.js"],
@@ -326,16 +326,16 @@ async function main() {
         ["src", "pages", "PropertyDetailPage.js"],
     ];
     await test("FRONTEND: University Housing sort comparator uses priceWeekly (availability-aware, duration-normalized), not the raw price.from", () => {
-        const src = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+        const src = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
         assert.ok(/sortBy === "price_asc"[\s\S]{0,120}priceWeekly/.test(src));
         assert.ok(!/sortBy === "price_asc"[\s\S]{0,120}a\.price\.from/.test(src), "must no longer sort by the raw, availability-unaware price.from");
     });
     await test("FRONTEND: every component that actually RENDERS a sold-out state reads `isSoldOut` from the already-loaded listing object, never a separate fetch/flag of its own", () => {
-        // UniversityHousingPage.js is a pass-through orchestrator (it never
+        // AccommodationSearchExperience.js (formerly UniversityHousingPage.js) is a pass-through orchestrator (it never
         // renders a price/sold-out state itself, only forwards the already-
         // normalized property objects to PropertyListPanel/UniversityHousingMap)
         // — its own fix is the sort comparator, checked separately above.
-        filesToCheck.filter((parts) => parts[parts.length - 1] !== "UniversityHousingPage.js").forEach(([...parts]) => {
+        filesToCheck.filter((parts) => parts[parts.length - 1] !== "AccommodationSearchExperience.js").forEach(([...parts]) => {
             const src = fs.readFileSync(path.join(ROOT, ...parts), "utf8");
             assert.ok(/isSoldOut/.test(src), `${parts[parts.length - 1]} must consume isSoldOut from the normalized listing/property object`);
         });

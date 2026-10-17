@@ -23,14 +23,124 @@
 // shape gains two ADDITIVE fields (primaryCity, marketCities); `residences`
 // remains the same array shape every existing consumer already expects —
 // zero breaking change for a client that ignores the new fields.
+//
+// City/country search: `?type=city&city=&country=` or
+// `?type=country&country=&page=&limit=` reads the same canonical Mongo
+// inventory for a whole city or country (see handleAreaSearch below).
+// Without `type` the university path above is unchanged. Responses carry
+// `locationType`/`total`/`page`/`hasMore`, so a country page is never
+// mistaken for the complete country, and the URL (which includes type,
+// location and page) keeps every CDN cache entry distinct per search.
 "use strict";
-const { getAccommodationInventory, getInventoryStatus } = require("../../../accommodationInventoryService");
+const {
+    getAccommodationInventory,
+    getInventoryStatus,
+    getCitySearchInventory,
+    getCountrySearchInventoryPage,
+} = require("../../../accommodationInventoryService");
+const { canonicalizeCountry, curatedCitiesForCountry } = require("../../../locationResolver");
+const { connectToDatabase, MongoNotConfiguredError } = require("../../../mongodb");
 
 const VALID_PRIORITIES = new Set(["HIGH", "MEDIUM", "LOW"]);
+const MAX_LOCATION_LENGTH = 120;
+
+async function handleAreaSearch(req, res) {
+    const { type, city, country, page, limit, priority, source } = req.query;
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const startedAt = Date.now();
+    const cityName = typeof city === "string" ? city.trim().slice(0, MAX_LOCATION_LENGTH) : "";
+    const countryInput = typeof country === "string" ? country.trim().slice(0, MAX_LOCATION_LENGTH) : "";
+
+    if (type === "city" && !cityName) {
+        res.status(400).json({ ok: false, error: "'city' is required for a city search" });
+        return;
+    }
+    if (type === "country" && !countryInput) {
+        res.status(400).json({ ok: false, error: "'country' is required for a country search" });
+        return;
+    }
+
+    try {
+        // Never invent a country: an unrecognised value is used verbatim,
+        // which simply matches nothing rather than a guessed neighbour.
+        const canonical = countryInput ? await canonicalizeCountry(countryInput) : null;
+        const countryName = canonical ? canonical.fullName : countryInput || null;
+
+        let result;
+        if (type === "city") {
+            const p = VALID_PRIORITIES.has(priority) ? priority : "MEDIUM";
+            result = await getCitySearchInventory(cityName, { country: countryName, priority: p, source: source || "university-housing-city" });
+        } else {
+            result = await getCountrySearchInventoryPage(countryName, {
+                fallbackCityNames: curatedCitiesForCountry(canonical),
+                page,
+                limit,
+            });
+        }
+
+        const durationMs = Date.now() - startedAt;
+        res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
+        console.log(
+            `[UNIVERSITY_HOUSING_INVENTORY] requestId=${requestId} locationType=${type} city=${cityName || "-"} country=${countryName || "-"} ` +
+            `inventorySource=canonical-mongo status=${result.status} count=${result.residences.length} total=${result.total} page=${result.page} durationMs=${durationMs}`
+        );
+        res.status(200).json({
+            ok: true,
+            status: result.status,
+            residences: result.residences,
+            locationType: type,
+            city: type === "city" ? cityName : null,
+            country: countryName,
+            total: result.total,
+            page: result.page,
+            hasMore: result.hasMore,
+            requestId,
+        });
+    } catch (err) {
+        const durationMs = Date.now() - startedAt;
+        console.log(`[UNIVERSITY_HOUSING_INVENTORY] requestId=${requestId} locationType=${type} error=${err.message} durationMs=${durationMs}`);
+        res.status(502).json({ ok: false, error: "upstream_error", message: "Could not load property data right now.", requestId });
+    }
+}
+
+// The shared inventory helpers (getCityListings/getCitiesListings, also used
+// by Find Room) treat an unconfigured MongoDB as "building" with zero rows.
+// For this endpoint that made a missing database indistinguishable from a
+// genuinely empty city/country/university — the page showed "0 properties"
+// instead of an error. Check once here and fail loudly; an unreachable (but
+// configured) database already throws further down and returns 502.
+async function ensureInventoryDatabase(res) {
+    try {
+        await connectToDatabase();
+        return true;
+    } catch (err) {
+        if (!(err instanceof MongoNotConfiguredError)) throw err;
+        console.log("[UNIVERSITY_HOUSING_INVENTORY] error=inventory_not_configured (MONGODB_URI is not set)");
+        res.status(503).json({
+            ok: false,
+            error: "inventory_unavailable",
+            message: "Accommodation inventory is unavailable: the database is not configured for this environment.",
+        });
+        return false;
+    }
+}
 
 module.exports = async (req, res) => {
     if (req.method !== "GET") {
         res.status(405).json({ error: "Method not allowed" });
+        return;
+    }
+
+    try {
+        if (!(await ensureInventoryDatabase(res))) return;
+    } catch (err) {
+        console.log(`[UNIVERSITY_HOUSING_INVENTORY] database connection failed: ${err.message}`);
+        res.status(502).json({ ok: false, error: "upstream_error", message: "Could not load property data right now." });
+        return;
+    }
+
+    if (req.query.type === "city" || req.query.type === "country") {
+        await handleAreaSearch(req, res);
         return;
     }
 

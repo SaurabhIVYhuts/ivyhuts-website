@@ -200,7 +200,7 @@ async function main() {
         assert.strictEqual(hasValidCoords(campus.latitude, campus.longitude), true);
     });
     await test("DISTANCE NEVER FABRICATED: a residence with missing coordinates would receive distanceKm=null, never a guessed value — verified against the page's own logic, structurally", () => {
-        const pageSrc = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+        const pageSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
         assert.ok(/propertyHasCoords\s*=\s*hasValidCoords/.test(pageSrc));
         assert.ok(/universityHasCoords\s*&&\s*propertyHasCoords\s*\?[\s\S]{0,300}:\s*null/.test(pageSrc), "expected distanceKm to fall back to null (never a fabricated value) whenever either coordinate is missing — applies to this campus exactly as it does to every other university, no special-casing");
     });
@@ -223,7 +223,7 @@ async function main() {
 
     // ══════════════════════════ SINGLE DATA FLOW / NO DUPLICATE REQUESTS (item 8/9/13) ══════════════════════════
     await test("SINGLE DATA FLOW: UniversityHousingPage.js still calls getProperties() exactly twice total (initial load + explicit load-more) — this campus introduces no extra call site", () => {
-        const pageSrc = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+        const pageSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
         const matches = pageSrc.match(/(?:await|=)\s*getProperties\(/g) || [];
         assert.strictEqual(matches.length, 2, `expected exactly 2 call sites, found ${matches.length}`);
     });
@@ -238,7 +238,7 @@ async function main() {
     });
     await test("SINGLE DATA FLOW: the accommodation city query for this campus will be exactly 'Heiligenhaus' (the record's own city field), never silently relabeled to another city", () => {
         assert.strictEqual(campus.city, "Heiligenhaus");
-        const pageSrc = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+        const pageSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
         assert.ok(/getProperties\(university\.city,/.test(pageSrc), "expected the existing generic university.city-driven lookup to be unchanged");
     });
 
@@ -267,7 +267,7 @@ async function main() {
     await test('AMBER ISOLATION: no campus-specific conditional/bypass exists anywhere in the accommodation pipeline (e.g. `if (city === "Heiligenhaus")`, a special-cased branch)', () => {
         const files = [
             path.join(ROOT, "api", "_lib", "accommodationIndex.js"),
-            path.join(ROOT, "src", "pages", "UniversityHousingPage.js"),
+            path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"),
         ];
         files.forEach((f) => {
             const src = fs.readFileSync(f, "utf8");

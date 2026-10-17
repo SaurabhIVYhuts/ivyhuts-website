@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { socialLinks } from "../../config/socialLinks";
 import { SOCIAL_ICONS } from "../icons/SocialIcons";
+import { SEARCH_ANCHOR_HREF } from "../../lib/homeSearch";
 
 const MailIcon = () => (
   <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -58,11 +59,9 @@ export default function SiteFooter() {
           <a href="mailto:contact@ivyhuts.com" className="footer-contact-row"><MailIcon /> contact@ivyhuts.com</a>
           <a href="https://wa.me/918847725089" target="_blank" rel="noopener noreferrer" className="footer-contact-row"><WhatsAppIcon /> +91 884 772 5089</a>
           {/* Generic accommodation CTA (not a specific city/country link) —
-              University Housing is now the primary discovery experience
-              (Milestone 24 nav migration); /find-rooms remains linked
-              elsewhere in this file for the Destinations list, which
-              University Housing does not yet support (?country=). */}
-          <Link to="/university-housing">Find Accommodation</Link>
+              the homepage's integrated accommodation search (formerly the
+              /university-housing page). */}
+          <Link to={SEARCH_ANCHOR_HREF}>Find Accommodation</Link>
           <div className="footer-social-row">
             {SOCIAL_ICONS.map(({ key, label, Icon }) => {
               const href = socialLinks[key];
@@ -128,7 +127,7 @@ export default function SiteFooter() {
           <div className="footer-accordion-body">
             <a href="mailto:contact@ivyhuts.com" className="footer-contact-row"><MailIcon /> contact@ivyhuts.com</a>
             <a href="https://wa.me/918847725089" target="_blank" rel="noopener noreferrer" className="footer-contact-row"><WhatsAppIcon /> +91 884 772 5089</a>
-            <Link to="/university-housing">Find Accommodation</Link>
+            <Link to={SEARCH_ANCHOR_HREF}>Find Accommodation</Link>
             <div className="footer-social-row">
               {SOCIAL_ICONS.map(({ key, label, Icon }) => {
                 const href = socialLinks[key];

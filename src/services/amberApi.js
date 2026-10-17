@@ -368,6 +368,36 @@ export async function getUniversityHousingInventory(city, priority = "MEDIUM", s
     return { status: body.status, residences: Array.isArray(body.residences) ? body.residences : [] };
 }
 
+// University Housing's CITY / COUNTRY search — the same canonical endpoint
+// as getUniversityHousingInventory() with `type=city|country` (zero Amber
+// listing calls for already-indexed inventory; see
+// api/_lib/routes/content/university-housing/inventory.js). A country is
+// paged server-side, so `total`/`hasMore` say how much remains; a city
+// returns its whole inventory in one response. Throws on any failure so the
+// caller can tell an error apart from a genuinely empty result.
+export async function getLocationSearchInventory({ type, city, country, page = 1 }) {
+  const params = { type, page: String(page) };
+  if (city) params.city = city;
+  if (country) params.country = country;
+  const res = await fetch(`/api/university-housing/inventory?${new URLSearchParams(params).toString()}`);
+  let body;
+  try {
+    body = await res.json();
+  } catch {
+    throw new Error("University Housing inventory endpoint unavailable (is the app running via `vercel dev`?)");
+  }
+  if (!res.ok || !body.ok) throw new Error(body?.message || "Failed to fetch accommodation for this location");
+  const residences = Array.isArray(body.residences) ? body.residences : [];
+  return {
+    status: body.status,
+    residences,
+    country: body.country || null,
+    total: Number.isFinite(body.total) ? body.total : residences.length,
+    page: Number.isFinite(body.page) ? body.page : page,
+    hasMore: body.hasMore === true,
+  };
+}
+
 // Amber has no "search by country" endpoint — only fetch-by-city. Kept as a
 // live-Amber fallback (unused by PropertyListingPage.js as of Milestone 11 —
 // see getCountryListings() below, the canonical replacement — but left in

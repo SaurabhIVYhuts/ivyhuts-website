@@ -1,13 +1,10 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { MessageCircle, Mail, Phone, LifeBuoy, History, Zap, Tag, Search, FileText, PartyPopper } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { MessageCircle, Mail, Phone, LifeBuoy, History, Zap, Tag, Search, FileText, PartyPopper, ArrowRight } from "lucide-react";
 import SiteFooter from "../components/layout/SiteFooter";
 import SiteNavbar from "../components/layout/SiteNavbar";
-import TrustStrip from "../components/layout/TrustStrip";
 import "./HomePage.css";
 import CityCard from "../components/cards/CityCard";
-import HeroInventoryCards from "../components/home/HeroInventoryCards";
-import HeroJourneyStrip from "../components/home/HeroJourneyStrip";
 import LeadPopup from "../components/popups/LeadPopup";
 import "../components/popups/LeadPopup.css";
 import { DESTINATIONS, COUNTRIES, countryFullName, countryIsoCode, findDestination } from "../data/destinations";
@@ -15,8 +12,11 @@ import { getRecentSearches, addRecentSearch, getRecentProperties } from "../serv
 import { getProperties } from "../services/amberApi";
 import { safeListingList } from "../services/amberMapper";
 import CompactPropertyCard from "../components/listing/CompactPropertyCard";
-import GlobalSearchBar from "../components/search/GlobalSearchBar";
-import Seo from "../components/Seo";
+import AccommodationSearchExperience from "../components/universityHousing/AccommodationSearchExperience";
+import HeroInventoryCards from "../components/home/HeroInventoryCards";
+import { SEARCH_ANCHOR_ID, SEARCH_ANCHOR_HREF, citySearchHref, countrySearchHref } from "../lib/homeSearch";
+import heroGlobe from "../assets/hero-globe.svg";
+import heroHouses from "../assets/hero-houses.svg";
 
 // --- Static Data for Marketing Sections ---
 const STEPS = [
@@ -27,8 +27,56 @@ const STEPS = [
 
 const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHuts! I'm looking for student accommodation abroad. Can you help?")}`;
 
+// Quick picks under the hero search — real curated destinations only.
+const QUICK_CITIES = ["London", "Manchester", "Sydney", "Toronto", "Dublin"]
+  .map((name) => DESTINATIONS.find((d) => d.name === name))
+  .filter(Boolean);
+
+function HomeHero({ searchBox }) {
+  return (
+    <section className="home-hero" id={SEARCH_ANCHOR_ID} aria-labelledby="home-hero-title">
+      {/* Decorative houses (left) and globe + flight path (right). Clipped by
+          their own layer (not the section) so the search suggestions can
+          still overflow the hero. */}
+      <div className="home-hero-art" aria-hidden="true">
+        <img src={heroHouses} alt="" className="home-hero-houses" width="640" height="320" decoding="async" />
+        <img src={heroGlobe} alt="" className="home-hero-globe" width="900" height="760" decoding="async" />
+      </div>
+      <div className="home-hero-inner">
+        <div className="home-hero-top">
+          <p className="home-hero-eyebrow">A Venture By IIM Alums</p>
+          <Link to="/contact" className="hero-advisor-btn">
+            Talk to an Advisor
+            <span className="hero-advisor-arrow">→</span>
+          </Link>
+        </div>
+
+        <h1 id="home-hero-title" className="home-hero-title">
+          From Housing to <span>Hiring</span>
+        </h1>
+
+        <HeroInventoryCards />
+
+        <div className="home-hero-search">{searchBox}</div>
+
+        {QUICK_CITIES.length > 0 && (
+          <div className="home-hero-quick" aria-label="Popular searches">
+            <span className="home-hero-quick-label">Popular:</span>
+            {QUICK_CITIES.map((d) => (
+              <Link key={d.name} to={citySearchHref(d.name, d.country)} className="home-hero-chip">
+                {d.name}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function HomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   /* ── RECENT HISTORY ── */
   const [recentSearches, setRecentSearches] = useState([]);
@@ -44,28 +92,30 @@ function HomePage() {
       .catch(() => {});
   }, []);
 
-  /* ── SEARCH ──
-     The live entity-aware search box (GlobalSearchBar) owns its own
-     input/suggestion state — see src/components/search/GlobalSearchBar.js.
-     `runSearch` remains here only for the "Recent Searches" pill row below,
-     which stores a plain past query string (now potentially a city,
-     country, university or property name — GlobalSearchBar records
-     whatever the user picked, not just cities): a known city name still
-     takes the fast, exact `?city=` path; anything else degrades to the
-     generic `?property=` query, which PropertyListingPage resolves via the
-     same /api/search index GlobalSearchBar itself uses. */
+  // "Find Accommodation" links elsewhere on the site point at
+  // /#find-accommodation — bring the hero search into view when they land.
+  useEffect(() => {
+    if (location.hash !== `#${SEARCH_ANCHOR_ID}`) return;
+    const el = document.getElementById(SEARCH_ANCHOR_ID);
+    if (el && typeof el.scrollIntoView === "function") el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [location.hash, location.key]);
+
+  /* ── RECENT SEARCHES ──
+     Stores a plain past query string (a city, country, university or
+     property name). A known city name opens the integrated homepage search;
+     anything else keeps its existing generic `?property=` route, which
+     PropertyListingPage resolves via the /api/search index. */
   const runSearch = (value) => {
     const clean = (value || "").trim();
     if (!clean) return;
     addRecentSearch(clean);
     const knownCity = findDestination(clean);
-    navigate(knownCity ? `/properties?city=${encodeURIComponent(knownCity.name)}` : `/properties?property=${encodeURIComponent(clean)}`);
+    navigate(knownCity ? citySearchHref(knownCity.name, knownCity.country) : `/properties?property=${encodeURIComponent(clean)}`);
   };
 
-  /* ── POPULAR CITIES — COUNTRY FILTER TABS ── */
+  /* ── POPULAR DESTINATIONS — COUNTRY FILTER TABS ── */
   const [popularCountry, setPopularCountry] = useState("All");
   const popularCountryTabs = useMemo(() => [
-    
     ...COUNTRIES.map((code) => ({
       code,
       label: countryFullName(code),
@@ -82,129 +132,21 @@ function HomePage() {
 
   return (
     <div>
-      <Seo canonical="/" />
-
       <LeadPopup />
 
       <SiteNavbar />
 
       <main>
 
-      {/* HERO */}
-      <section className="hero">
-      <div className="hero-row">
-
-        {/* Card group — wraps the purple hero card and supplies its
-            background/rounded shape (see .hero-card-group), including a
-            house photo behind the purple gradient. */}
-        <div className="hero-card-group">
-        {/* Purple content box — centered */}
-        <div className="hero-purple-box">
-          <div className="hero-bg-ring" />
-          <div className="hero-bg-lines" />
-          <svg className="hero-pin-pattern" viewBox="0 0 860 500" fill="none" aria-hidden="true">
-            <circle cx="60" cy="400" r="26" stroke="#C47A8A" strokeWidth="1" />
-            <circle cx="640" cy="40" r="18" stroke="#C47A8A" strokeWidth="1" />
-          </svg>
-
-        <div className="hero-content">
-          <div className="hero-text">
-            {/* Tagline + advisor button share one row, so the button sits
-                in the card's top-right corner exactly in line with "A
-                Venture By IIM Alums" instead of further down. */}
-            <div className="hero-top-line">
-              <p className="hero-tagline">A Venture By IIM Alums</p>
-              <Link to="/contact" className="hero-advisor-btn">
-                Talk to an Advisor
-                <span className="hero-advisor-arrow">→</span>
-              </Link>
-            </div>
-
-            {/* Headline + subtitle beside the live inventory cards, where
-                the accommodation photo used to sit. */}
-            <div className="hero-header-row">
-              <div className="hero-header-text">
-                <div className="desktop-hero-text">
-                  <h1>
-                    <span className="hero-h1-line1">From housing to hiring —</span>
-                    <br />
-                    <span className="hero-h1-line2">we've got you covered, globally</span>
-                  </h1>
-                  <p className="hero-sub-tagline">Verified student homes, matched to your university and budget.</p>
-                </div>
-                <div className="mobile-hero-text new-mobile-hero-design">
-                  <div className="mobile-hero-title">
-                    <h1>From housing to hiring — we've got you covered, globally</h1>
-                    <p className="hero-sub-tagline">Verified student homes, matched to your university and budget.</p>
-                  </div>
-
-                  {/* Same live Total/Sold Out/Remaining cards the desktop
-                      column shows (see .hero-inventory-stack below) — real
-                      data via useInventoryStats, not a hardcoded number.
-                      Horizontal scroll, ~2 cards visible at a time. */}
-                  <div className="mobile-stats-carousel">
-                    <HeroInventoryCards />
-                  </div>
-
-                  <div className="mobile-process-card">
-                    <div className="process-step">
-                      <div className="process-icon">
-                        <div className="process-badge">01</div>
-                        <svg viewBox="0 0 24 24" fill="none" width="18" height="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 20V10M12 20V4M6 20v-4"></path></svg>
-                      </div>
-                      <span className="process-text">Book<br/>Accommodation</span>
-                    </div>
-                    
-                    <svg className="process-arrow" viewBox="0 0 24 24" fill="none" width="12" height="12" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                    
-                    <div className="process-step">
-                      <div className="process-icon">
-                        <div className="process-badge">02</div>
-                        <svg viewBox="0 0 24 24" fill="none" width="18" height="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5zM6 12v5c3 3 9 3 12 0v-5"></path></svg>
-                      </div>
-                      <span className="process-text">Mentorship by<br/>IIM Grads</span>
-                    </div>
-
-                    <svg className="process-arrow" viewBox="0 0 24 24" fill="none" width="12" height="12" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                    
-                    <div className="process-step">
-                      <div className="process-icon">
-                        <div className="process-badge">03</div>
-                        <svg viewBox="0 0 24 24" fill="none" width="18" height="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                      </div>
-                      <span className="process-text">Exclusive<br/>IVYHUTS<br/>Community</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="hero-inventory-stack">
-                <HeroInventoryCards />
-              </div>
-            </div>
-
-            {/* LIVE ACCOMMODATION SEARCH — understands country/city/university/
-                property without the user needing to say which (see
-                GlobalSearchBar + GET /api/search). */}
-            <GlobalSearchBar />
-          </div>
-
-          {/* HOUSING → CAREER JOURNEY — full-width row below the text
-              column. Purely visual storytelling, no interaction. */}
-          <HeroJourneyStrip />
-        </div>
-        </div>{/* end hero-purple-box */}
-        </div>{/* end hero-card-group */}
-      </div>
-      </section>
-
-      {/* MOBILE-ONLY — the two blocks below duplicate HeroInventoryCards and
-          HeroJourneyStrip as their own standalone sections outside the
-          purple card, matching Amber's compact-hero-then-plain-sections
-          skeleton. The in-hero originals above are untouched (still what
-          desktop renders) and are hidden at mobile widths purely via CSS
-          (see ".hero .hero-inventory-stack" / ".hero .hero-journey-flow"
-          in global.css) — nothing here is a JSX move. */}
-
+      {/* HERO + INTEGRATED ACCOMMODATION SEARCH — university, city, country
+          and Google Maps links; results (list + map) render directly below
+          the hero. Owns the page's <Seo>, which keeps the homepage defaults
+          until a search is active. */}
+      <AccommodationSearchExperience
+        renderSearch={(searchBox) => <HomeHero searchBox={searchBox} />}
+        resultsId="accommodation-results"
+        basePath="/"
+      />
 
       {/* RECENT SEARCHES */}
       {recentSearches.length > 0 && (
@@ -242,10 +184,11 @@ function HomePage() {
         </section>
       )}
 
-      {/* POPULAR CITIES */}
-      <section className="section discovery-section">
+      {/* POPULAR DESTINATIONS — every card and country button opens the
+          integrated homepage search in city / country mode. */}
+      <section className="section discovery-section" aria-labelledby="popular-destinations-title">
         <div className="section-heading-popular">
-          <h2 className="section-title">Popular Cities Across The Globe</h2>
+          <h2 id="popular-destinations-title" className="section-title">Popular Cities Across The Globe</h2>
           <p className="section-subtitle">Book student accommodations near top cities and universities around the world.</p>
         </div>
         <div className="city-tab-row" role="group" aria-label="Filter popular cities by country">
@@ -266,12 +209,36 @@ function HomePage() {
         </div>
         <ul className="city-grid">
           {visibleDestinations.map((city) => (
-            <CityCard key={`${city.name}-${city.country}`} city={city} compact />
+            <CityCard key={`${city.name}-${city.country}`} city={city} compact to={citySearchHref(city.name, city.country)} />
+          ))}
+        </ul>
+        {popularCountry !== "All" && (
+          <div className="home-country-cta">
+            <Link to={countrySearchHref(popularCountry)} className="btn btn-secondary">
+              See all accommodation in {countryFullName(popularCountry)} <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          </div>
+        )}
+      </section>
+
+      {/* BROWSE BY COUNTRY — a whole-country search (every city, not just the capital). */}
+      <section className="section home-countries-section" aria-labelledby="home-countries-title">
+        <div className="section-heading-popular">
+          <h2 id="home-countries-title" className="section-title">Study Destinations by Country</h2>
+          <p className="section-subtitle">See student accommodation across every city we cover in a country.</p>
+        </div>
+        <ul className="home-country-grid">
+          {COUNTRIES.map((code) => (
+            <li key={code}>
+              <Link to={countrySearchHref(code)} className="home-country-card">
+                <img src={`https://flagcdn.com/${countryIsoCode(code).toLowerCase()}.svg`} alt="" loading="lazy" className="home-country-flag" />
+                <span className="home-country-name">{countryFullName(code)}</span>
+                <ArrowRight size={16} aria-hidden="true" className="home-country-arrow" />
+              </Link>
+            </li>
           ))}
         </ul>
       </section>
-
-
 
       {/* 1. THOUSANDS OF PROPERTIES GLOBALLY (Mobile Only) */}
       <section className="section mobile-only thousands-properties-section">
@@ -293,7 +260,6 @@ function HomePage() {
         </ul>
       </section>
 
-
       {/* 3. BOOK YOUR PERFECT ACCOMMODATION (Mobile Only) */}
       <section className="section mobile-only perfect-acc-section">
         <h2 className="section-title left-aligned">Book Your Perfect Accommodation</h2>
@@ -312,9 +278,10 @@ function HomePage() {
         </div>
       </section>
 
-      {/* 5. BOOK YOUR PLACE IN 3 EASY STEPS (Mobile Only) */}
-      <section className="section mobile-only steps-section">
-        <h2 className="section-title left-aligned">Book Your Place in 3 Easy Steps</h2>
+      {/* BOOK YOUR PLACE IN 3 EASY STEPS — shown at every width now (was
+          mobile-only); same copy. */}
+      <section className="section steps-section home-steps" aria-labelledby="home-steps-title">
+        <h2 id="home-steps-title" className="section-title">Book Your Place in 3 Easy Steps</h2>
         <p className="section-copy">Book places in major cities and universities across the globe</p>
         <div className="steps-list">
           {STEPS.map((step, i) => (
@@ -328,13 +295,6 @@ function HomePage() {
           ))}
         </div>
       </section>
-
-
-
-      {/* TRUST BADGES (Desktop) */}
-      <div className="desktop-only">
-        <TrustStrip />
-      </div>
 
       {/* PARTNER WITH US / LIST YOUR STAY — mobile-only; desktop already
           reaches both via the navbar/footer, so this promo strip is purely
@@ -393,9 +353,8 @@ function HomePage() {
         </div>
       </section>
 
-      {/* HUNDREDS OF CITIES — Cities/Countries tab strip, mobile-only.
-          Reuses the same DESTINATIONS/COUNTRIES data and the same
-          /properties?city=/?country= routes as the rest of the page. */}
+      {/* HUNDREDS OF CITIES — Cities/Countries tab strip, mobile-only. Opens
+          the integrated homepage search, same as the destination cards. */}
       <section className="section mobile-only hundreds-cities-strip" aria-label="Browse by city or country">
         <div className="section-heading">
           <h2 className="section-title left-aligned">Hundreds Of Cities Around The World</h2>
@@ -423,12 +382,12 @@ function HomePage() {
         <div className="hoc-link-grid">
           {hocTab === "cities"
             ? DESTINATIONS.map((d) => (
-                <Link key={d.name} to={`/properties?city=${encodeURIComponent(d.name)}`} className="hoc-link">
+                <Link key={`${d.name}-${d.country}`} to={citySearchHref(d.name, d.country)} className="hoc-link">
                   {d.name}
                 </Link>
               ))
             : COUNTRIES.map((code) => (
-                <Link key={code} to={`/properties?country=${encodeURIComponent(code)}`} className="hoc-link">
+                <Link key={code} to={countrySearchHref(code)} className="hoc-link">
                   {countryFullName(code)}
                 </Link>
               ))}
@@ -463,14 +422,15 @@ function HomePage() {
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CTA — back to the homepage search, or the existing enquiry flow. */}
       <section className="cta-section">
         <div className="cta-inner">
           <p className="cta-eyebrow">Ready to Find Your Home?</p>
-          <h2>Your perfect student stay is one form away</h2>
-          <p className="cta-sub">Tell us what you need and our team will do the rest. Free service, personalised results, within 24 hours.</p>
+          <h2>Your perfect student stay is one search away</h2>
+          <p className="cta-sub">Search by university, city or country — or tell us what you need and our team will do the rest. Free service, personalised results, within 24 hours.</p>
           <div className="cta-actions">
-            <Link to="/contact" className="primary-btn" style={{ display: "inline-block" }}>Find My Stay →</Link>
+            <Link to={SEARCH_ANCHOR_HREF} className="primary-btn" style={{ display: "inline-block" }}>Search Accommodation</Link>
+            <Link to="/contact" className="btn btn-outline home-cta-secondary">Find My Stay →</Link>
           </div>
         </div>
       </section>

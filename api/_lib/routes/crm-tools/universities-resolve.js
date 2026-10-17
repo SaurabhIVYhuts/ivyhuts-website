@@ -14,7 +14,12 @@
 //                                  escalation above (see resolveGoogleMapsCandidate() in
 //                                  universityResolveService.js)
 // POST { query, candidate }     -> confirm one candidate the user picked from an earlier "ambiguous" response
-const { resolveUniversity, resolveUniversityById, resolveGoogleMapsCandidate, MAX_QUERY_LENGTH } = require("../../universityResolveService");
+//
+// GET ?q=...&scope=location     -> University Housing's search box: the same flow, but an exact known
+//                                  city/country (text or a Maps place name) resolves to a type
+//                                  "CITY"/"COUNTRY" record (see resolveHousingSearch()). Without
+//                                  `scope`, results are universities/schools only, exactly as before.
+const { resolveUniversity, resolveHousingSearch, resolveUniversityById, resolveGoogleMapsCandidate, MAX_QUERY_LENGTH } = require("../../universityResolveService");
 const { parseGoogleMapsUrl, MAX_URL_LENGTH } = require("../../googleMapsParser");
 const { resolveGoogleMapsShortLink } = require("../../googleMapsShortLinkResolver");
 const { withCors } = require("../../cors");
@@ -30,7 +35,8 @@ module.exports = async (req, res) => {
 
     try {
         if (req.method === "GET") {
-            const { id, q } = req.query || {};
+            const { id, q, scope } = req.query || {};
+            const includeLocations = scope === "location";
 
             if (typeof id === "string" && id.trim()) {
                 const record = await resolveUniversityById(id);
@@ -91,7 +97,7 @@ module.exports = async (req, res) => {
                     return;
                 }
 
-                const mapsResult = await resolveGoogleMapsCandidate({ name: parsed.name, latitude: parsed.latitude, longitude: parsed.longitude });
+                const mapsResult = await resolveGoogleMapsCandidate({ name: parsed.name, latitude: parsed.latitude, longitude: parsed.longitude }, { includeLocations });
                 if (mapsResult.status === "not_found") {
                     res.status(200).json({ ok: true, status: "maps_no_institution", data: null, reason: mapsResult.reason || "no_match" });
                     return;
@@ -105,7 +111,7 @@ module.exports = async (req, res) => {
                 return;
             }
 
-            const result = await resolveUniversity(q);
+            const result = includeLocations ? await resolveHousingSearch(q) : await resolveUniversity(q);
             res.status(200).json({ ok: true, status: result.status, data: result.record || result.candidates || null, reason: result.reason });
             return;
         }

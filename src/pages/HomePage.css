@@ -694,3 +694,237 @@
 .need-help-tile:nth-child(2) svg { color: #C8960C; } /* Email — brand gold */
 .need-help-tile:nth-child(3) svg { color: #4A90D9; } /* Phone — matches the existing "support" accent used in .trust-icon--support */
 .need-help-tile:nth-child(4) svg { color: #5E3A6B; } /* Contact Us — brand purple */
+/* ═══════════════════════════════════
+   SEARCH-FIRST HERO (integrated accommodation search)
+   Compact hero on solid brand plum — no photograph. A subtle diagonal
+   shift between the brand's two purples (--brand-purple-deep ->
+   --brand-purple) keeps it from looking flat; white text and the gold
+   accent stay high-contrast throughout. Height follows the content.
+   ═══════════════════════════════════ */
+.home-hero {
+  position: relative;
+  /* Above the results section, so the search dropdown is never covered. */
+  z-index: 2;
+  box-sizing: border-box;
+  background-color: var(--brand-purple-deep);
+  background-image: linear-gradient(135deg, var(--brand-purple-deep) 0%, var(--brand-purple) 100%);
+  color: #fff;
+  padding: 40px 24px 36px;
+  scroll-margin-top: 68px;
+}
+.home-hero-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* Decorative globe with the dotted flight path (src/assets/hero-globe.svg,
+   viewBox 900x760: globe centre at 52.2% / 44.4% of the width, radius 1/3).
+   The art layer clips the globe to the hero; it never takes pointer events
+   and sits under .home-hero-inner. Placement is driven by --globe-w (image
+   width), --globe-x (globe centre's distance from the hero's right edge)
+   and --globe-y (globe centre's distance from the hero's top edge). */
+.home-hero-art {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.home-hero-globe {
+  --globe-w: 180px;
+  --globe-x: 14px;
+  --globe-y: 40px;
+  position: absolute;
+  width: var(--globe-w);
+  height: auto;
+  max-width: none;
+  right: calc(var(--globe-x) - var(--globe-w) * 0.478);
+  top: calc(var(--globe-y) - var(--globe-w) * 0.444);
+  user-select: none;
+  animation: home-hero-globe-float 9s ease-in-out infinite alternate;
+}
+@keyframes home-hero-globe-float {
+  from { transform: translateY(0); }
+  to { transform: translateY(-8px); }
+}
+/* Decorative student-housing skyline (src/assets/hero-houses.svg, 2:1),
+   anchored to the hero's bottom-left corner and cropped slightly by the
+   left and bottom edges. Kept low so it frames the search, never meets it. */
+.home-hero-houses {
+  position: absolute;
+  left: -30px;
+  bottom: -6px;
+  width: 150px;
+  height: auto;
+  max-width: none;
+  opacity: 0.8;
+  user-select: none;
+}
+@media (min-width: 768px) {
+  .home-hero-houses { left: -1.5vw; width: 22vw; opacity: 1; }
+}
+/* Desktop: grows with the free space left of the 720px search bar
+   (~(100vw - 720px) / 2), so the skyline stays clear of it at every width. */
+@media (min-width: 1200px) {
+  .home-hero-houses { width: clamp(320px, calc(66vw - 470px), 740px); }
+}
+/* Tablet: smaller globe in the top-right corner beside the centred
+   headline; the opaque stat cards and search bar sit above it. */
+@media (min-width: 768px) {
+  .home-hero-globe {
+    --globe-w: 40vw;
+    --globe-x: calc(var(--globe-w) * 0.12);
+    --globe-y: calc(48px + var(--globe-w) / 3);
+  }
+}
+/* Desktop: large globe on the right, running off the right and bottom
+   edges as in the design reference. Content stays centred in the hero. */
+@media (min-width: 1200px) {
+  .home-hero-globe {
+    --globe-w: min(45vw, 920px);
+    --globe-x: calc(var(--globe-w) * 0.15);
+    --globe-y: calc(56px + var(--globe-w) / 3);
+  }
+}
+.home-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.home-hero-eyebrow {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--brand-gold-light);
+}
+.home-hero-title {
+  margin: 0 0 22px;
+  font-size: clamp(2rem, 4.2vw, 2.9rem);
+  font-weight: 800;
+  line-height: 1.18;
+  letter-spacing: -0.4px;
+}
+.home-hero-title span { color: var(--brand-gold-light); }
+
+/* The integrated search box, enlarged for the hero. */
+.home-hero-search {
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: left;
+  color: var(--ink);
+}
+.home-hero-search .uh-search-form,
+.home-hero-search .uh-search-selected {
+  padding: 10px 10px 10px 22px;
+  border: none;
+  box-shadow: var(--shadow-lg);
+}
+.home-hero-search .uh-search-form input { font-size: 1.02rem; min-height: 40px; min-width: 0; }
+.home-hero-search .uh-search-submit { padding: 13px 28px; font-size: 0.95rem; background: linear-gradient(135deg, #C47A8A 0%, #B05E72 100%); }
+.home-hero-search .uh-search-hint { color: rgba(255, 255, 255, 0.78); }
+.home-hero-search .uh-search-suggestions { text-align: left; }
+
+.home-hero-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.home-hero-quick-label { font-size: 0.84rem; font-weight: 600; color: rgba(255, 255, 255, 0.78); }
+.home-hero-chip {
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--transition), border-color var(--transition);
+}
+.home-hero-chip:hover,
+.home-hero-chip:focus-visible { background: rgba(255, 255, 255, 0.22); border-color: rgba(255, 255, 255, 0.6); }
+
+/* ── BROWSE BY COUNTRY ── */
+.home-country-cta { display: flex; justify-content: center; margin-top: 24px; }
+.home-country-cta .btn { display: inline-flex; align-items: center; gap: 8px; }
+.home-countries-section { max-width: var(--container-max); margin: 0 auto; padding-top: 0; }
+.home-country-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.home-country-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface-white);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+.home-country-card:hover,
+.home-country-card:focus-visible { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--brand-rose); }
+.home-country-flag {
+  width: 32px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(94, 58, 107, 0.1);
+  flex-shrink: 0;
+}
+.home-country-name { flex: 1; min-width: 0; }
+.home-country-arrow { color: var(--brand-rose); flex-shrink: 0; }
+
+/* ── 3 EASY STEPS — now at every width ── */
+.home-steps { max-width: var(--container-max); margin: 0 auto; }
+@media (min-width: 768px) {
+  .home-steps .steps-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+  .home-steps .step-item {
+    flex-direction: column;
+    background: var(--surface-white);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+/* ── CTA secondary action on the dark CTA band ── */
+.home-cta-secondary { color: #fff; border-color: rgba(255, 255, 255, 0.55); }
+.home-cta-secondary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); color: #fff; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 767.98px) {
+  .home-hero { padding: 26px 16px 28px; }
+  .home-hero-title { margin-bottom: 16px; }
+  .home-hero-search .uh-search-form { padding: 6px 6px 6px 16px; }
+  .home-hero-search .uh-search-submit { padding: 11px 16px; }
+  .home-country-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-country-card { padding: 12px; font-size: 0.86rem; gap: 8px; }
+  .home-country-arrow { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-country-card, .home-hero-chip { transition: none; }
+  .home-hero-globe { animation: none; }
+  .home-country-card:hover { transform: none; }
+}

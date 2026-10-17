@@ -74,7 +74,7 @@ function fixtureDoc(id, city, overrides = {}) {
 async function main() {
     console.log("=== IVYHUTS Milestone 9 — University Housing Migration Verification ===\n");
 
-    const uhPageSrc = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+    const uhPageSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
 
     // ══════════════════════ TEST 1 ══════════════════════
     await test("TEST 1: known university search resolves via the unchanged Tier-1 static dataset", () => {
@@ -272,12 +272,16 @@ async function main() {
     await test("TEST 22: sorting (distance/price_asc/price_desc, now shared via listingFilters.js) still operates identically on the mapped properties array", () => {
         const listingFiltersSrc = fs.readFileSync(path.join(ROOT, "src", "lib", "listingFilters.js"), "utf8");
         assert.ok(listingFiltersSrc.includes('sortBy === "distance"') && listingFiltersSrc.includes('sortBy === "price_asc"') && listingFiltersSrc.includes('sortBy === "price_desc"'), "all 3 original sort modes must remain, operating on the same priceWeekly/distanceKm fields regardless of data source");
-        assert.ok(uhPageSrc.includes("sortListings(") && uhPageSrc.includes('from "../lib/listingFilters"'), "UniversityHousingPage.js must delegate sorting to the shared module, not reimplement it");
+        assert.ok(uhPageSrc.includes("sortListings(") && uhPageSrc.includes('from "../../lib/listingFilters"'), "UniversityHousingPage.js must delegate sorting to the shared module, not reimplement it");
     });
 
     // ══════════════════════ TEST 23 ══════════════════════
-    await test("TEST 23: pagination is based on canonical Mongo inventory (the whole city in one response), not Amber's page limit — hasMore is always false", () => {
-        assert.ok(/const hasMore = false;/.test(uhPageSrc), "hasMore must always be false post-migration — canonical inventory returns the complete dataset in one response, nothing further to page through");
+    // Updated for city/country search: a university (and a city) search still
+    // returns the whole canonical dataset in one response, so hasMore stays
+    // false outside area mode; only a COUNTRY search is paged, and then only
+    // by the server's own hasMore for canonical Mongo pages (never Amber's).
+    await test("TEST 23: pagination is based on canonical Mongo inventory (the whole city in one response), not Amber's page limit — hasMore is false for university searches", () => {
+        assert.ok(/const hasMore = isAreaMode \? Boolean\(areaResult\?\.hasMore\) : false;/.test(uhPageSrc), "hasMore must be false for university searches — canonical inventory returns the complete dataset in one response; only a city/country search may follow the canonical endpoint's own hasMore");
     });
 
     // ══════════════════════ TEST 24 ══════════════════════

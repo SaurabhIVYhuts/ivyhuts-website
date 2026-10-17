@@ -278,7 +278,7 @@ async function main() {
 
     // ══════════════════════ TEST 9 — frontend stale-response guard still present ══════════════════════
     await test("TEST 9 (P0-6): UniversityHousingPage.js's property-fetch effect still discards a stale in-flight response when the university changes mid-flight (Manchester -> Derby cannot overwrite Derby's own result)", () => {
-        const src = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+        const src = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
         // The effect must declare a `cancelled` flag, set it true in its
         // cleanup function, and check it before applying the fetch result —
         // this is what makes a stale response for the PREVIOUS university a

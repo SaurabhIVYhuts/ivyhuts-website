@@ -226,22 +226,27 @@ async function main() {
 
     // ══════════════════════════ ROUTING & NAVIGATION (structural) ══════════════════════════
     const appSrc = fs.readFileSync(path.join(ROOT, "src", "App.js"), "utf8");
-    await test('ROUTING: "/university-housing" is registered as a lazy-loaded route pointing at UniversityHousingPage', () => {
-        assert.ok(/path="\/university-housing"\s+element=\{<UniversityHousingPage/.test(appSrc), "expected a registered /university-housing route");
-        assert.ok(/lazy\(\(\) => import\("\.\/pages\/UniversityHousingPage"\)\)/.test(appSrc), "expected UniversityHousingPage to be lazy-loaded like every other non-home route");
+    // Updated for the homepage integration: the experience now lives on the
+    // homepage; the old URL stays registered as a redirect that keeps the
+    // query string (search intent) intact.
+    await test('ROUTING: "/university-housing" is still registered — as a redirect to the homepage search that keeps its query string', () => {
+        assert.ok(/path="\/university-housing"\s+element=\{<UniversityHousingRedirect/.test(appSrc), "expected /university-housing to remain a registered (redirect) route");
+        assert.ok(appSrc.includes("<Navigate to={`/${location.search}${hash}`} replace />"), "the redirect must carry the original query string to the homepage");
+        assert.ok(!/import\("\.\/pages\/UniversityHousingPage"\)/.test(appSrc), "the retired standalone page must no longer be routed");
     });
     await test('ROUTING: the existing /student-planner route is untouched (same element, same path, still present)', () => {
         assert.ok(/path="\/student-planner"\s+element=\{<StudentPlannerPage/.test(appSrc), "the pre-existing Student Planner route must remain exactly as it was");
     });
-    await test("NAVIGATION: University Housing has a discoverable entry point in the desktop/mobile navbar and the mobile menu sheet", () => {
+    await test("NAVIGATION: the accommodation search has a discoverable entry point (homepage search anchor) in the desktop/mobile navbar and the mobile menu sheet", () => {
         const navSrc = fs.readFileSync(path.join(ROOT, "src", "components", "layout", "SiteNavbar.js"), "utf8");
         const sheetSrc = fs.readFileSync(path.join(ROOT, "src", "components", "layout", "MobileMenuSheet.js"), "utf8");
-        assert.ok(navSrc.includes('"/university-housing"'), "expected a nav link to /university-housing in SiteNavbar.js");
-        assert.ok(sheetSrc.includes('"/university-housing"'), "expected a row for /university-housing in MobileMenuSheet.js");
+        assert.ok(/\{ to: SEARCH_ANCHOR_HREF, label: "Find Accommodation" \}/.test(navSrc), "expected a Find Accommodation nav link to the homepage search in SiteNavbar.js");
+        assert.ok(/label: "Find Accommodation", to: SEARCH_ANCHOR_HREF/.test(sheetSrc), "expected a Find Accommodation row in MobileMenuSheet.js");
+        assert.ok(!navSrc.includes('"/university-housing"') && !sheetSrc.includes('"/university-housing"'), "no nav entry may point at the retired page");
     });
 
     // ══════════════════════════ AMBER ISOLATION (structural — item 6/19/25/26) ══════════════════════════
-    const pageSrc = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+    const pageSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
     const mapSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "UniversityHousingMap.js"), "utf8");
     const listSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "PropertyListPanel.js"), "utf8");
     const searchSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "UniversitySearchBox.js"), "utf8");
@@ -272,7 +277,7 @@ async function main() {
         assert.ok(!/getProperties\(/.test(listSrc), "PropertyListPanel.js must be a pure renderer of props, not a data-fetching component");
     });
     await test('DATA SOURCE: no second property "database" — the page/components only ever import safeListingList/mapAmberPropertyToListing from the existing amberMapper.js, never define their own property shape mapper', () => {
-        assert.ok(pageSrc.includes('from "../services/amberMapper"'), "expected the page to reuse the existing amberMapper.js");
+        assert.ok(pageSrc.includes('from "../../services/amberMapper"'), "expected the search experience to reuse the existing amberMapper.js");
         [mapSrc, listSrc].forEach((src) => {
             assert.ok(!/function map\w*Property/i.test(src), "must not define a second, parallel property-mapping function");
         });

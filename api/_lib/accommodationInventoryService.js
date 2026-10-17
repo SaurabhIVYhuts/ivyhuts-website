@@ -102,6 +102,36 @@ async function getCountryInventory(cityNames) {
     return accommodationIndex.getCitiesListings(cityNames);
 }
 
+// University Housing's CITY search — exactly the selected city (no
+// market-area expansion: Salford is not Manchester), through the same
+// getCityListings() freshness/refresh contract Find Room's ?city= browse
+// uses, so it makes no Amber call a university search for the same city
+// wouldn't. When the resolved country is known, a row whose OWN structured
+// country names a different country is dropped (a same-named city
+// elsewhere); a row with no country recorded is kept, never guessed.
+function sameCountry(a, b) {
+    return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+}
+async function getCitySearchInventory(city, { country = null, priority = "MEDIUM", source = "university-housing-city" } = {}) {
+    const result = await accommodationIndex.getCityListings(city, { priority, source });
+    const residences = country
+        ? result.residences.filter((doc) => !doc.country || sameCountry(doc.country, country))
+        : result.residences;
+    return {
+        status: residences.length ? result.status : "building",
+        residences,
+        total: residences.length,
+        page: 1,
+        hasMore: false,
+    };
+}
+
+// University Housing's COUNTRY search — one page of every indexed residence
+// in the country (see accommodationIndex.js's getCountryListingsPage).
+async function getCountrySearchInventoryPage(countryFullName, { fallbackCityNames = [], page = 1, limit } = {}) {
+    return accommodationIndex.getCountryListingsPage(countryFullName, { fallbackCityNames, page, limit });
+}
+
 // getPropertyBySourceId(sourceId) — canonical-identity lookup directly
 // against the Mongo mirror (NOT a live Amber call — for that, existing
 // callers already use amberApi.js's getPropertyBySlug()/fetchAmber
@@ -172,6 +202,8 @@ module.exports = {
     getAccommodationInventory,
     getRankedCityInventory,
     getCountryInventory,
+    getCitySearchInventory,
+    getCountrySearchInventoryPage,
     getPropertyBySourceId,
     getInventoryStatus,
     requestCityRefresh,

@@ -1,39 +1,36 @@
-/* Homepage inventory stats — a compact vertical stack that sits outside the
-   purple hero card, between it and the right-hand decorative house. Each
-   card is square (icon centered on top, value + label centered below).
-   Static supporting statistics, not an interactive dashboard, so there is
-   deliberately no hover state. */
+/* Homepage live inventory stats — a compact row of three light cards inside
+   the search-first hero (between the description and the search bar).
+   Icon badge on the left, bold value + small uppercase label on the right;
+   on narrow phones each card stacks icon-over-value so all three still fit
+   in one row. Static supporting statistics, not an interactive dashboard,
+   so there is deliberately no hover state. */
 .hero-stat-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 600px;
+  margin: 0 auto 20px;
+  padding: 0;
+  list-style: none;
 }
 
 .stat-card {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  /* Rectangle (not square) — same width, shorter height — with a softer,
-     more rounded corner than the rest of the site's cards. */
-  aspect-ratio: 4 / 3;
+  gap: 10px;
+  min-width: 0;
   background: var(--stat-bg, var(--surface-white));
   border: 1px solid var(--stat-accent-soft, var(--border-soft));
-  border-radius: 22px;
-  box-shadow: 0 6px 16px rgba(58, 36, 66, 0.18);
-  padding: 12px;
-  width: 100%;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(42, 24, 50, 0.22);
+  padding: 10px 14px;
+  text-align: left;
 }
 
 .stat-card-icon-badge {
   flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
@@ -51,7 +48,6 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
 }
 
 .stat-card-value {
@@ -60,22 +56,37 @@
   color: var(--ink);
   line-height: 1.1;
   letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
 }
+.stat-card-value--na { color: var(--ink-faint); }
 
 .stat-card-label {
-  margin-top: 3px;
-  font-size: 0.62rem;
-  font-weight: 600;
+  margin-top: 2px;
+  font-size: 0.64rem;
+  font-weight: 700;
   color: var(--ink-softer);
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
   line-height: 1.25;
+}
+
+.stat-card-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Loading state — same shimmer treatment already used on PropertyDetailPage. */
 .stat-skel {
-  height: 1.1rem;
-  width: 52px;
+  height: 1.3rem;
+  width: 56px;
+  max-width: 100%;
   border-radius: 6px;
   background: linear-gradient(90deg, #f3ecf1 25%, #ece0e8 37%, #f3ecf1 63%);
   background-size: 400% 100%;
@@ -87,10 +98,19 @@
   100% { background-position: 0 50%; }
 }
 
-.stats-error {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.8rem;
+@media (max-width: 767.98px) {
+  .hero-stat-cards { gap: 8px; margin-bottom: 16px; }
+  .stat-card { padding: 9px 10px; gap: 8px; border-radius: 14px; }
+  .stat-card-icon-badge { width: 30px; height: 30px; }
+  .stat-card-icon { width: 15px; height: 15px; }
+  .stat-card-value { font-size: 1.1rem; }
+}
+
+/* Narrow phones: stack icon over value so three cards still fit one row. */
+@media (max-width: 479.98px) {
+  .stat-card { flex-direction: column; align-items: center; text-align: center; gap: 5px; padding: 9px 6px; }
+  .stat-card-body { align-items: center; }
+  .stat-card-label { font-size: 0.58rem; letter-spacing: 0.3px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

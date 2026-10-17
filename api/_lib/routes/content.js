@@ -21,6 +21,7 @@ module.exports = [
     { segments: ["search"], handler: require("./content/search.js") },
     { segments: ["search-data"], handler: require("./content/search-data.js") },
     { segments: ["__university-housing-inventory__"], handler: require("./content/university-housing/inventory.js") },
+    { segments: ["location-boundary"], handler: require("./content/location-boundary.js") },
     { segments: ["student-planner"], handler: require("./content/student-planner.js") },
     { segments: ["student-planner-ppt"], handler: require("./content/student-planner-ppt.js") },
     { segments: ["enquire"], handler: require("./content/enquire.js") },

@@ -4,6 +4,7 @@ import {
   X, Headset, Heart, Mic, Handshake, Building2, Mail, FileText, Lock, ArrowRight, GraduationCap, Newspaper,
 } from "lucide-react";
 import "./MobileMenuSheet.css";
+import { SEARCH_ANCHOR_HREF } from "../../lib/homeSearch";
 
 const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHuts! I'm looking for student accommodation abroad. Can you help?")}`;
 
@@ -19,7 +20,7 @@ const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHut
 const PRIMARY_ROWS = [
   { label: "Support", href: WA_HREF, external: true, Icon: Headset },
   { label: "Shortlist", to: "/wishlist", Icon: Heart },
-  { label: "University Housing", to: "/university-housing", Icon: GraduationCap },
+  { label: "Find Accommodation", to: SEARCH_ANCHOR_HREF, Icon: GraduationCap },
   { label: "Placement Podcast", to: "/life-abroad", Icon: Mic },
   { label: "Blog", to: "/blog", Icon: Newspaper },
 ];

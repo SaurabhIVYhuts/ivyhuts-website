@@ -29,6 +29,7 @@
     { "source": "/api/search", "destination": "/api/content/search" },
     { "source": "/api/search-data", "destination": "/api/content/search-data" },
     { "source": "/api/university-housing/inventory", "destination": "/api/content/__university-housing-inventory__" },
+    { "source": "/api/location-boundary", "destination": "/api/content/location-boundary" },
     { "source": "/api/student-planner", "destination": "/api/content/student-planner" },
     { "source": "/api/student-planner-ppt", "destination": "/api/content/student-planner-ppt" },
     { "source": "/api/enquire", "destination": "/api/content/enquire" },

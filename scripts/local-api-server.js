@@ -30,6 +30,7 @@ const propertiesSearchHandler = require("../api/_lib/routes/crm-tools/properties
 const cityListingsHandler = require("../api/_lib/routes/content/city-listings.js");
 const countryListingsHandler = require("../api/_lib/routes/content/country-listings.js");
 const universityHousingInventoryHandler = require("../api/_lib/routes/content/university-housing/inventory.js");
+const locationBoundaryHandler = require("../api/_lib/routes/content/location-boundary.js");
 const metaWebhookHandler = require("../api/leads/meta/webhook.js");
 const authRoutes = {
     "/api/auth/signup": require("../api/_lib/routes/auth/signup.js"),
@@ -178,6 +179,10 @@ const server = http.createServer(async (req, res) => {
         }
         if (url.pathname === "/api/university-housing/inventory") {
             await universityHousingInventoryHandler(req, res);
+            return;
+        }
+        if (url.pathname === "/api/location-boundary") {
+            await locationBoundaryHandler(req, res);
             return;
         }
         if (url.pathname === "/api/universities/resolve") {

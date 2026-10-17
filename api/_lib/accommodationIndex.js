@@ -1464,9 +1464,58 @@ async function getCitiesListings(cityNames) {
     return { status: "ready", residences: residenceDocs };
 }
 
+// University Housing's COUNTRY search — every indexed residence in a
+// country, paged at the query layer (a large market can hold more rows than
+// one response should carry). Matches the structured `country` field
+// (Amber's own long name, the value mapAmberItemToResidence stores — the
+// caller passes it already canonicalized by locationResolver.js), so cities
+// outside the curated list are included too, not just the capital or the
+// curated shortlist. A row whose `country` was never captured is included
+// only when its city is one of `fallbackCityNames` (the curated cities for
+// that country, getCitiesListings' existing join key) — never guessed from
+// an address or description. Uses the existing {country:1}/{city:1}
+// indexes. READ-ONLY, same as getCitiesListings: never triggers a refresh.
+const COUNTRY_PAGE_MAX_LIMIT = 500;
+async function getCountryListingsPage(countryName, { fallbackCityNames = [], page = 1, limit = 200 } = {}) {
+    const country = String(countryName || "").trim();
+    const safePage = Math.max(1, Math.floor(Number(page)) || 1);
+    const safeLimit = Math.min(COUNTRY_PAGE_MAX_LIMIT, Math.max(1, Math.floor(Number(limit)) || 200));
+    const empty = { status: "building", residences: [], total: 0, page: safePage, limit: safeLimit, hasMore: false };
+    if (!country) return empty;
+
+    try {
+        await connectToDatabase();
+    } catch (err) {
+        if (err instanceof MongoNotConfiguredError) return empty;
+        throw err;
+    }
+
+    const normalizedCities = Array.from(new Set(fallbackCityNames.map(normalizeCityName).filter(Boolean)));
+    const query = normalizedCities.length
+        ? { $or: [{ country }, { country: null, city: { $in: normalizedCities } }] }
+        : { country };
+
+    // Stable order so consecutive pages never overlap or skip a row:
+    // available first, then insertion order (_id is unique).
+    const [total, residenceDocs] = await Promise.all([
+        AccommodationResidence.countDocuments(query),
+        AccommodationResidence.find(query).sort({ available: -1, _id: 1 }).skip((safePage - 1) * safeLimit).limit(safeLimit).lean(),
+    ]);
+    return {
+        status: total > 0 ? "ready" : "building",
+        residences: residenceDocs,
+        total,
+        page: safePage,
+        limit: safeLimit,
+        hasMore: (safePage - 1) * safeLimit + residenceDocs.length < total,
+    };
+}
+
 module.exports = {
     getCityResidences,
     getCitiesListings,
+    getCountryListingsPage,
+    COUNTRY_PAGE_MAX_LIMIT,
     getCityListings,
     getOverrideResidences,
     rankResidences,

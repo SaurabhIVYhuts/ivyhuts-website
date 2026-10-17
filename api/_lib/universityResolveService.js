@@ -28,6 +28,7 @@ const { searchNominatim, generateSimplifiedQueries, hasValidCoords } = require("
 const { sharedGet, sharedSet, acquireLock, releaseLock, log } = require("./sharedStore");
 const { connectToDatabase, MongoNotConfiguredError } = require("./mongodb");
 const UniversityIndex = require("./models/UniversityIndex");
+const { resolveLocationQuery } = require("./locationResolver");
 
 const MAX_QUERY_LENGTH = 120; // cap for a plain-text institution name/query. The <input>'s own maxLength is now
 // MAX_URL_LENGTH (see api/_lib/googleMapsParser.js) instead, since it must also fit a full pasted Google Maps
@@ -339,6 +340,27 @@ async function resolveUniversity(rawQuery, opts = {}) {
     return resolveTier3(query, normalizedKey);
 }
 
+// University Housing's search box: universities AND cities/countries.
+// Order matters — an exact curated (Tier 1) university always wins; then an
+// EXACT known city/country (locationResolver.js); only then the rest of the
+// university pipeline. The location step must come before Tier 2, whose
+// stored aliases include raw past queries (a past "Manchester" search may
+// be cached as an alias of a university), and before Nominatim/AI, which
+// would otherwise turn a city name into a nearby institution. Returns the
+// same status shapes as resolveUniversity(); a location record carries
+// type "CITY"/"COUNTRY" and no coordinates. Opt-in (the resolve route's
+// `scope=location`) so CRM/assistant callers of resolveUniversity() keep
+// getting universities only.
+async function resolveHousingSearch(rawQuery) {
+    const query = String(rawQuery || "").trim().slice(0, MAX_QUERY_LENGTH);
+    if (!query) return { status: "not_found" };
+    const tier1 = resolveCampusUniversity(query);
+    if (tier1) return { status: "resolved", record: toPublicUniversityShape(tier1) };
+    const location = await resolveLocationQuery(query);
+    if (location) return location;
+    return resolveUniversity(query);
+}
+
 // ── Google Maps candidate resolution ──
 // Entry point for a parsed Google Maps URL (see api/universities/resolve.js's
 // GET handler and src/lib/googleMapsParser.js / api/_lib/googleMapsParser.js
@@ -376,7 +398,19 @@ function haversineKmLocal(lat1, lon1, lat2, lon2) {
 // resolveUniversity(): resolved / ambiguous / not_found / unavailable — a
 // not_found here carries reason "no_institution_name" when there was no
 // name to resolve by at all, letting the caller show a distinct message.
-async function resolveGoogleMapsCandidate(candidate) {
+//
+// opts.includeLocations (University Housing only): a Maps place whose name
+// is an exact known city/country ("Manchester", "United Kingdom") — and not
+// a curated university — resolves to that city/country. Its pin is not used
+// as a filter (a city/country search never radius-filters inventory).
+async function resolveGoogleMapsCandidate(candidate, opts = {}) {
+    if (opts.includeLocations) {
+        const placeName = typeof (candidate && candidate.name) === "string" ? candidate.name.trim().slice(0, MAX_QUERY_LENGTH) : "";
+        if (placeName && !resolveCampusUniversity(placeName)) {
+            const location = await resolveLocationQuery(placeName);
+            if (location) return location;
+        }
+    }
     const latitude = Number(candidate && candidate.latitude);
     const longitude = Number(candidate && candidate.longitude);
     const hasCoords = hasValidCoords(latitude, longitude) && !(latitude === 0 && longitude === 0);
@@ -470,6 +504,7 @@ async function resolveUniversityById(id) {
 
 module.exports = {
     resolveUniversity,
+    resolveHousingSearch,
     resolveUniversityById,
     resolveGoogleMapsCandidate,
     toPublicUniversityShape,
