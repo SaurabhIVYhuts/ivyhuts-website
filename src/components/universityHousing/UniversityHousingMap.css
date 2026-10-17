@@ -1,0 +1,188 @@
+/* ═══════════════════════════════════
+   ACCOMMODATION MAP — brand styling for UniversityHousingMap.js
+   Same Leaflet map, same OpenStreetMap tiles and attribution; only the
+   presentation changes. Brand tokens only (src/styles/global.css :root).
+   ═══════════════════════════════════ */
+
+.uh-map-shell {
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-md);
+  background: #EEE9EE; /* shown while tiles load — a soft neutral, not grey */
+}
+.uh-map-leaflet { font-family: inherit; background: #EEE9EE; }
+
+/* Softer base map: OSM's standard style is saturated; muting it lets the
+   brand-coloured pins lead while roads, parks, water and labels stay legible. */
+.uh-map-tiles { filter: saturate(0.55) brightness(1.03) contrast(0.96); }
+
+/* ── PROPERTY & INSTITUTION PINS ── */
+.uh-pin { background: none; border: none; }
+.uh-pin-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--surface-white);
+  color: var(--brand-purple);
+  border: 1.5px solid rgba(94, 58, 107, 0.35);
+  box-shadow: 0 2px 6px rgba(58, 36, 66, 0.22);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+.uh-pin-body svg { width: 54%; height: 54%; }
+.uh-pin--property:hover .uh-pin-body,
+.uh-pin--property:focus-visible .uh-pin-body {
+  transform: scale(1.1);
+  border-color: var(--brand-purple);
+  box-shadow: 0 4px 12px rgba(58, 36, 66, 0.28);
+}
+.uh-pin--property-active .uh-pin-body {
+  background: var(--brand-purple);
+  color: #fff;
+  border: 2.5px solid #fff;
+  box-shadow: 0 0 0 4px rgba(176, 120, 152, 0.35), 0 8px 18px rgba(58, 36, 66, 0.35);
+}
+.uh-pin--university .uh-pin-body,
+.uh-pin--school .uh-pin-body {
+  background: linear-gradient(135deg, var(--brand-purple-deep) 0%, var(--brand-purple) 100%);
+  color: var(--brand-gold-light);
+  border: 2.5px solid #fff;
+  box-shadow: 0 0 0 4px rgba(200, 150, 12, 0.25), 0 6px 14px rgba(58, 36, 66, 0.35);
+}
+.uh-pin:focus { outline: none; }
+.uh-pin:focus-visible .uh-pin-body { outline: 3px solid var(--brand-gold); outline-offset: 2px; }
+
+/* ── CLUSTERS — plum disc, soft halo, white count ── */
+.uh-cluster { background: none; border: none; }
+.uh-cluster-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--brand-purple);
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 5px rgba(94, 58, 107, 0.2), 0 4px 10px rgba(58, 36, 66, 0.3);
+  transition: background 160ms ease, box-shadow 160ms ease;
+  cursor: pointer;
+}
+.uh-cluster--sm .uh-cluster-body { font-size: 0.82rem; }
+.uh-cluster--md .uh-cluster-body { font-size: 0.88rem; background: var(--brand-purple-deep); }
+.uh-cluster--lg .uh-cluster-body { font-size: 0.94rem; background: var(--brand-purple-deep); box-shadow: 0 0 0 7px rgba(94, 58, 107, 0.22), 0 5px 12px rgba(58, 36, 66, 0.32); }
+.uh-cluster:hover .uh-cluster-body { background: var(--brand-puce-deep); box-shadow: 0 0 0 6px rgba(196, 122, 138, 0.28), 0 5px 12px rgba(58, 36, 66, 0.3); }
+
+/* ── CONTROLS — replace Leaflet's default zoom buttons ── */
+.uh-map-controls {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 650; /* above markers/clusters (600), below popups (700) so a preview card is never hidden behind the controls */
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-white);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.uh-map-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--brand-purple);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.uh-map-control + .uh-map-control { border-top: 1px solid var(--border-soft); }
+.uh-map-control--gap { border-top-width: 3px !important; border-top-color: var(--surface) !important; }
+.uh-map-control:hover { background: var(--surface); color: var(--brand-purple-deep); }
+.uh-map-control:focus-visible { outline: 3px solid var(--brand-gold); outline-offset: -3px; }
+
+/* Attribution stays visible (OSM licence requirement), just quieter. */
+.uh-map-shell .leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink-softer);
+  font-size: 10.5px;
+  border-top-left-radius: var(--radius-sm);
+  padding: 2px 8px;
+}
+.uh-map-shell .leaflet-control-attribution a { color: var(--brand-purple); }
+
+/* ── POPUP / PROPERTY PREVIEW ── */
+.uh-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.uh-popup .leaflet-popup-content { margin: 0; width: auto !important; font-family: inherit; line-height: 1.4; }
+.uh-popup .leaflet-popup-tip { box-shadow: none; border: 1px solid var(--border-soft); }
+.uh-popup a.leaflet-popup-close-button {
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ink);
+  font: 700 18px/1 system-ui, sans-serif;
+  box-shadow: var(--shadow-sm);
+  z-index: 2;
+}
+.uh-popup a.leaflet-popup-close-button:hover { background: #fff; color: var(--brand-purple); }
+.uh-popup a.leaflet-popup-close-button:focus-visible { outline: 3px solid var(--brand-gold); outline-offset: 1px; }
+.uh-popup--institution .leaflet-popup-content { padding: 14px 44px 14px 16px; }
+
+.uh-preview { display: flex; flex-direction: column; min-width: 0; }
+.uh-preview-media { position: relative; height: 128px; background: var(--surface); }
+.uh-preview-image { display: block; width: 100%; height: 100%; object-fit: cover; }
+.uh-preview-body { display: flex; flex-direction: column; gap: 5px; padding: 12px 14px 14px; }
+.uh-preview:not(:has(.uh-preview-media)) .uh-preview-body { padding-right: 44px; } /* clear the close button when there's no image */
+.uh-preview-status {
+  align-self: flex-start;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: var(--radius-full);
+  padding: 2px 9px;
+}
+.uh-preview-status--soldout { color: #9B3A3A; background: #FBEAEA; border: 1px solid #F0C4C4; }
+.uh-preview-name { font-size: 0.95rem; font-weight: 800; color: var(--ink); line-height: 1.3; }
+.uh-preview-meta { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; color: var(--ink-softer); }
+.uh-preview-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.uh-preview-price { font-size: 0.92rem; font-weight: 800; color: var(--brand-purple); }
+.uh-preview-price--na { font-weight: 600; color: var(--ink-softer); font-size: 0.82rem; }
+.uh-preview-duration { font-size: 0.74rem; font-weight: 600; color: var(--ink-softer); }
+.uh-preview-rating { display: inline-flex; align-items: center; gap: 3px; font-size: 0.8rem; font-weight: 700; color: var(--brand-gold-deep); }
+.uh-preview-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.uh-preview-cta { flex: 1; justify-content: center; text-align: center; min-height: 40px; display: inline-flex; align-items: center; }
+.uh-popup .uh-preview-cta.btn-primary,
+.uh-popup .uh-preview-cta.btn-primary:hover { color: #fff; }
+/* Leaflet's own `.leaflet-container a` colour outranks .btn-outline here. */
+.uh-popup .uh-preview-cta.btn-outline { color: var(--brand-purple); }
+
+@media (max-width: 640px) {
+  .uh-map-controls { top: 10px; right: 10px; }
+  .uh-map-control { width: 44px; height: 44px; } /* touch-friendly */
+  .uh-preview-media { height: 112px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .uh-pin-body, .uh-cluster-body { transition: none; }
+}

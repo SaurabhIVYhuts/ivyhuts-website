@@ -185,7 +185,7 @@ async function main() {
         const files = [
             path.join(ROOT, "api", "_lib", "accommodationIndex.js"),
             path.join(ROOT, "api", "_lib", "routes", "content", "student-planner.js"),
-            path.join(ROOT, "src", "pages", "UniversityHousingPage.js"),
+            path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"),
         ];
         files.forEach((f) => {
             const src = fs.readFileSync(f, "utf8");

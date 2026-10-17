@@ -196,7 +196,7 @@ async function main() {
     // ══════════════════════════ SEARCH UI / MAP (item 7/17/18/20) — structural, real source ══════════════════════════
     const searchSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "UniversitySearchBox.js"), "utf8");
     const mapSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "UniversityHousingMap.js"), "utf8");
-    const pageSrc = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+    const pageSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
 
     await test("SEARCH UI: renders an institution TYPE label generically (from the resolved record's own `type` field) — not a Vamos-specific hardcoded branch", () => {
         assert.ok(/TYPE_LABELS/.test(searchSrc) && /selected\.type|uni\.type/.test(searchSrc));

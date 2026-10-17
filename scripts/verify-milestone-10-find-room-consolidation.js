@@ -105,7 +105,9 @@ async function main() {
         assert.strictEqual(shouldRedirectToUniversityHousing(""), false, "a bare browse link must NOT redirect (no UH equivalent)");
         assert.strictEqual(shouldRedirectToUniversityHousing("?property=some-slug"), false, "a property deep-link must NOT redirect (no UH equivalent)");
         // Query param preservation, structurally confirmed in the real component.
-        assert.ok(appSrc.includes("`/university-housing?${params.toString()}`"), "the redirect must carry the full original query string forward");
+        // The University Housing search now lives on the homepage, so the
+        // university-only redirect targets `/` with the same query string.
+        assert.ok(appSrc.includes("`/?${params.toString()}`"), "the redirect must carry the full original query string forward");
     });
 
     // ══════════════════════ TEST 4 ══════════════════════
@@ -117,7 +119,7 @@ async function main() {
     // ══════════════════════ TEST 5 ══════════════════════
     await test("TEST 5: university search (Find Room ?university=, and University Housing's own search box) both resolve the same way", () => {
         assert.strictEqual(shouldRedirectToUniversityHousing("?university=university-of-derby"), true);
-        const uhSrc = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+        const uhSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
         assert.ok(uhSrc.includes('searchParams.get("university")'));
     });
 
@@ -157,7 +159,7 @@ async function main() {
     // ══════════════════════ TEST 9 ══════════════════════
     await test("TEST 9: sorting options remain intact in Find Room; University Housing's own (smaller) sort set is unchanged by this milestone", () => {
         assert.ok(listingPageSrc.includes('"recommended"') && listingPageSrc.includes('"rating_desc"'), "Find Room must still support recommended/rating_desc sorting, not present in University Housing");
-        const uhSrc = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+        const uhSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
         assert.ok(uhSrc.includes('"distance"') && uhSrc.includes('"price_asc"') && uhSrc.includes('"price_desc"'));
     });
 
@@ -269,7 +271,7 @@ async function main() {
 
     // ══════════════════════ TEST 25 ══════════════════════
     await test("TEST 25: SEO — no duplicate-page metadata mechanism was introduced (none existed before; none exists now, confirmed, not assumed)", () => {
-        const files = ["src/App.js", "src/pages/UniversityHousingPage.js", "src/pages/PropertyListingPage.js"];
+        const files = ["src/App.js", "src/components/universityHousing/AccommodationSearchExperience.js", "src/pages/PropertyListingPage.js"];
         for (const f of files) {
             const src = fs.readFileSync(path.join(ROOT, f), "utf8");
             assert.ok(!/react-helmet|<Helmet/.test(src), `${f} must not have introduced a new, inconsistent SEO mechanism this milestone`);

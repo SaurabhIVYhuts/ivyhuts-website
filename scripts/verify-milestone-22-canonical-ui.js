@@ -102,9 +102,9 @@ async function main() {
     });
 
     await test("UniversityHousingPage.js uses the shared filter/sort model (useFilterState + listingFilters), not a second implementation", () => {
-        const src = readSrc("src/pages/UniversityHousingPage.js");
-        assert.ok(src.includes('from "../hooks/useFilterState"'), "must reuse the same URL-backed filter hook Find Room uses");
-        assert.ok(src.includes('from "../lib/listingFilters"'));
+        const src = readSrc("src/components/universityHousing/AccommodationSearchExperience.js");
+        assert.ok(src.includes('from "../../hooks/useFilterState"'), "must reuse the same URL-backed filter hook Find Room uses");
+        assert.ok(src.includes('from "../../lib/listingFilters"'));
         assert.ok(src.includes("applyListingFilters(properties, filters)"));
     });
 

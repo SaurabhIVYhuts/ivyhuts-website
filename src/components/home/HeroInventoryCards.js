@@ -1,67 +1,27 @@
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import { Building2, Ban, BadgeCheck } from "lucide-react";
 import "./StatCard.css";
 import { useInventoryStats } from "../../hooks/useInventoryStats";
 import { AnimatedStatValue } from "./AnimatedStatValue";
 
-// The same three live Amber-backed cards that used to live in a standalone
-// "Our Inventory at a Glance" section below the hero — same
-// useInventoryStats data, now a horizontal row above the search bar where
-// the accommodation photo used to sit.
+// The three live inventory counters from the previous homepage, now a
+// compact row inside the search-first hero. All three numbers come from ONE
+// shared useInventoryStats() fetch (-> /api/amber?type=inventorystats ->
+// api/_lib/inventoryStats.js, Redis-cached site-wide aggregate) — never one
+// request per card, and never derived from whatever results are on screen.
 const CARD_DEFS = [
-  { key: "total", label: "Total Inventory", Icon: Building2, accent: "#5E3A6B", accentSoft: "rgba(94, 58, 107, 0.12)", bg: "#F1EAF4" },
-  { key: "soldOut", label: "Sold Out", Icon: Ban, accent: "#C0392B", accentSoft: "rgba(192, 57, 43, 0.12)", bg: "#FCEBEE" },
-  { key: "remaining", label: "Remaining", Icon: BadgeCheck, accent: "#2E7D32", accentSoft: "rgba(46, 125, 50, 0.12)", bg: "#E8F5E9" },
+  { key: "total", label: "Total Inventory", Icon: Building2, accent: "#5E3A6B", accentSoft: "rgba(94, 58, 107, 0.12)", bg: "#F6F0F8" },
+  { key: "soldOut", label: "Sold Out", Icon: Ban, accent: "#B23A48", accentSoft: "rgba(178, 58, 72, 0.12)", bg: "#FCF1F3" },
+  { key: "remaining", label: "Remaining", Icon: BadgeCheck, accent: "#2E7D32", accentSoft: "rgba(46, 125, 50, 0.12)", bg: "#EFF7F0" },
 ];
 
 export default function HeroInventoryCards() {
   const { stats, loading, error } = useInventoryStats();
-  const trackRef = useRef(null);
-
-  // Auto-advance the mobile standalone row (see .hero-stats-standalone in
-  // global.css) one card at a time — a no-op on the in-hero instance, which
-  // is a vertical/hidden layout there and never has anything to scroll.
-  // Pauses while the visitor is actually touching/hovering it, and is
-  // skipped entirely under prefers-reduced-motion.
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track || loading) return undefined;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
-
-    let paused = false;
-    const pause = () => { paused = true; };
-    const resume = () => { paused = false; };
-    track.addEventListener("touchstart", pause, { passive: true });
-    track.addEventListener("touchend", resume, { passive: true });
-    track.addEventListener("mouseenter", pause);
-    track.addEventListener("mouseleave", resume);
-
-    const timer = setInterval(() => {
-      if (paused || track.scrollWidth <= track.clientWidth || !track.children.length) return;
-      const style = window.getComputedStyle(track);
-      const gap = parseFloat(style.columnGap || style.gap) || 0;
-      const step = track.children[0].getBoundingClientRect().width + gap;
-      const atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
-      track.scrollTo({ left: atEnd ? 0 : track.scrollLeft + step, behavior: "smooth" });
-    }, 2800);
-
-    return () => {
-      clearInterval(timer);
-      track.removeEventListener("touchstart", pause);
-      track.removeEventListener("touchend", resume);
-      track.removeEventListener("mouseenter", pause);
-      track.removeEventListener("mouseleave", resume);
-    };
-  }, [loading]);
-
-  if (error) {
-    return <p className="stats-error">Unable to load live inventory statistics.</p>;
-  }
 
   return (
-    <div className="hero-stat-cards" ref={trackRef} aria-label="Live IvyHuts inventory">
+    <ul className="hero-stat-cards" aria-label="Live IVYHUTS inventory" aria-busy={loading && !stats ? "true" : undefined}>
       {CARD_DEFS.map(({ key, label, Icon, accent, accentSoft, bg }) => (
-        <div
+        <li
           className="stat-card"
           key={key}
           style={{ "--stat-accent": accent, "--stat-accent-soft": accentSoft, "--stat-bg": bg }}
@@ -70,15 +30,23 @@ export default function HeroInventoryCards() {
             <Icon className="stat-card-icon" aria-hidden="true" />
           </div>
           <div className="stat-card-body">
-            {loading || !stats ? (
-              <div className="stat-card-value stat-skel" aria-hidden="true" />
-            ) : (
+            {stats ? (
               <AnimatedStatValue value={stats[key]} />
+            ) : error ? (
+              // Neutral fallback — never a fabricated 0. useInventoryStats
+              // keeps retrying slowly in the background and swaps real
+              // numbers in if the backend recovers.
+              <div className="stat-card-value stat-card-value--na">
+                <span aria-hidden="true">—</span>
+                <span className="stat-card-sr">Unavailable</span>
+              </div>
+            ) : (
+              <div className="stat-card-value stat-skel" aria-hidden="true" />
             )}
             <div className="stat-card-label">{label}</div>
           </div>
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }

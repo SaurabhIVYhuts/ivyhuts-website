@@ -434,7 +434,7 @@ async function main() {
         // getOverrideResidences() for a DIFFERENT, override-only path) is
         // expected and not itself a coupling, so this checks the actual
         // fetch effect's calls rather than a blanket "never mentions" scan.
-        const uhPageSrc = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+        const uhPageSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
         assert.ok(/getProperties\(/.test(uhPageSrc) && !/getCityListings\(/.test(uhPageSrc), "UniversityHousingPage.js must call getProperties(), never getCityListings()");
     });
 

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Star, MapPin } from "lucide-react";
 import WishlistHeart from "../listing/WishlistHeart";
@@ -12,7 +12,7 @@ import WishlistHeart from "../listing/WishlistHeart";
 // requirement). Every other piece is reused as-is: WishlistHeart (identical
 // behavior to every other card in the app) and the existing
 // /property/:slug route (no second property-detail implementation).
-function PropertyRow({ property, active, onSelect }) {
+const PropertyRow = React.forwardRef(function PropertyRow({ property, active, onSelect }, ref) {
   const { id, name, address, image, price, rating, badges, slug, distanceKm, isSoldOut } = property;
 
   const wishlistSnapshot = id != null ? {
@@ -26,6 +26,7 @@ function PropertyRow({ property, active, onSelect }) {
 
   return (
     <div
+      ref={ref}
       className={`uh-property-row${active ? " uh-property-row--active" : ""}`}
       role="button"
       tabIndex={0}
@@ -65,7 +66,7 @@ function PropertyRow({ property, active, onSelect }) {
       </div>
     </div>
   );
-}
+});
 
 // Milestone 22: default kept as a fallback for any caller that doesn't pass
 // its own `sortOptions` (none currently do — UniversityHousingPage.js always
@@ -84,6 +85,25 @@ export default function PropertyListPanel({
   hasMore, loadingMore, onLoadMore, university,
 }) {
   const options = sortOptions || DEFAULT_SORT_OPTIONS;
+
+  // Map -> list sync: when a marker selects a property, bring its row into
+  // view INSIDE this panel's own scroll area (never scrolling the page). A
+  // row that's already fully visible is left alone.
+  const scrollRef = useRef(null);
+  const rowRefs = useRef(new Map());
+  useEffect(() => {
+    if (selectedId == null) return;
+    const container = scrollRef.current;
+    const row = rowRefs.current.get(String(selectedId));
+    if (!container || !row || container.scrollHeight <= container.clientHeight) return;
+    const top = row.offsetTop; // the scroll container is position:relative, so this is relative to it
+    const bottom = top + row.offsetHeight;
+    if (top >= container.scrollTop && bottom <= container.scrollTop + container.clientHeight) return;
+    const target = Math.max(0, top - 8);
+    if (typeof container.scrollTo === "function") container.scrollTo({ top: target, behavior: "smooth" });
+    else container.scrollTop = target;
+  }, [selectedId]);
+
   return (
     <div className="uh-list-panel">
       <div className="uh-list-panel-toolbar">
@@ -98,10 +118,14 @@ export default function PropertyListPanel({
         </label>
       </div>
 
-      <div className="uh-list-panel-scroll">
+      <div className="uh-list-panel-scroll" ref={scrollRef}>
         {properties.map((p) => (
           <PropertyRow
             key={p.id}
+            ref={(el) => {
+              if (el) rowRefs.current.set(String(p.id), el);
+              else rowRefs.current.delete(String(p.id));
+            }}
             property={p}
             active={String(p.id) === String(selectedId)}
             onSelect={onSelectProperty}

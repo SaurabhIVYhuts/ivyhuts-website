@@ -1,21 +1,20 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { GraduationCap, MapPin, ArrowRight } from "lucide-react";
-import SiteNavbar from "../components/layout/SiteNavbar";
-import SiteFooter from "../components/layout/SiteFooter";
-import UniversitySearchBox from "../components/universityHousing/UniversitySearchBox";
-import UniversityHousingMap from "../components/universityHousing/UniversityHousingMap";
-import PropertyListPanel from "../components/universityHousing/PropertyListPanel";
-import { resolveCampusUniversityById } from "../lib/campusUniversityResolver";
-import { resolveUniversityById as resolveDiscoveredUniversityById } from "../services/universityDiscoveryApi";
-import { getProperties, getPropertyBySlug, getUniversityHousingInventory } from "../services/amberApi";
-import { safeListingList, safeResidenceListingList } from "../services/amberMapper";
-import { haversineKm, hasValidCoords } from "../lib/geoDistance";
-import { applyListingFilters, sortListings, deriveFilterOptions } from "../lib/listingFilters";
-import useFilterState from "../hooks/useFilterState";
-import PriceRangeSlider from "../components/filters/PriceRangeSlider";
-import "./UniversityHousingPage.css";
-import Seo from "../components/Seo";
+import UniversitySearchBox from "./UniversitySearchBox";
+import PropertyListPanel from "./PropertyListPanel";
+import { resolveCampusUniversityById } from "../../lib/campusUniversityResolver";
+import { resolveUniversityById as resolveDiscoveredUniversityById } from "../../services/universityDiscoveryApi";
+import { getProperties, getPropertyBySlug, getUniversityHousingInventory, getLocationSearchInventory } from "../../services/amberApi";
+import { getLocationBoundary } from "../../services/boundaryApi";
+import { countryFullName } from "../../data/destinations";
+import { safeListingList, safeResidenceListingList } from "../../services/amberMapper";
+import { haversineKm, hasValidCoords } from "../../lib/geoDistance";
+import { applyListingFilters, sortListings, deriveFilterOptions } from "../../lib/listingFilters";
+import useFilterState from "../../hooks/useFilterState";
+import PriceRangeSlider from "../filters/PriceRangeSlider";
+import "./AccommodationSearchExperience.css";
+import Seo from "../Seo";
 
 // Milestone 22 (IVYHUTS_MILESTONE_22_UNIVERSITY_HOUSING_CANONICAL_UI.md):
 // same BASE_SORT_OPTIONS/DISTANCE_SORT_OPTION split PropertyListingPage.js
@@ -31,8 +30,38 @@ const DISTANCE_SORT_OPTION = { value: "distance", label: "Distance from Universi
 
 const PAGE_LIMIT = 50;
 
-// University -> City -> IVYHUTS properties in that city -> map. This page is
-// deliberately a thin orchestration layer: it owns none of the property data
+// Leaflet (+ clustering) is only downloaded once a search actually shows a
+// map, not with the homepage bundle itself.
+const LazyUniversityHousingMap = lazy(() => import("./UniversityHousingMap"));
+function UniversityHousingMap(props) {
+  return (
+    <Suspense fallback={<div className="uh-map-shell uh-map-loading" aria-busy="true" aria-label="Loading map" />}>
+      <LazyUniversityHousingMap {...props} />
+    </Suspense>
+  );
+}
+
+// "Accommodation in the United Kingdom" / "... in Germany".
+function withCountryArticle(country) {
+  return /^(united |netherlands$|czech republic$|philippines$)/i.test(country || "") ? `the ${country}` : country;
+}
+
+// The site's ONE accommodation search experience (formerly the standalone
+// /university-housing page, which now redirects to the homepage): university
+// -> nearby inventory, city -> the whole city, country -> the whole country,
+// rendered as list + map from one shared result set. The homepage
+// (src/pages/HomePage.js) renders it once; the host page owns layout only:
+//
+//   renderSearch(searchBox) — where the search box goes (the homepage hero).
+//   resultsId               — id of the results section (scrolled into view
+//                             whenever a new search is selected).
+//   basePath                — the path search URLs/canonicals are built on.
+//   defaultSeo              — {title, description} while no search is active.
+//
+// State lives in the URL (?university= | ?city=&country= | ?country=, plus
+// the shared filter params), so refresh and shared links restore a search.
+//
+// A deliberately thin orchestration layer: it owns none of the property data
 // itself.
 //
 // Milestone 9 (IVYHUTS_MILESTONE_9_UNIVERSITY_HOUSING_MIGRATION_REPORT.md):
@@ -47,9 +76,29 @@ const PAGE_LIMIT = 50;
 // pipeline (cacheWarmer.js/attemptCityRefresh, entirely server-side). The
 // only genuinely new NON-Amber data here is campusUniversities.json (a
 // small, curated dataset — see src/lib/campusUniversityResolver.js).
-export default function UniversityHousingPage() {
+export default function AccommodationSearchExperience({
+  renderSearch = (searchBox) => searchBox,
+  resultsId = "accommodation-results",
+  basePath = "/",
+  defaultSeo = null,
+  autoFocusSearch = false,
+}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const universityId = searchParams.get("university");
+
+  // City / country search (?city=Manchester&country=UK, or ?country=UK) — a
+  // whole-area inventory search with no university anchor. A ?university=
+  // always takes precedence, so one URL can never mean two searches.
+  const cityParam = searchParams.get("city");
+  const countryParam = searchParams.get("country");
+  const areaLocation = useMemo(() => {
+    if (universityId) return null;
+    if (cityParam) return { type: "CITY", city: cityParam, country: countryParam || null };
+    if (countryParam) return { type: "COUNTRY", city: null, country: countryParam };
+    return null;
+  }, [universityId, cityParam, countryParam]);
+  const isAreaMode = Boolean(areaLocation);
+  const areaKey = areaLocation ? `${areaLocation.type}|${areaLocation.city || ""}|${areaLocation.country || ""}` : null;
 
   // Resolving a URL's ?university=<id> now has two paths: Tier 1 (static
   // campusUniversities.json) resolves synchronously with zero I/O, exactly
@@ -100,6 +149,10 @@ export default function UniversityHousingPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  // City/country searches only: {total, hasMore, page, country} from the
+  // inventory response — `country` is the server's canonical name.
+  const [areaResult, setAreaResult] = useState(null);
+  const [areaRetry, setAreaRetry] = useState(0);
 
   // Milestone 22: filter state (query/price/roomType/etc.) is now the SAME
   // URL-backed hook Find Room already uses — one canonical filtering model,
@@ -123,6 +176,22 @@ export default function UniversityHousingPage() {
   // picked a different university — same "never silently discard user
   // intent" rule the rest of this codebase already follows.
   const selectUniversity = (uni) => {
+    if (uni.type === "CITY" || uni.type === "COUNTRY") {
+      setDiscoveredUniversity(null);
+      resolvedForIdRef.current = null;
+      setUniversityLookupState("idle");
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("university");
+        if (uni.type === "CITY" && uni.city) next.set("city", uni.city);
+        else next.delete("city");
+        const country = uni.countryCode || uni.country;
+        if (country) next.set("country", country);
+        else next.delete("country");
+        return next;
+      });
+      return;
+    }
     if (!resolveCampusUniversityById(uni.id)) {
       resolvedForIdRef.current = uni.id;
       setDiscoveredUniversity(uni);
@@ -131,6 +200,8 @@ export default function UniversityHousingPage() {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("university", uni.id);
+      next.delete("city");
+      next.delete("country");
       return next;
     });
   };
@@ -138,8 +209,12 @@ export default function UniversityHousingPage() {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete("university");
+      next.delete("city");
+      next.delete("country");
       return next;
     });
+    setAreaResult(null);
+    setLoading(false);
     setDiscoveredUniversity(null);
     resolvedForIdRef.current = null;
     setUniversityLookupState("idle");
@@ -174,13 +249,14 @@ export default function UniversityHousingPage() {
   // and was never part of the pagination/rate-limit problem this migration
   // fixes (see the migration report's own scope note).
   useEffect(() => {
-    if (!university) { setRawProperties([]); return; }
+    // City/country mode owns rawProperties through its own effect below.
+    if (!university) { if (!isAreaMode) setRawProperties([]); return; }
     // A resolved university with no known city (rare — only possible for an
     // AI-assisted discovery whose Nominatim match had no city/town/village
     // in its address components) has nothing to search Amber for. Show the
     // "found, but no residences" state directly rather than attempting a
     // doomed fetch with an empty/undefined city.
-    if (!university.city && !hasOverride) { setRawProperties([]); setError(null); return; }
+    if (!university.city && !hasOverride) { setRawProperties([]); setError(null); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -218,7 +294,61 @@ export default function UniversityHousingPage() {
     })();
 
     return () => { cancelled = true; };
-  }, [university, hasOverride, overrideSlugs]);
+  }, [university, hasOverride, overrideSlugs, isAreaMode]);
+
+  // City / country search: one canonical-inventory request per search
+  // (never per keystroke — the URL only changes on an explicit
+  // selection). The cleanup flag discards a slower earlier search's
+  // response so it can never replace a newer one. An error is kept distinct
+  // from an empty result: rawProperties is cleared and `error` is set.
+  useEffect(() => {
+    if (!areaLocation) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setSelectedId(null);
+    setRawProperties([]);
+    setAreaResult(null);
+    getLocationSearchInventory({
+      type: areaLocation.type === "CITY" ? "city" : "country",
+      city: areaLocation.city,
+      country: areaLocation.country,
+      page: 1,
+    })
+      .then((data) => {
+        if (cancelled) return;
+        setRawProperties(data.residences);
+        setAreaResult({ total: data.total, hasMore: data.hasMore, page: data.page, country: data.country });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setRawProperties([]);
+        setError({ message: (err && err.message) || String(err) });
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [areaLocation, areaRetry]);
+
+  // City / country outline for the map — a separate request from the
+  // inventory above (never part of it, never gating it): listings render
+  // whether or not a boundary ever arrives. Tagged with the search it was
+  // fetched for, so the previous search's outline disappears the moment
+  // the search changes, and a slower response for an earlier search
+  // (cancelled below) can never draw over the current one.
+  const [boundaryState, setBoundaryState] = useState({ key: null, boundary: null });
+  useEffect(() => {
+    if (!areaLocation) return;
+    let cancelled = false;
+    getLocationBoundary({
+      type: areaLocation.type === "CITY" ? "city" : "country",
+      city: areaLocation.city,
+      country: areaLocation.country,
+    }).then((boundary) => {
+      if (!cancelled) setBoundaryState({ key: areaKey, boundary });
+    });
+    return () => { cancelled = true; };
+  }, [areaLocation, areaKey]);
+  const areaBoundary = isAreaMode && boundaryState.key === areaKey ? boundaryState.boundary : null;
 
   // Mirrors the `cancelled` flag the main fetch effect above uses — loadMore
   // is a separate async flow with no such guard of its own (audit fix). A
@@ -231,6 +361,38 @@ export default function UniversityHousingPage() {
   // University B's label, with distances computed against B's coordinates.
   const universityRef = useRef(university);
   useEffect(() => { universityRef.current = university; }, [university]);
+  const areaKeyRef = useRef(areaKey);
+  useEffect(() => { areaKeyRef.current = areaKey; }, [areaKey]);
+
+  // A country search is paged server-side: "Load more" appends the next
+  // page of the SAME query (deduped by property id), so the list and the
+  // map — both fed from rawProperties — always show one shared result set.
+  // A failed page keeps what's already loaded and leaves the button in
+  // place to retry.
+  const loadMoreArea = useCallback(async () => {
+    if (!areaLocation || !areaResult?.hasMore || loadingMore) return;
+    const requestedKey = areaKey;
+    const nextPage = areaResult.page + 1;
+    setLoadingMore(true);
+    try {
+      const data = await getLocationSearchInventory({
+        type: areaLocation.type === "CITY" ? "city" : "country",
+        city: areaLocation.city,
+        country: areaLocation.country,
+        page: nextPage,
+      });
+      if (areaKeyRef.current !== requestedKey) return; // search changed mid-flight — discard
+      setRawProperties((prev) => {
+        const seen = new Set(prev.map((r) => r?.propertyId));
+        return [...prev, ...data.residences.filter((r) => r?.propertyId != null && !seen.has(r.propertyId))];
+      });
+      setAreaResult((prev) => ({ ...prev, total: data.total, hasMore: data.hasMore, page: data.page }));
+    } catch (err) {
+      // Keep the loaded results; the button stays so the user can retry.
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [areaLocation, areaResult, areaKey, loadingMore]);
 
   // Milestone 9: "Load more" no longer has anything further to fetch for
   // the normal (canonical-inventory) path — getUniversityHousingInventory()
@@ -263,6 +425,7 @@ export default function UniversityHousingPage() {
       setLoadingMore(false); // always reset, even if stale — otherwise the NEW university's own loadMore stays permanently blocked
     }
   }, [university, page, loadingMore, hasOverride]);
+  const handleLoadMore = isAreaMode ? loadMoreArea : loadMore;
 
   // Real distance only when BOTH the university and the property have real,
   // verified coordinates — never fabricated, never a city-centre guess.
@@ -328,32 +491,73 @@ export default function UniversityHousingPage() {
   // further page to load, so "Load more" never has anything to do and
   // deliberately never renders. The override path already had no further
   // pages either (a fixed slug list). Both cases: hasMore is always false.
-  const hasMore = false;
+  //
+  // City/country search: a country is paged server-side, so hasMore follows
+  // the server's own `hasMore` for that query.
+  const hasMore = isAreaMode ? Boolean(areaResult?.hasMore) : false;
+
+  const areaCountry = areaResult?.country || (areaLocation?.country ? countryFullName(areaLocation.country) : null);
+  const areaName = areaLocation ? (areaLocation.type === "CITY" ? areaLocation.city : areaCountry) : null;
+  const areaHeadingName = areaLocation?.type === "COUNTRY" ? withCountryArticle(areaCountry) : areaName;
+  const searchBoxSelection = useMemo(
+    () => university || (areaLocation
+      ? { type: areaLocation.type, name: areaName, city: areaLocation.city, country: areaCountry }
+      : null),
+    [university, areaLocation, areaName, areaCountry]
+  );
+  const activeLocation = university || areaLocation;
+  const searchKey = universityId ? `UNIVERSITY|${universityId}` : areaKey;
+  const resultsRef = useRef(null);
+  useEffect(() => {
+    if (!searchKey) return;
+    const el = resultsRef.current;
+    if (el && typeof el.scrollIntoView === "function") el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [searchKey]);
+  const propertyWord = (n) => `student propert${n === 1 ? "y" : "ies"}`;
+  let resultCountText = "";
+  if (!activeLocation) resultCountText = "";
+  else if (loading) resultCountText = isAreaMode ? "Finding accommodation…" : "Finding nearby accommodation…";
+  else if (error) resultCountText = "Unable to load properties right now.";
+  else if (isAreaMode && filtersActive) {
+    resultCountText = `${filteredProperties.length} matching ${propertyWord(filteredProperties.length)}`
+      + (hasMore ? ` (${properties.length} of ${areaResult.total} loaded)` : "");
+  } else if (isAreaMode) {
+    resultCountText = hasMore
+      ? `Showing ${properties.length} of ${areaResult.total} ${propertyWord(areaResult.total)} in ${areaHeadingName}`
+      : `${properties.length} ${propertyWord(properties.length)} found in ${areaHeadingName}`;
+  } else if (!university.city) resultCountText = "No IVYHUTS properties mapped to this location yet.";
+  else resultCountText = `${filteredProperties.length}${hasMore ? "+" : ""} student propert${filteredProperties.length === 1 ? "y" : "ies"} found${filtersActive ? "" : ` in ${university.city}`}`;
+
+  const searchPath = (params) => `${basePath}?${new URLSearchParams(params).toString()}`;
 
   return (
-    <div className="uh-page">
+    <>
       <Seo
         title={university
           ? `Student Accommodation near ${university.name}`
-          : "University Housing: Student Accommodation Near Your Campus"}
+          : areaLocation
+            ? `Student Accommodation in ${areaHeadingName}`
+            : defaultSeo?.title}
         description={university
           ? `Verified student accommodation near ${university.name} — compare rooms by distance, price and amenities. Free to use, no booking fees.`
-          : "Find verified student accommodation near your university. Compare rooms by distance, price and amenities across 15+ countries — free, no booking fees."}
+          : areaLocation
+            ? `Verified student accommodation in ${areaHeadingName} — compare rooms by price and amenities. Free to use, no booking fees.`
+            : defaultSeo?.description}
         canonical={university && universityId
-          ? `/university-housing?university=${encodeURIComponent(universityId)}`
-          : "/university-housing"}
+          ? searchPath([["university", universityId]])
+          : areaLocation
+            ? searchPath([
+              ...(areaLocation.city ? [["city", areaLocation.city]] : []),
+              ...(areaLocation.country ? [["country", areaLocation.country]] : []),
+            ])
+            : basePath}
       />
-      <SiteNavbar />
 
-      <main className="uh-main">
-        <div className="uh-hero">
-          <p className="uh-eyebrow">Housing to Hiring</p>
-          <h1 className="uh-hero-title">Find Your Student Home</h1>
-          <p className="uh-hero-sub">Choose your university or school and discover every IVYHUTS property around your new city.</p>
-          <div className="uh-search-wrap">
-            <UniversitySearchBox selected={university} onSelect={selectUniversity} onClear={clearUniversity} autoFocus />
-          </div>
-        </div>
+      {renderSearch(
+        <UniversitySearchBox selected={searchBoxSelection} onSelect={selectUniversity} onClear={clearUniversity} autoFocus={autoFocusSearch} />
+      )}
+
+      <section id={resultsId} ref={resultsRef} className="uh-results" aria-label="Accommodation search results" hidden={!activeLocation && universityLookupState === "idle"}>
 
         {universityLookupState === "loading" && (
           <div className="uh-empty-state" aria-live="polite" aria-busy="true">
@@ -370,28 +574,23 @@ export default function UniversityHousingPage() {
           </div>
         )}
 
-        {!university && universityLookupState === "idle" ? (
-          <div className="uh-empty-state">
-            <GraduationCap size={32} />
-            <p>Search for your university or school above to see accommodation nearby — or browse every city we cover.</p>
-            <Link to="/find-rooms" className="btn btn-secondary">Browse All Cities</Link>
-          </div>
-        ) : university ? (
+        {activeLocation ? (
           <>
             <div className="uh-university-info">
               <div className="uh-university-info-body">
-                <h2>{university.name} <span className="uh-university-info-type">{university.type === "SCHOOL" ? "School" : "University"}</span></h2>
-                <p><MapPin size={14} /> {university.address || [university.city, university.country].filter(Boolean).join(", ") || "Location on map below"}</p>
+                {university ? (
+                  <>
+                    <h2>{university.name} <span className="uh-university-info-type">{university.type === "SCHOOL" ? "School" : "University"}</span></h2>
+                    <p><MapPin size={14} /> {university.address || [university.city, university.country].filter(Boolean).join(", ") || "Location on map below"}</p>
+                  </>
+                ) : (
+                  <>
+                    <h2>Accommodation in {areaHeadingName} <span className="uh-university-info-type">{areaLocation.type === "CITY" ? "City" : "Country"}</span></h2>
+                    <p><MapPin size={14} /> {[areaLocation.city, areaCountry].filter(Boolean).join(", ")}</p>
+                  </>
+                )}
               </div>
-              <p className="uh-university-info-count">
-                {loading
-                  ? "Finding nearby accommodation…"
-                  : error
-                    ? "Unable to load properties right now."
-                    : !university.city
-                      ? "No IVYHUTS properties mapped to this location yet."
-                      : `${filteredProperties.length}${hasMore ? "+" : ""} student propert${filteredProperties.length === 1 ? "y" : "ies"} found${filtersActive ? "" : ` in ${university.city}`}`}
-              </p>
+              <p className="uh-university-info-count">{resultCountText}</p>
             </div>
 
             {error && (
@@ -400,6 +599,9 @@ export default function UniversityHousingPage() {
                   <>We're briefly rate-limited — please try again in about {Math.ceil(error.retryAfterSeconds / 60)} minute{Math.ceil(error.retryAfterSeconds / 60) === 1 ? "" : "s"}.</>
                 ) : (
                   <>We couldn't load properties right now. {error.message}</>
+                )}
+                {isAreaMode && (
+                  <> <button type="button" className="btn btn-outline btn-sm" onClick={() => setAreaRetry((n) => n + 1)}>Try again</button></>
                 )}
               </div>
             )}
@@ -413,7 +615,16 @@ export default function UniversityHousingPage() {
               </div>
             )}
 
-            {!loading && !error && properties.length === 0 && (
+            {/* City/country: no institution or city-centre point exists to
+                frame an empty map around, so the empty state stands alone. */}
+            {!loading && !error && properties.length === 0 && isAreaMode && (
+              <div className="uh-empty-state">
+                <p>{`We don't currently have properties in ${areaHeadingName}.`}</p>
+                <Link to="/find-rooms" className="btn btn-secondary">Browse Other Cities</Link>
+              </div>
+            )}
+
+            {!loading && !error && properties.length === 0 && !isAreaMode && (
               <div className="uh-split-layout uh-split-layout-empty">
                 <div className="uh-empty-state">
                   <p>{university.city
@@ -471,10 +682,15 @@ export default function UniversityHousingPage() {
             {!loading && !error && properties.length > 0 && filteredProperties.length === 0 && (
               <div className="uh-split-layout uh-split-layout-empty">
                 <div className="uh-empty-state">
-                  <p>No properties match your filters.</p>
+                  <p>No properties match your filters{hasMore ? " among those loaded so far" : ""}.</p>
                   <button type="button" className="btn btn-secondary" onClick={clearFilters}>Clear Filters</button>
+                  {hasMore && (
+                    <button type="button" className="btn btn-outline" onClick={handleLoadMore} disabled={loadingMore}>
+                      {loadingMore ? "Loading more…" : "Load more properties"}
+                    </button>
+                  )}
                 </div>
-                <UniversityHousingMap university={university} properties={[]} selectedId={null} onSelectProperty={() => {}} />
+                <UniversityHousingMap university={university} properties={[]} selectedId={null} onSelectProperty={() => {}} locationKey={areaKey} boundary={areaBoundary} />
               </div>
             )}
 
@@ -489,7 +705,7 @@ export default function UniversityHousingPage() {
                   sortOptions={sortOptions}
                   hasMore={hasMore}
                   loadingMore={loadingMore}
-                  onLoadMore={loadMore}
+                  onLoadMore={handleLoadMore}
                   university={university}
                 />
                 <UniversityHousingMap
@@ -497,6 +713,9 @@ export default function UniversityHousingPage() {
                   properties={filteredProperties}
                   selectedId={selectedId}
                   onSelectProperty={setSelectedId}
+                  locationKey={areaKey}
+                  clusterMarkers={isAreaMode}
+                  boundary={areaBoundary}
                 />
               </div>
             )}
@@ -508,9 +727,7 @@ export default function UniversityHousingPage() {
             </div>
           </>
         ) : null}
-      </main>
-
-      <SiteFooter />
-    </div>
+      </section>
+    </>
   );
 }

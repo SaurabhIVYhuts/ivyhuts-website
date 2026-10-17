@@ -1,21 +1,16 @@
 /* ═══════════════════════════════════
-   UNIVERSITY HOUSING PAGE
+   ACCOMMODATION SEARCH EXPERIENCE (formerly the University Housing page)
    Reuses the exact design tokens/typography/spacing/button classes already
    established by StudentPlannerPage.css and PropertyListingPage.css — no new
-   visual language introduced.
+   visual language introduced. The host page (HomePage.js) owns the hero
+   around the search box; this file styles the box and the results section.
    ═══════════════════════════════════ */
 
-.uh-page { min-height: 100vh; background: var(--surface); }
-.uh-main { max-width: var(--container-max); margin: 0 auto; padding: 48px 24px 80px; }
-
-/* ── HERO / SEARCH ── */
-.uh-hero { max-width: 720px; margin: 0 auto 32px; text-align: center; }
-.uh-eyebrow {
-  font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 1.5px; color: var(--brand-rose); margin: 0 0 10px;
+.uh-results {
+  max-width: var(--container-max); margin: 0 auto; padding: 40px 24px 56px;
+  scroll-margin-top: 80px; /* clears the sticky navbar when scrolled into view */
 }
-.uh-hero-title { font-size: clamp(1.9rem, 4.4vw, 2.6rem); font-weight: 900; color: var(--ink); margin: 0 0 14px; }
-.uh-hero-sub { font-size: 0.98rem; color: var(--ink-softer); line-height: 1.7; margin: 0 0 28px; }
+.uh-results[hidden] { display: none; }
 
 .uh-search-wrap { max-width: 560px; margin: 0 auto; text-align: left; }
 
@@ -155,6 +150,7 @@
 /* ── LOADING SKELETON ── */
 .uh-loading-skeleton { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .uh-loading-skeleton-map { height: 420px; border-radius: var(--radius-xl); background: linear-gradient(90deg, var(--surface) 25%, var(--border-soft) 50%, var(--surface) 75%); background-size: 200% 100%; animation: uh-shimmer 1.4s infinite; }
+.uh-map-loading { background: linear-gradient(90deg, var(--surface) 25%, var(--border-soft) 50%, var(--surface) 75%); background-size: 200% 100%; animation: uh-shimmer 1.4s infinite; }
 .uh-loading-skeleton-list { display: flex; flex-direction: column; gap: 12px; }
 .uh-loading-skeleton-row { height: 96px; border-radius: var(--radius-lg); background: linear-gradient(90deg, var(--surface) 25%, var(--border-soft) 50%, var(--surface) 75%); background-size: 200% 100%; animation: uh-shimmer 1.4s infinite; }
 @keyframes uh-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -169,7 +165,7 @@
 .uh-list-panel-count { font-size: 0.82rem; font-weight: 700; color: var(--ink-soft); }
 .uh-list-panel-sort { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--ink-softer); }
 .uh-list-panel-sort select { border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 5px 8px; font-size: 0.78rem; color: var(--ink); background: var(--surface-white); }
-.uh-list-panel-scroll { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.uh-list-panel-scroll { position: relative; flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
 .uh-load-more { margin: 10px; }
 
 .uh-property-row {
@@ -196,14 +192,10 @@
 .uh-property-row-view { margin-top: 4px; align-self: flex-start; padding: 5px 12px !important; font-size: 0.74rem !important; }
 
 /* ── MAP ── */
-.uh-map-shell { border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-sm); height: 620px; }
+/* isolation keeps Leaflet's internal z-indexes (400+) inside the map, so it can
+   never paint over the sticky navbar or the search dropdown above it. */
+.uh-map-shell { position: relative; isolation: isolate; border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-sm); height: 620px; }
 .uh-map-leaflet { width: 100%; height: 100%; }
-.uh-map-divicon { display: flex; align-items: center; justify-content: center; }
-.uh-map-divicon span { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border-radius: 50%; box-shadow: var(--shadow-sm); }
-.uh-map-divicon--university span { background: var(--brand-purple); font-size: 18px; border: 2px solid #fff; }
-.uh-map-divicon--school span { background: var(--brand-purple); font-size: 17px; border: 2px solid #fff; }
-.uh-map-divicon--property span { background: var(--surface-white); font-size: 15px; border: 2px solid var(--brand-rose); }
-.uh-map-divicon--property-active span { background: var(--brand-rose); font-size: 16px; border: 2px solid #fff; }
 .uh-map-popup { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; min-width: 160px; }
 .uh-map-popup strong { font-size: 0.88rem; color: var(--ink); }
 .uh-map-popup-type {
@@ -211,11 +203,6 @@
   letter-spacing: 0.4px; color: var(--brand-purple); background: rgba(94, 58, 107, 0.1);
   border-radius: var(--radius-full); padding: 1px 7px;
 }
-.uh-map-popup-row { display: flex; align-items: center; gap: 8px; color: var(--ink-softer); }
-.uh-map-popup-soldout { color: #9B3A3A; font-weight: 700; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.3px; }
-.uh-map-popup-rating { display: flex; align-items: center; gap: 3px; color: var(--brand-gold-deep); font-weight: 700; }
-.uh-map-popup-image { width: 100%; height: 90px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 2px; }
-.uh-map-popup-actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
 
 /* ── BACK LINK ── */
 .uh-back-link { max-width: 900px; margin: 28px auto 0; text-align: center; }
@@ -230,6 +217,6 @@
   .uh-map-shell { height: 360px; order: 1; }
 }
 @media (max-width: 640px) {
-  .uh-main { padding: 32px 16px 64px; }
+  .uh-results { padding: 28px 16px 40px; }
   .uh-university-info { flex-direction: column; align-items: flex-start; }
 }

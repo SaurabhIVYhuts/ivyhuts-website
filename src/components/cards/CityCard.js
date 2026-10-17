@@ -2,8 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { countryFullName, countryIsoCode } from '../../data/destinations';
 
-function CityCard({ city, compact = false }) {
-  const href = `/properties?city=${encodeURIComponent(city.name)}`;
+// `to` lets a page choose where the card leads (the homepage opens its own
+// integrated city search); without it the card keeps its Find Room link.
+function CityCard({ city, compact = false, to }) {
+  const href = to || `/properties?city=${encodeURIComponent(city.name)}`;
   const countryName = countryFullName(city.country);
 
   return (

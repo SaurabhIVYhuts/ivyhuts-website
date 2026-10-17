@@ -285,9 +285,9 @@ async function main() {
     // migration) still uses its own unchanged live-Amber pattern, and the
     // page still imports both mapper functions it now legitimately needs.
     await test("TEST 15: University Housing's override-university data-fetch contract (getPropertyBySlug) remains unchanged; the page now correctly imports both live and canonical mappers (post-Milestone-9)", () => {
-        const src = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+        const src = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
         assert.ok(/overrideSlugs\.map\(\(slug\) => getPropertyBySlug\(slug, "MEDIUM", "university-housing-override"\)/.test(src), "the override-university live-Amber fetch shape must remain unchanged — it was never part of the Milestone 9 migration");
-        assert.ok(/import\s*\{[^}]*safeListingList[^}]*safeResidenceListingList[^}]*\}\s*from\s*["']\.\.\/services\/amberMapper["']/.test(src), "post-Milestone-9, the page must import BOTH mappers: safeListingList for the override branch, safeResidenceListingList for the canonical-inventory branch");
+        assert.ok(/import\s*\{[^}]*safeListingList[^}]*safeResidenceListingList[^}]*\}\s*from\s*["']\.\.\/\.\.\/services\/amberMapper["']/.test(src), "post-Milestone-9, the page must import BOTH mappers: safeListingList for the override branch, safeResidenceListingList for the canonical-inventory branch");
     });
 
     console.log(`\n=== ${passed} passed, ${failed} failed, ${skipped} skipped ===`);

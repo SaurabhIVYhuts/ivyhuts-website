@@ -15,7 +15,6 @@ const LifeAbroadPage           = lazy(() => import("./pages/LifeAbroadPage"));
 const ListYourStayPage         = lazy(() => import("./pages/ListYourStayPage"));
 const ContactPage              = lazy(() => import("./pages/ContactPage"));
 const StudentPlannerPage       = lazy(() => import("./pages/StudentPlannerPage"));
-const UniversityHousingPage    = lazy(() => import("./pages/UniversityHousingPage"));
 const PartnerPage              = lazy(() => import("./pages/PartnerPage"));
 const TermsPage                = lazy(() => import("./pages/legal/TermsPage"));
 const PrivacyPage              = lazy(() => import("./pages/legal/PrivacyPage"));
@@ -53,7 +52,9 @@ function MapRouteRedirect() {
    a link carrying nothing but `?university=<id>` — University Housing
    resolves that identically to Find Room's own `?university=` mode. Every
    other case (bare browse, ?city=, ?country=, ?property=, or any filter
-   param) continues to render PropertyListingPage directly, unchanged. ── */
+   param) continues to render PropertyListingPage directly, unchanged.
+   The University Housing experience now lives on the homepage, so the
+   redirect target is `/` (same query string). ── */
 const FIND_ROOM_FILTER_PARAM_KEYS = ["q", "minPrice", "maxPrice", "roomType", "billsOnly", "near", "amenities", "moveInMonth", "stayDuration", "sortBy"];
 function FindRoomCompatibilityRoute() {
   const location = useLocation();
@@ -63,9 +64,21 @@ function FindRoomCompatibilityRoute() {
     params.has("city") || params.has("country") || params.has("property") ||
     FIND_ROOM_FILTER_PARAM_KEYS.some((key) => params.has(key));
   if (hasUniversity && !hasUnsupportedParam) {
-    return <Navigate to={`/university-housing?${params.toString()}`} replace />;
+    return <Navigate to={`/?${params.toString()}`} replace />;
   }
   return <PropertyListingPage />;
+}
+
+/* ── RETIRED /university-housing ROUTE ──────────────────────────────────────
+   The University Housing search is now the homepage's integrated search
+   (AccommodationSearchExperience). Old bookmarks, shared links and search
+   results keep working: the same query string (?university= | ?city=&country=
+   | ?country=, plus filters) opens the same search on the homepage. A bare
+   link lands on the hero search itself. ── */
+function UniversityHousingRedirect() {
+  const location = useLocation();
+  const hash = location.search ? location.hash : (location.hash || "#find-accommodation");
+  return <Navigate to={`/${location.search}${hash}`} replace />;
 }
 
 /* ── SCROLL TO TOP ON ROUTE CHANGE ── */
@@ -109,7 +122,7 @@ function App() {
             <Route path="/list-your-stay" element={<ListYourStayPage />} />
             <Route path="/contact"        element={<ContactPage />} />
             <Route path="/student-planner" element={<StudentPlannerPage />} />
-            <Route path="/university-housing" element={<UniversityHousingPage />} />
+            <Route path="/university-housing" element={<UniversityHousingRedirect />} />
             <Route path="/partner"        element={<PartnerPage />} />
             <Route path="/terms"          element={<TermsPage />} />
             <Route path="/privacy"        element={<PrivacyPage />} />

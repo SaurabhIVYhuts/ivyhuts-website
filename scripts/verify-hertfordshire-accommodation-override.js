@@ -248,7 +248,7 @@ async function main() {
     });
 
     // ══════════════════════════ FRONTEND: University Housing page ══════════════════════════
-    const pageSrc = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+    const pageSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
     await test("FRONTEND: UniversityHousingPage.js uses getPropertyBySlug() (the existing per-property gateway function) for the override path, never a new fetch mechanism", () => {
         assert.ok(/getPropertyBySlug\(/.test(pageSrc));
         assert.ok(pageSrc.includes('import { getProperties, getPropertyBySlug, getCachedCityStats } from "../services/amberApi"'));

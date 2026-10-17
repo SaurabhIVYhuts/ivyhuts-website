@@ -11,11 +11,12 @@ import NotFoundPage from "./NotFoundPage";
 import { fetchBlog, fetchBlogs, formatBlogDate, readingMinutes } from "../lib/blogApi";
 import { getBlogExtras } from "../data/blogExtras";
 import "./BlogPage.css";
+import { SEARCH_ANCHOR_HREF } from "../lib/homeSearch";
 
 // Shown under "Keep Exploring" when there are no other articles yet —
 // existing IvyHuts routes only.
 const EXPLORE_LINKS = [
-  { to: "/university-housing", title: "University Housing", text: "Find student accommodation near your university." },
+  { to: SEARCH_ANCHOR_HREF, title: "Find Accommodation", text: "Find student accommodation near your university, or across a city or country." },
   { to: "/student-planner", title: "Student Planner", text: "Plan your study abroad budget and options." },
   { to: "/life-abroad", title: "Placement Podcast", text: "Hear real stories from students living abroad." },
 ];
@@ -23,8 +24,8 @@ const EXPLORE_LINKS = [
 // CTA defaults — an article overrides them via `cta` in blogExtras.js
 // (e.g. a city guide linking to that city's listings).
 const DEFAULT_CTA = {
-  help: { to: "/university-housing", label: "Explore University Housing" },
-  final: { heading: "Ready to Find Your Student Home?", to: "/university-housing", label: "Explore Accommodation" },
+  help: { to: SEARCH_ANCHOR_HREF, label: "Search Accommodation" },
+  final: { heading: "Ready to Find Your Student Home?", to: SEARCH_ANCHOR_HREF, label: "Explore Accommodation" },
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;

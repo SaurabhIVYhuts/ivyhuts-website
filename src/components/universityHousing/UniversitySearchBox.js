@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, GraduationCap, School, X, Loader2, MapPin, Link2 } from "lucide-react";
+import { Search, GraduationCap, School, X, Loader2, MapPin, Link2, Globe } from "lucide-react";
 import { searchCampusUniversities } from "../../lib/campusUniversityResolver";
 import { searchUniversityDiscovery, confirmUniversityCandidate } from "../../services/universityDiscoveryApi";
 import { parseGoogleMapsUrl, MAX_URL_LENGTH } from "../../lib/googleMapsParser";
@@ -41,12 +41,19 @@ import { parseGoogleMapsUrl, MAX_URL_LENGTH } from "../../lib/googleMapsParser";
 // re-parses and independently verifies it server-side (see
 // resolveGoogleMapsCandidate() in api/_lib/universityResolveService.js)
 // rather than trusting anything computed here.
-const TYPE_LABELS = { UNIVERSITY: "University", SCHOOL: "School" };
+//
+// The SEARCHING path also recognises an exact city or country ("Manchester",
+// "United Kingdom", or a Maps link to one) — the server returns a type
+// "CITY"/"COUNTRY" record for those (scope=location, see
+// resolveHousingSearch() in api/_lib/universityResolveService.js), which the
+// parent loads as a whole-city / whole-country search.
+const TYPE_LABELS = { UNIVERSITY: "University", SCHOOL: "School", CITY: "City", COUNTRY: "Country" };
+const LOCATION_TYPES = new Set(["CITY", "COUNTRY"]);
 function typeLabel(type) {
   return TYPE_LABELS[type] || TYPE_LABELS.UNIVERSITY;
 }
 function TypeIcon({ type, size, className }) {
-  const Icon = type === "SCHOOL" ? School : GraduationCap;
+  const Icon = type === "SCHOOL" ? School : type === "CITY" ? MapPin : type === "COUNTRY" ? Globe : GraduationCap;
   return <Icon size={size} className={className} aria-hidden="true" />;
 }
 
@@ -127,7 +134,7 @@ export default function UniversitySearchBox({ selected, onSelect, onClear, autoF
     setCandidates([]);
 
     try {
-      const result = await searchUniversityDiscovery(trimmed, { signal: controller.signal });
+      const result = await searchUniversityDiscovery(trimmed, { signal: controller.signal, includeLocations: true });
       if (controller.signal.aborted) return;
       if (result.status === "resolved") {
         onSelect(result.data);
@@ -155,6 +162,14 @@ export default function UniversitySearchBox({ selected, onSelect, onClear, autoF
 
   async function handleConfirmCandidate(candidate) {
     if (confirmingId) return; // no duplicate submissions
+    // A city/country candidate has nothing to validate or persist server-side
+    // (no coordinates, no discovery record) — select it directly.
+    if (LOCATION_TYPES.has(candidate.type)) {
+      onSelect(candidate);
+      setQuery("");
+      resetSearchResult();
+      return;
+    }
     setConfirmingId(candidate.id || candidate.name);
     try {
       const result = await confirmUniversityCandidate(submittedQueryRef.current, candidate);
@@ -187,7 +202,9 @@ export default function UniversitySearchBox({ selected, onSelect, onClear, autoF
         <div className="uh-search-selected-body">
           <span className="uh-search-selected-name">{selected.name}</span>
           <span className="uh-search-selected-type">{typeLabel(selected.type)}</span>
-          <span className="uh-search-selected-loc">{selected.city}, {selected.country}</span>
+          {selected.type !== "COUNTRY" && (
+            <span className="uh-search-selected-loc">{[selected.city, selected.country].filter(Boolean).join(", ")}</span>
+          )}
         </div>
         <button type="button" className="uh-search-change" onClick={onClear}>
           <X size={14} /> Change
@@ -212,8 +229,8 @@ export default function UniversitySearchBox({ selected, onSelect, onClear, autoF
             if (searchState !== "idle") resetSearchResult();
           }}
           onFocus={() => setOpen(true)}
-          placeholder="Search university/school name or paste a Google Maps link"
-          aria-label="Search your university or school name, or paste a Google Maps link"
+          placeholder="Search a university, school, city or country — or paste a Google Maps link"
+          aria-label="Search a university, school, city or country, or paste a Google Maps link"
           autoComplete="off"
           autoFocus={autoFocus}
           maxLength={MAX_URL_LENGTH}
@@ -301,7 +318,7 @@ export default function UniversitySearchBox({ selected, onSelect, onClear, autoF
 
       {searchState === "unavailable" && (
         <div className="uh-search-suggestions uh-search-status uh-search-status-empty" aria-live="polite">
-          <p>University search is temporarily unavailable — please try again in a moment, or{" "}
+          <p>Search is temporarily unavailable — please try again in a moment, or{" "}
             <Link to="/find-rooms">browse all cities</Link> instead.</p>
           <button type="button" className="uh-search-try-again" onClick={handleTryAgain}>Try again</button>
         </div>

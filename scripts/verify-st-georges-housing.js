@@ -194,7 +194,7 @@ async function main() {
         assert.strictEqual(hasValidCoords(stGeorges.latitude, stGeorges.longitude), true);
     });
     await test("DISTANCE NEVER FABRICATED: a residence with missing coordinates would receive distanceKm=null, never a guessed value — verified against the page's own logic, structurally", () => {
-        const pageSrc = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+        const pageSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
         assert.ok(/propertyHasCoords\s*=\s*hasValidCoords/.test(pageSrc));
         assert.ok(/universityHasCoords\s*&&\s*propertyHasCoords\s*\?[\s\S]{0,300}:\s*null/.test(pageSrc), "expected distanceKm to fall back to null (never a fabricated value) whenever either coordinate is missing — applies to St George's exactly as it does to every other university, no special-casing");
     });
@@ -212,7 +212,7 @@ async function main() {
 
     // ══════════════════════════ SINGLE DATA FLOW / NO DUPLICATE REQUESTS (item 13/15) ══════════════════════════
     await test("SINGLE DATA FLOW: UniversityHousingPage.js still calls getProperties() exactly twice total (initial load + explicit load-more) — St George's introduces no extra call site", () => {
-        const pageSrc = fs.readFileSync(path.join(ROOT, "src", "pages", "UniversityHousingPage.js"), "utf8");
+        const pageSrc = fs.readFileSync(path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"), "utf8");
         const matches = pageSrc.match(/(?:await|=)\s*getProperties\(/g) || [];
         assert.strictEqual(matches.length, 2, `expected exactly 2 call sites, found ${matches.length}`);
     });
@@ -247,7 +247,7 @@ async function main() {
     await test("AMBER ISOLATION: no St-George's-specific conditional/bypass exists anywhere in the accommodation pipeline (e.g. `if (city === \"London\")`, a special-cased London branch)", () => {
         const files = [
             path.join(ROOT, "api", "_lib", "accommodationIndex.js"),
-            path.join(ROOT, "src", "pages", "UniversityHousingPage.js"),
+            path.join(ROOT, "src", "components", "universityHousing", "AccommodationSearchExperience.js"),
         ];
         files.forEach((f) => {
             const src = fs.readFileSync(f, "utf8");

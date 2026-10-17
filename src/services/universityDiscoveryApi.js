@@ -32,13 +32,18 @@ async function parseJsonSafe(res) {
 // candidate records for "ambiguous", or null otherwise. Never throws: a
 // network failure or malformed response is itself represented as
 // status "unavailable" so callers can render one consistent state.
-export async function searchUniversityDiscovery(query, { signal } = {}) {
+//
+// `includeLocations`: University Housing also accepts an exact city/country
+// (server `scope=location`) — a resolved record may then have type
+// "CITY"/"COUNTRY" instead of a university/school.
+export async function searchUniversityDiscovery(query, { signal, includeLocations = false } = {}) {
     const trimmed = String(query || "").trim();
     if (!trimmed) return { status: "not_found", data: null };
 
     let res;
     try {
-        res = await fetch(`/api/universities/resolve?q=${encodeURIComponent(trimmed)}`, { signal });
+        const scope = includeLocations ? "&scope=location" : "";
+        res = await fetch(`/api/universities/resolve?q=${encodeURIComponent(trimmed)}${scope}`, { signal });
     } catch (err) {
         if (err.name === "AbortError") throw err; // let the caller's own abort-handling deal with this, not our error state
         return { status: "unavailable", data: null };

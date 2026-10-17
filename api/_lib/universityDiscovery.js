@@ -302,4 +302,7 @@ function generateSimplifiedQueries(query) {
     return variants;
 }
 
-module.exports = { searchNominatim, generateSimplifiedQueries, hasValidCoords, NOMINATIM_RATE_KEY };
+// waitForRateSlot/USER_AGENT are shared with boundaryResolver.js so boundary
+// lookups draw from this SAME 1 req/s Nominatim budget (one app, one IP,
+// one usage-policy allowance) rather than a second, parallel one.
+module.exports = { searchNominatim, generateSimplifiedQueries, hasValidCoords, waitForRateSlot, NOMINATIM_RATE_KEY, USER_AGENT };
