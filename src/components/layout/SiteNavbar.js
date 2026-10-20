@@ -4,7 +4,6 @@ import { Heart } from "lucide-react";
 import { useWishlist } from "../../context/WishlistContext";
 import MobileMenuSheet from "./MobileMenuSheet";
 import GlobalSearchBar from "../search/GlobalSearchBar";
-import { SEARCH_ANCHOR_HREF } from "../../lib/homeSearch";
 
 const WA_HREF = `https://wa.me/918847725089?text=${encodeURIComponent("Hi IvyHuts! I'm looking for student accommodation abroad. Can you help?")}`;
 
@@ -42,9 +41,6 @@ export default function SiteNavbar() {
   // IVYHUTS_FIND_ROOM_FEATURE_PARITY.md).
   const links = [
     { to: "/",               label: "Home" },
-    // The accommodation search now lives on the homepage (it was the
-    // separate /university-housing page, which redirects there).
-    { to: SEARCH_ANCHOR_HREF, label: "Find Accommodation" },
     { to: "/blog",           label: "Blog" },
     { to: "/list-your-stay", label: "List Your Stay" },
     { to: "/partner",        label: "Partner with Us" },
