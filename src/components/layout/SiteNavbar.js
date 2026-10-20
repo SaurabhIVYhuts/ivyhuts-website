@@ -45,7 +45,6 @@ export default function SiteNavbar() {
     // The accommodation search now lives on the homepage (it was the
     // separate /university-housing page, which redirects there).
     { to: SEARCH_ANCHOR_HREF, label: "Find Accommodation" },
-    { to: "/life-abroad",    label: "Placement Podcast" },
     { to: "/blog",           label: "Blog" },
     { to: "/list-your-stay", label: "List Your Stay" },
     { to: "/partner",        label: "Partner with Us" },
