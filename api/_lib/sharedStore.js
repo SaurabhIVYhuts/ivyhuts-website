@@ -1,186 +1,138 @@
 // Shared key/value + rolling-counter + lock primitives used to coordinate
 // Amber usage across every serverless invocation and every user.
 //
-// Backed by Upstash Redis (REST API — no persistent TCP connection needed,
-// which is what makes it usable from stateless serverless functions) when
-// UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are configured.
+// Backed by MongoDB (the same database as everything else, via
+// api/_lib/mongodb.js) in a single `kvstore` collection. This replaced the
+// earlier Upstash Redis backend, whose fixed plan kept hitting its limit and
+// taking the whole app down with it (login included). The exported API is
+// unchanged, so no caller had to change.
 //
-// IMPORTANT — read before trusting this in production:
-// Without those two environment variables, everything below falls back to a
-// plain in-process Map. That fallback is NOT shared across serverless
-// instances (Vercel may run your function on several concurrent instances,
-// each with its own memory) and is only useful for local development or a
-// single always-warm instance. It is deliberately still functional (better
-// than crashing) but does NOT provide the cross-user/cross-instance
-// guarantees this whole feature exists for. See the README note this file
-// links back to in the final report for exactly what to configure.
-// KV_REST_API_URL/KV_REST_API_TOKEN are what Vercel's own "Storage -> KV"
-// product (Marketplace-provisioned Upstash, as opposed to a standalone
-// Upstash account) names these same two values — it's Upstash underneath,
-// same REST API, just a different env var naming convention depending on
-// which of Vercel's provisioning flows created the database. Accept either
-// so this doesn't silently fail closed just because of which flow was used.
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
-const REDIS_AVAILABLE = Boolean(UPSTASH_URL && UPSTASH_TOKEN);
+// Document shapes in `kvstore` (all keyed by _id = the store key):
+//   values: { _id, j: "<json>" }  or  { _id, z: <gzipped json> } (large values)
+//   slots:  { _id, t: [timestamps] }   (reserveSlot's rolling window)
+//   locks:  { _id, tok: "<token>" }
+// Every document may carry `exp` (a Date). A TTL index deletes expired
+// documents, but MongoDB only sweeps once a minute, so every read also
+// checks `exp` itself — an expired-but-not-yet-swept document is treated
+// as absent everywhere below.
+//
+// Opt-in: the MongoDB backend is used only when SHARED_STORE=mongo (and
+// MONGODB_URI is set). Merely having MONGODB_URI is not enough on purpose —
+// local dev and the verify scripts set it for other reasons, and must never
+// write sessions, locks or Amber budget entries into the production store.
+// Otherwise everything falls back to a plain in-process Map, which is NOT
+// shared across serverless instances; a deployed Vercel environment refuses
+// that fallback outright (warnFallbackOnce).
+const zlib = require("zlib");
+const mongoose = require("mongoose");
+const { connectToDatabase } = require("./mongodb");
 
-// Deliberately unconditional (previously gated behind NODE_ENV !== "production",
-// which suppressed every one of these lines on Vercel — Vercel sets
-// NODE_ENV=production for both Preview and Production builds, not just
-// Production, so that gate meant this diagnostic trail was silently absent
-// exactly where it was needed most). Every call site here logs only
-// non-sensitive structured fields (source/priority/cache-status/action/cache
-// keys/budget counts/error messages) — never a token, secret, Authorization
-// header, or full response body.
+const STORE_AVAILABLE = process.env.SHARED_STORE === "mongo" && Boolean(process.env.MONGODB_URI);
+const COLLECTION = "kvstore";
+
+// Deliberately unconditional (not gated on NODE_ENV — Vercel sets
+// NODE_ENV=production for Preview too, which would hide this trail exactly
+// where it's needed). Call sites log only non-sensitive structured fields.
 function log(...args) {
     console.log("[Amber Gateway]", ...args);
 }
 
-// Deployed Vercel environments (VERCEL_ENV is Vercel's own signal for this —
-// "production"/"preview" for real deployed infrastructure, "development"
-// under `vercel dev`'s local emulation, and simply absent for a plain `node`
-// invocation like this repo's scripts/verify-*.js) must NEVER silently fall
-// back to per-instance memory for the Amber budget/lock/cache: every
-// concurrently-running instance would independently enforce the full budget
-// against its own empty state, multiplying real Amber traffic — exactly the
-// failure mode RedisUnavailableError elsewhere in this file already exists
-// to prevent for the "configured but unreachable" case. This closes the
-// other case: "not configured at all," when that's really a deployed
-// environment rather than genuine local dev. (NODE_ENV=="production" was
-// considered and rejected — Vercel sets it for Preview AND Production, but
-// so can an ambient CI shell running this repo's local-Redis-forced verify
-// script, which would then fail closed for the wrong reason; VERCEL_ENV is
-// unset in that case.) Local dev and the verify scripts are unaffected.
+// A deployed environment must NEVER silently fall back to per-instance
+// memory for the Amber budget/lock/cache: every concurrently-running
+// instance would independently enforce the full budget against its own
+// empty state, multiplying real Amber traffic.
 let warnedFallback = false;
 function warnFallbackOnce() {
     if (["production", "preview"].includes(process.env.VERCEL_ENV)) {
-        throw new RedisUnavailableError(new Error("UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN are not configured in a deployed Vercel environment"));
+        throw new StoreUnavailableError(new Error("SHARED_STORE=mongo / MONGODB_URI are not configured in a deployed Vercel environment"));
     }
     if (warnedFallback) return;
     warnedFallback = true;
     console.warn(
-        "[Amber Gateway] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN not set — " +
-        "falling back to a per-instance in-memory store. This works for local dev " +
-        "but does NOT coordinate across multiple deployed serverless instances."
+        "[Amber Gateway] SHARED_STORE=mongo not set — falling back to a per-instance " +
+        "in-memory store. This works for local dev but does NOT coordinate " +
+        "across multiple deployed serverless instances."
     );
 }
 
-// Thrown when Redis IS configured (env vars present — this is production, or
-// at least meant to behave like it) but the Upstash REST endpoint itself
-// fails or is unreachable at request time. This is deliberately NOT the same
-// thing as "Redis isn't configured" (REDIS_AVAILABLE === false), which is the
-// expected, accepted local-dev shape that legitimately falls back to the
-// in-memory Maps below. A configured-but-unreachable Redis must NOT fall
-// back the same way: every one of Vercel's concurrently-running instances
-// would silently start enforcing the FULL budget/lock/cooldown independently
-// against its own empty in-memory state, multiplying the effective Amber
-// request rate by however many instances happen to be warm — exactly the
-// failure mode this whole architecture exists to prevent. Callers that can
-// safely treat this as "temporarily unavailable" (see fetchAmber in
-// amberGateway.js) catch this specific error and fail closed instead.
-class RedisUnavailableError extends Error {
+// Thrown when the store IS configured but MongoDB fails or times out at
+// request time. Must NOT fall back to memory (same multiplication problem
+// as above) — callers that can treat this as "temporarily unavailable"
+// (fetchAmber, advanceCrawl, the auth routes) catch it and fail closed.
+class StoreUnavailableError extends Error {
     constructor(cause) {
-        super(`Redis is configured but temporarily unreachable: ${cause?.message || cause}`);
-        this.name = "RedisUnavailableError";
+        super(`Shared store is configured but temporarily unreachable: ${cause?.message || cause}`);
+        this.name = "StoreUnavailableError";
         this.cause = cause;
     }
 }
 
-// A single Upstash REST call normally completes in well under a second —
-// but nothing here previously bounded it, so a slow or unreachable Redis
-// endpoint could hang a call far longer than that, silently burning a big
-// chunk (or all) of a caller's own upstream deadline before ever reaching
-// the point of throwing RedisUnavailableError and falling back to the
-// already-safe degraded paths built around that error. CONFIRMED LIVE: a
-// single sharedSet() write was observed taking long enough that, even
-// though the real Amber call it wrapped around had already returned
-// successfully in under a second, fetchListings' own pagination
-// (amberGateway.js) had no time budget left to even attempt a second Amber
-// page — silently defeating that fix under real network conditions, not
-// just failing to help. Bounded so a slow/hanging Redis endpoint fails fast
-// into the existing fallback paths instead of eating time they were never
-// meant to spend.
-const REDIS_TIMEOUT_MS = Number(process.env.REDIS_TIMEOUT_MS) || 3000;
+// Bounds a single store operation (not the initial connect, which has its
+// own serverSelectionTimeoutMS) so a slow database fails fast into the
+// callers' degraded paths instead of eating their upstream Amber deadline.
+const STORE_TIMEOUT_MS = Number(process.env.STORE_TIMEOUT_MS) || 3000;
 
-// ── Transparent compression for large values ──────────────────────────────
-// Upstash bills by bandwidth, and the biggest values this store holds are
-// raw Amber listing pages (~5MB of JSON for 50 properties) and the /insight
-// catalog-crawl state (~1.6MB). Moving those around uncompressed is what
-// exhausted the previous database's plan: a single full crawl pass pushed
-// ~0.8GB through Redis. Gzipping them before the write cuts that by roughly
-// an order of magnitude, with no change to what any caller sees — the value
-// handed to sharedSet is the exact value sharedGet returns.
-//
-// Rollout safety: READING both formats is unconditional (a plain JSON value
-// is returned as-is), but WRITING compressed is gated behind REDIS_COMPRESS=1
-// so read support can be deployed to every app sharing this Redis BEFORE
-// anything starts producing the new format. Without that ordering, an app
-// still running the old code would read {"__z":1,...} as if it were the real
-// value — silently empty listings or a reset crawl, not a loud failure.
-const zlib = require("zlib");
-const COMPRESS_WRITES = process.env.REDIS_COMPRESS === "1";
-// Below this, gzip + base64 overhead isn't worth the CPU: sessions, user
-// records, counters and locks are all well under a kilobyte and stay plain.
+// Large values (Amber listing pages ~5MB, the crawl state ~1.6MB) are
+// gzipped: 4.5-7x smaller, which keeps us well inside Atlas's data-transfer
+// allowance. Small values (sessions, users, counters) stay plain JSON.
 const COMPRESS_MIN_BYTES = 64 * 1024;
 
-function encodeStoredValue(value) {
-    const json = JSON.stringify(value);
-    if (!COMPRESS_WRITES || json === undefined || Buffer.byteLength(json) < COMPRESS_MIN_BYTES) return json;
-    // base64 (not raw binary) because the Upstash REST body is itself JSON.
-    return JSON.stringify({ __z: 1, d: zlib.gzipSync(json).toString("base64") });
-}
+const DUPLICATE_KEY = 11000;
 
-function decodeStoredValue(raw) {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object" && parsed.__z === 1 && typeof parsed.d === "string") {
-        return JSON.parse(zlib.gunzipSync(Buffer.from(parsed.d, "base64")).toString("utf8"));
+let indexPromise = null;
+async function getCollection() {
+    await connectToDatabase();
+    const col = mongoose.connection.db.collection(COLLECTION);
+    if (!indexPromise) {
+        indexPromise = col.createIndex({ exp: 1 }, { expireAfterSeconds: 0 }).catch((err) => {
+            indexPromise = null; // retry on the next call rather than never
+            throw err;
+        });
     }
-    return parsed;
+    await indexPromise;
+    return col;
 }
 
-async function redisFetch(url, options) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REDIS_TIMEOUT_MS);
+// Runs `fn(collection)` with a timeout, converting any failure into
+// StoreUnavailableError. `fn` handles expected errors (duplicate key) itself.
+async function withStore(fn) {
+    let timeoutId;
     try {
-        return await fetch(url, { ...options, signal: controller.signal });
+        const col = await getCollection();
+        return await Promise.race([
+            fn(col),
+            new Promise((_, reject) => {
+                timeoutId = setTimeout(() => reject(new Error(`MongoDB did not respond within ${STORE_TIMEOUT_MS}ms`)), STORE_TIMEOUT_MS);
+            }),
+        ]);
     } catch (err) {
-        if (err.name === "AbortError") throw new Error(`Upstash request did not respond within ${REDIS_TIMEOUT_MS}ms`);
-        throw err;
+        throw err instanceof StoreUnavailableError ? err : new StoreUnavailableError(err);
     } finally {
         clearTimeout(timeoutId);
     }
 }
 
-async function redisCommand(...args) {
-    const url = `${UPSTASH_URL}/${args.map(encodeURIComponent).join("/")}`;
-    let res;
-    try {
-        res = await redisFetch(url, { headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` } });
-    } catch (err) {
-        throw new RedisUnavailableError(err);
-    }
-    if (!res.ok) throw new RedisUnavailableError(new Error(`Upstash command failed: ${res.status}`));
-    const json = await res.json();
-    return json.result;
+function notExpired(now = new Date()) {
+    return { $or: [{ exp: null }, { exp: { $gt: now } }] };
 }
 
-// POST form (command as a JSON body array) — used for EVAL, where the Lua
-// script body contains characters (quotes, newlines) that don't survive
-// being encoded as URL path segments.
-async function redisCommandPost(commandArray) {
-    let res;
-    try {
-        res = await redisFetch(UPSTASH_URL, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify(commandArray),
-        });
-    } catch (err) {
-        throw new RedisUnavailableError(err);
-    }
-    if (!res.ok) throw new RedisUnavailableError(new Error(`Upstash command failed: ${res.status}`));
-    const json = await res.json();
-    return json.result;
+function expiryFromSeconds(ttlSeconds) {
+    return ttlSeconds ? new Date(Date.now() + Math.max(1, Math.ceil(ttlSeconds)) * 1000) : null;
+}
+
+// Stored as a JSON string (not a native BSON object) so the round trip is
+// byte-for-byte what JSON.stringify/parse gives — Amber payloads can carry
+// field names MongoDB treats specially, and callers rely on exact values.
+function encodeValue(value) {
+    const json = JSON.stringify(value);
+    if (json === undefined) return { j: null };
+    if (Buffer.byteLength(json) < COMPRESS_MIN_BYTES) return { j: json };
+    return { z: zlib.gzipSync(json) };
+}
+
+function decodeValue(doc) {
+    if (doc.z) return JSON.parse(zlib.gunzipSync(doc.z.buffer ?? doc.z).toString("utf8"));
+    return doc.j != null ? JSON.parse(doc.j) : undefined;
 }
 
 // ── In-memory fallback state (single instance / local dev only) ──
@@ -194,9 +146,9 @@ function pruneMemValues() {
 }
 
 async function sharedGet(key) {
-    if (REDIS_AVAILABLE) {
-        const raw = await redisCommand("GET", key);
-        return raw != null ? decodeStoredValue(raw) : undefined;
+    if (STORE_AVAILABLE) {
+        const doc = await withStore((col) => col.findOne({ _id: key, ...notExpired() }));
+        return doc ? decodeValue(doc) : undefined;
     }
     warnFallbackOnce();
     pruneMemValues();
@@ -204,26 +156,10 @@ async function sharedGet(key) {
     return entry ? entry.value : undefined;
 }
 
-// Uses redisCommandPost (JSON body), not redisCommand (value encoded into
-// the URL path) — a value of any real size (e.g. the /insight catalog
-// crawl's state: hundreds of cities/postcodes, thousands of capped
-// sold-out properties) blows past a URL/header length limit that way,
-// failing with a hard-to-diagnose "Upstash command failed: 431" thrown as
-// RedisUnavailableError. Confirmed live: the crawl was silently completing
-// real Amber fetches every single call and then losing all of that
-// progress at this exact save step, which is why it kept reverting to the
-// same page number no matter how many times it was retried. Likely also
-// affected large Amber listing-page cache writes generally, not just this
-// one caller — POST has no such size constraint either way.
+// No TTL: a permanent record (e.g. the auth user store), not a cache entry.
 async function sharedSet(key, value, ttlSeconds) {
-    if (REDIS_AVAILABLE) {
-        if (ttlSeconds) {
-            await redisCommandPost(["SET", key, encodeStoredValue(value), "EX", String(Math.max(1, Math.ceil(ttlSeconds)))]);
-        } else {
-            // No TTL: used by callers that need a permanent record (e.g. the
-            // auth user store) rather than a cache entry.
-            await redisCommandPost(["SET", key, encodeStoredValue(value)]);
-        }
+    if (STORE_AVAILABLE) {
+        await withStore((col) => col.replaceOne({ _id: key }, { ...encodeValue(value), exp: expiryFromSeconds(ttlSeconds) }, { upsert: true }));
         return;
     }
     warnFallbackOnce();
@@ -231,15 +167,23 @@ async function sharedSet(key, value, ttlSeconds) {
 }
 
 // Atomic "set only if absent" — the building block for uniqueness
-// constraints (e.g. reserving an email address at signup) where a plain
-// GET-then-SET from application code would race under concurrent requests.
-// Returns true if this call created the key, false if it already existed
-// (in which case nothing was written). No TTL: permanent until explicitly
-// deleted via sharedDelete.
+// constraints (e.g. reserving an email address at signup). The unique _id
+// makes insertOne the atomic step; an expired-but-unswept document is taken
+// over with a conditional replace, which also only one caller can win.
+// Returns true if this call created the key. No TTL.
 async function sharedSetNX(key, value) {
-    if (REDIS_AVAILABLE) {
-        const result = await redisCommandPost(["SET", key, encodeStoredValue(value), "NX"]);
-        return result === "OK";
+    if (STORE_AVAILABLE) {
+        return withStore(async (col) => {
+            const doc = { _id: key, ...encodeValue(value), exp: null };
+            try {
+                await col.insertOne(doc);
+                return true;
+            } catch (err) {
+                if (err.code !== DUPLICATE_KEY) throw err;
+            }
+            const res = await col.replaceOne({ _id: key, exp: { $lte: new Date() } }, doc);
+            return res.modifiedCount === 1;
+        });
     }
     warnFallbackOnce();
     pruneMemValues();
@@ -249,55 +193,40 @@ async function sharedSetNX(key, value) {
 }
 
 async function sharedDelete(key) {
-    if (REDIS_AVAILABLE) {
-        await redisCommand("DEL", key);
+    if (STORE_AVAILABLE) {
+        await withStore((col) => col.deleteOne({ _id: key }));
         return;
     }
     memValues.delete(key);
 }
 
 // Rolling-window request budget, reserved ATOMICALLY (check-and-record as one
-// indivisible step). This matters: an earlier version checked the count and
-// recorded the request as two separate steps, and concurrent requests for
-// *different* cache keys (which don't share a stampede lock, so nothing else
-// serializes them) could all read the same pre-record count and all pass the
-// check before any of them recorded — a classic TOCTOU race that let far more
-// than the configured budget through under real concurrent load. Verified
-// with a test simulating 10 simultaneous distinct-city requests against a
-// 6/minute budget: the old two-step version let all 10 through; this version
-// correctly caps it at 6.
+// indivisible step). A two-step check-then-record lets concurrent requests
+// all read the same pre-record count and all pass — the TOCTOU race that
+// once let 10 simultaneous requests through a 6/minute budget.
 //
-// Redis: a Lua script (EVAL) that prunes, counts, and conditionally ZADDs in
-// one atomic round-trip — Redis guarantees a script runs without any other
-// command interleaving. In-memory fallback: a plain synchronous function
-// (no `await` inside it) — Node's single-threaded event loop can't interleave
-// two synchronous calls either, so it's equally atomic for a single instance.
-const RESERVE_SLOT_SCRIPT = `
-local key = KEYS[1]
-local now = tonumber(ARGV[1])
-local windowMs = tonumber(ARGV[2])
-local maxCount = tonumber(ARGV[3])
-local member = ARGV[4]
-redis.call('ZREMRANGEBYSCORE', key, '-inf', now - windowMs)
-local count = redis.call('ZCARD', key)
-if count >= maxCount then
-  return 0
-end
-redis.call('ZADD', key, now, member)
-redis.call('EXPIRE', key, 120)
-return 1
-`;
-
-// Generalized form of the same atomic reserve-a-slot-in-a-rolling-window
-// primitive, parameterized by key — lets unrelated features (e.g. auth rate
-// limiting) get the same TOCTOU-safe guarantee under their own Redis key
-// without sharing Amber's "amber:requests" counter or its budget.
+// MongoDB applies an update to a single document atomically, so the whole
+// prune -> count -> conditionally-append runs as one pipeline update on the
+// key's document. Two first-ever upserts racing on the same _id can collide
+// on the unique index; the loser simply retries against the now-existing doc.
 async function reserveSlot(key, windowMs, maxCount) {
     const now = Date.now();
-    if (REDIS_AVAILABLE) {
-        const member = `${now}-${Math.random().toString(36).slice(2, 8)}`;
-        const result = await redisCommandPost(["EVAL", RESERVE_SLOT_SCRIPT, "1", key, String(now), String(windowMs), String(maxCount), member]);
-        return result === 1;
+    if (STORE_AVAILABLE) {
+        const pipeline = [
+            { $set: { t: { $filter: { input: { $ifNull: ["$t", []] }, cond: { $gt: ["$$this", now - windowMs] } } } } },
+            { $set: { granted: { $lt: [{ $size: "$t" }, maxCount] } } },
+            { $set: { t: { $cond: ["$granted", { $concatArrays: ["$t", [now]] }, "$t"] }, exp: new Date(now + windowMs + 60000) } },
+        ];
+        return withStore(async (col) => {
+            for (let attempt = 0; ; attempt++) {
+                try {
+                    const doc = await col.findOneAndUpdate({ _id: key }, pipeline, { upsert: true, returnDocument: "after" });
+                    return Boolean(doc?.granted);
+                } catch (err) {
+                    if (err.code !== DUPLICATE_KEY || attempt >= 2) throw err;
+                }
+            }
+        });
     }
     warnFallbackOnce();
     const cutoff = now - windowMs;
@@ -312,9 +241,8 @@ async function reserveSlot(key, windowMs, maxCount) {
     return true;
 }
 
-// Amber's own budget check — unchanged behavior/signature, now implemented
-// as a thin call into reserveSlot with Amber's fixed key so this file's one
-// existing caller (amberGateway.js) needs no changes at all.
+// Amber's own budget check — a thin call into reserveSlot with Amber's fixed
+// key so amberGateway.js needs no changes.
 async function tryReserveSlot(windowMs, maxCount) {
     return reserveSlot("amber:requests", windowMs, maxCount);
 }
@@ -323,34 +251,36 @@ async function tryReserveSlot(windowMs, maxCount) {
 // whether a request is allowed (that's tryReserveSlot's job, atomically).
 async function peekRecentRequestCount(windowMs) {
     const cutoff = Date.now() - windowMs;
-    if (REDIS_AVAILABLE) {
-        const count = await redisCommand("ZCOUNT", "amber:requests", String(cutoff), "+inf");
-        return Number(count) || 0;
+    if (STORE_AVAILABLE) {
+        const doc = await withStore((col) => col.findOne({ _id: "amber:requests" }, { projection: { t: 1 } }));
+        return (doc?.t || []).filter((t) => t >= cutoff).length;
     }
     const log = memRequestLogs.get("amber:requests") || [];
     return log.filter((t) => t >= cutoff).length;
 }
 
 // Distributed lock (cache-stampede protection): only the caller that
-// successfully "creates" the lock key proceeds to refresh Amber data; every
-// other concurrent caller for the same cache key backs off instead of also
-// hitting Amber. Redis: SET key value NX PX <ttl> is the standard atomic
-// acquire-if-absent pattern.
+// creates the lock document proceeds; every other concurrent caller backs
+// off. An expired lock is taken over with a conditional update — once one
+// caller has bumped `exp` into the future, nobody else's filter matches.
 //
-// The lock value is a random per-acquisition token, not a constant — this is
-// what makes releaseLock ownership-safe (see below). Returns the token on
-// success (falsy on failure), and the caller must pass that same token back
-// to releaseLock. Without this, if a lock TTL expired while its holder was
-// still legitimately running (a slow Amber response) and a second caller
-// then acquired a fresh lock for the same key, the FIRST caller's eventual
-// `finally { releaseLock(key) }` would delete the SECOND caller's still-live
-// lock — letting a third caller in while the second is still working, and
-// defeating the one-upstream-request-per-key guarantee this exists for.
+// The lock value is a random per-acquisition token so releaseLock only ever
+// deletes the caller's OWN lock — never a newer holder's lock that was
+// granted after this one's TTL ran out mid-request.
 async function acquireLock(key, ttlMs) {
     const token = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    if (REDIS_AVAILABLE) {
-        const result = await redisCommand("SET", key, token, "NX", "PX", String(ttlMs));
-        return result === "OK" ? token : null;
+    if (STORE_AVAILABLE) {
+        return withStore(async (col) => {
+            const exp = new Date(Date.now() + ttlMs);
+            try {
+                await col.insertOne({ _id: key, tok: token, exp });
+                return token;
+            } catch (err) {
+                if (err.code !== DUPLICATE_KEY) throw err;
+            }
+            const res = await col.updateOne({ _id: key, exp: { $lte: new Date() } }, { $set: { tok: token, exp } });
+            return res.modifiedCount === 1 ? token : null;
+        });
     }
     warnFallbackOnce();
     const now = Date.now();
@@ -360,29 +290,13 @@ async function acquireLock(key, ttlMs) {
     return token;
 }
 
-// Compare-and-delete: only removes the lock if its current value still
-// matches the token this caller was granted at acquire time. A plain
-// unconditional DEL would happily delete a *different, newer* holder's lock
-// (see acquireLock's comment) — this must be atomic (read+compare+delete as
-// one step), hence the Lua script for the Redis path, the same reasoning as
-// tryReserveSlot's RESERVE_SLOT_SCRIPT above.
-const RELEASE_LOCK_SCRIPT = `
-local key = KEYS[1]
-local expectedToken = ARGV[1]
-if redis.call('GET', key) == expectedToken then
-  return redis.call('DEL', key)
-else
-  return 0
-end
-`;
-
+// Compare-and-delete in one atomic step: the filter only matches while the
+// lock still holds this caller's token.
 async function releaseLock(key, token) {
-    if (REDIS_AVAILABLE) {
-        await redisCommandPost(["EVAL", RELEASE_LOCK_SCRIPT, "1", key, token]).catch(() => {
+    if (STORE_AVAILABLE) {
+        await withStore((col) => col.deleteOne({ _id: key, tok: token })).catch(() => {
             // Best-effort: if this fails, the lock simply expires on its own
-            // TTL instead of being released early. Never let a release failure
-            // surface as a request failure — the fetch it was protecting has
-            // already succeeded or failed on its own by this point.
+            // TTL. Never let a release failure surface as a request failure.
         });
         return;
     }
@@ -391,12 +305,12 @@ async function releaseLock(key, token) {
 }
 
 module.exports = {
-    REDIS_AVAILABLE,
-    // Exported for the round-trip verification script, not for app code.
-    encodeStoredValue,
-    decodeStoredValue,
-    COMPRESS_WRITES,
-    RedisUnavailableError,
+    STORE_AVAILABLE,
+    // Old names kept so existing callers (and their `instanceof` checks)
+    // work unchanged — these are the same values as the new names.
+    REDIS_AVAILABLE: STORE_AVAILABLE,
+    StoreUnavailableError,
+    RedisUnavailableError: StoreUnavailableError,
     sharedGet,
     sharedSet,
     sharedSetNX,

@@ -1,6 +1,6 @@
-// Redis-backed user store for our own authentication system — completely
-// separate from Amber. Uses the same Upstash Redis instance as the Amber
-// cache (api/_lib/sharedStore.js) but under its own key namespace
+// User store for our own authentication system — completely separate from
+// Amber. Uses the same shared store as the Amber cache
+// (api/_lib/sharedStore.js, MongoDB-backed) but under its own key namespace
 // (user:{id}, email:{normalizedEmail}) so it can never collide with or be
 // affected by Amber's "amber:*" cache/lock/budget keys.
 //
@@ -108,6 +108,15 @@ async function updateLastLogin(userId) {
     return user;
 }
 
+// Used by scripts/reset-internal-passwords.js. Login itself never calls this.
+async function updatePassword(userId, password) {
+    const user = await findUserById(userId);
+    if (!user) return null;
+    user.passwordHash = await hashPassword(password);
+    await sharedSet(userKey(userId), user);
+    return user;
+}
+
 // Strips passwordHash (and anything else internal) before a user record is
 // ever allowed near an HTTP response.
 function toSafeUser(user) {
@@ -121,6 +130,7 @@ module.exports = {
     findUserByEmail,
     findUserById,
     updateLastLogin,
+    updatePassword,
     hashPassword,
     verifyPassword,
     toSafeUser,

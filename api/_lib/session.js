@@ -1,4 +1,4 @@
-// Redis-backed session store for our own authentication system. Sessions
+// Session store (api/_lib/sharedStore.js, MongoDB-backed) for our own authentication system. Sessions
 // are opaque random IDs (never a JWT), handed to the browser only inside an
 // HttpOnly cookie — client-side JavaScript never sees or holds the session
 // ID, which is what keeps it out of reach of XSS (unlike a localStorage

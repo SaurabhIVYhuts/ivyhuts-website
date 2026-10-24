@@ -8,11 +8,11 @@
 //
 // Deliberately does NOT load .env.local/.env (unlike local-api-server.js),
 // so it always runs the functional tests against sharedStore's in-memory
-// fallback (UPSTASH_* left unset in this process) — this must never write
-// test accounts into the real production Upstash Redis instance. The one
-// exception is the "Redis unavailable" test, which spawns a short-lived
-// child process with a deliberately unreachable fake Upstash URL — still
-// never touching the real instance.
+// fallback (SHARED_STORE left unset in this process) — this must never write
+// test accounts into the real production store. The one exception is the
+// "store unavailable" test, which spawns a short-lived child process with a
+// deliberately unreachable fake MongoDB URI — still never touching the real
+// database.
 "use strict";
 
 const assert = require("assert");
@@ -67,26 +67,27 @@ function extractCookieValue(setCookieHeader, name) {
     return match ? match[1] : null;
 }
 
-function runInChildWithUnreachableRedis(inlineScript) {
+function runInChildWithUnreachableStore(inlineScript) {
     return spawnSync(process.execPath, ["-e", inlineScript], {
         cwd: ROOT,
         env: {
             ...process.env,
-            // A port nothing listens on locally — fetch() fails fast
-            // (ECONNREFUSED) rather than hanging, which is what makes this a
-            // realistic "Redis is configured but the endpoint is down"
-            // simulation rather than a "Redis isn't configured at all" one.
-            UPSTASH_REDIS_REST_URL: "http://127.0.0.1:9",
-            UPSTASH_REDIS_REST_TOKEN: "test-invalid-token-never-a-real-secret",
+            // The shared store is MongoDB-backed now: opt in, but point it at
+            // a port nothing listens on locally — a realistic "store is
+            // configured but the database is down" simulation rather than a
+            // "store isn't configured at all" one. The connect attempt waits
+            // out mongodb.js's serverSelectionTimeoutMS before failing.
+            SHARED_STORE: "mongo",
+            MONGODB_URI: "mongodb://127.0.0.1:9/verify-auth-unreachable",
         },
         encoding: "utf8",
-        timeout: 10000,
+        timeout: 30000,
     });
 }
 
 async function main() {
     console.log("=== IvyHuts Auth Backend Verification (Milestone 2) ===");
-    console.log("Redis backing for functional tests: in-memory fallback (UPSTASH_* left unset in this process) — no writes reach production Redis.\n");
+    console.log("Shared store for functional tests: in-memory fallback (SHARED_STORE left unset in this process) — no writes reach the production store.\n");
 
     const userStore = require(path.join(ROOT, "api", "_lib", "userStore"));
     const session = require(path.join(ROOT, "api", "_lib", "session"));
@@ -354,9 +355,9 @@ async function main() {
 
     // 15. Redis unavailable (configured but unreachable) must fail closed
     // with 503, never silently fall back to an in-memory store — spawned in
-    // a fresh child process so the fake Upstash URL doesn't leak into the
+    // a fresh child process so the fake MongoDB URI doesn't leak into the
     // rest of this script's in-memory-backed tests.
-    await test("Redis configured-but-unreachable fails closed with 503 (never silently falls back)", async () => {
+    await test("Store configured-but-unreachable fails closed with 503 (never silently falls back)", async () => {
         const inlineScript = `
             const path = require("path");
             const login = require(path.join(process.cwd(), "api", "_lib", "routes", "auth", "login.js"));
@@ -367,10 +368,12 @@ async function main() {
                 process.stdout.write(JSON.stringify({ statusCode: res.statusCode, body: res.body }));
             })().catch((err) => { process.stdout.write(JSON.stringify({ error: err.message })); process.exitCode = 1; });
         `;
-        const result = runInChildWithUnreachableRedis(inlineScript);
+        const result = runInChildWithUnreachableStore(inlineScript);
         assert.strictEqual(result.status, 0, `child process crashed unexpectedly: ${result.stderr}`);
-        const parsed = JSON.parse(result.stdout);
-        assert.strictEqual(parsed.statusCode, 503, `expected 503 when Redis is configured but unreachable, got: ${JSON.stringify(parsed)}`);
+        // mongodb.js logs its connect attempt to stdout too — the result is
+        // the last line.
+        const parsed = JSON.parse(result.stdout.trim().split("\n").pop());
+        assert.strictEqual(parsed.statusCode, 503, `expected 503 when the store is configured but unreachable, got: ${JSON.stringify(parsed)}`);
         assert.strictEqual(parsed.body.error, "service_unavailable");
     });
 
