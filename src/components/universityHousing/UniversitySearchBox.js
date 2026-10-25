@@ -229,8 +229,8 @@ export default function UniversitySearchBox({ selected, onSelect, onClear, autoF
             if (searchState !== "idle") resetSearchResult();
           }}
           onFocus={() => setOpen(true)}
-          placeholder="Search a university, school, city or country — or paste a Google Maps link"
-          aria-label="Search a university, school, city or country, or paste a Google Maps link"
+          placeholder="Search a university,city or country — or paste a Google Maps link"
+          aria-label="Search a university,city or country, or paste a Google Maps link"
           autoComplete="off"
           autoFocus={autoFocus}
           maxLength={MAX_URL_LENGTH}
